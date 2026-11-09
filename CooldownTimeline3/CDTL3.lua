@@ -2608,11 +2608,13 @@ end
 
 local function OnCastEnded(_, event, unit)
 	if unit ~= "player" then return end
-	CDTL3:UpdateCastingState()
-	-- the client can still report the cast in the frame its stop event fires: read again on
-	-- the next frame so no frame stays hidden
+	-- Read on the next frame: the client can still report the cast in the frame its stop event
+	-- fires, and with chained casts (spell queue) the next START often follows in the same
+	-- frame, so reading at once would flash the frames between the two casts.
 	if C_Timer and C_Timer.After then
 		C_Timer.After(0, RecheckCasting)
+	else
+		CDTL3:UpdateCastingState()
 	end
 end
 
@@ -2647,7 +2649,8 @@ function CDTL3:RegisterCastEvents()
 		pcall(CDTL3.RegisterUnitEvents, CDTL3, event, "player")
 	end
 	-- seed the cast state: a /reload or a TurnOn DURING a cast refires no START event
-	CDTL3.casting = ReadPlayerCasting()
+	-- (Autohide does not run every frame, so re-apply visibility when the seed changes it)
+	CDTL3:UpdateCastingState()
 end
 
 function CDTL3:UnregisterCastEvents()
@@ -2658,8 +2661,12 @@ function CDTL3:UnregisterCastEvents()
 	for _, event in ipairs(CAST_EVENTS_OPTIONAL) do
 		pcall(f.UnregisterEvent, f, event)
 	end
-	-- nothing tracks casts any more: never leave the frames hidden by a stale state
-	CDTL3.casting = false
+	-- nothing tracks casts any more: never leave the frames hidden by a stale state, and
+	-- re-apply visibility, since Autohide does not run every frame
+	if CDTL3.casting then
+		CDTL3.casting = false
+		CDTL3:ApplyCombatVisibility()
+	end
 end
 
 function CDTL3:PLAYER_REGEN_DISABLED()

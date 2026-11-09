@@ -219,16 +219,33 @@ function CDTL3:Autohide(f, s)
 			or (gl["hideWhileCasting"] and CDTL3.casting)
 	if hideNow and not CDTL3.testing
 			and not gl["unlockFrames"] and not gl["debugMode"] then
+		-- LOCAL PATCH (Zippy, 2026-11-09): Autohide only runs on frame updates and visibility
+		-- edges, not every frame, so a fade-in still running (a cast right after the last one)
+		-- would finish at full alpha and leave the frame visible. Stop it first.
+		if f.animateIn and f.animateIn:IsPlaying() then
+			f.animateIn:Stop()
+		end
 		if f:GetAlpha() ~= 0 then
 			if f.animateOut then
 				if not f.animateOut:IsPlaying() then
 					f.animateOut:Play()
+					f.cdtl3HideFade = true	-- LOCAL PATCH (Zippy, 2026-11-09): fade started by this rule
 				end
 			else
 				f:SetAlpha(0)
 			end
 		end
 		return
+	end
+
+	-- LOCAL PATCH (Zippy, 2026-11-09): the hide rule no longer applies (a cast ended within the
+	-- 0.3 s fade, e.g. an early interrupt). Stop the fade-out it started, or it would finish at
+	-- alpha 0 and nothing would show the frame again.
+	if f.cdtl3HideFade then
+		f.cdtl3HideFade = nil
+		if f.animateOut and f.animateOut:IsPlaying() then
+			f.animateOut:Stop()
+		end
 	end
 
 	if CDTL3.db.profile.global["autohide"] and not CDTL3.db.profile.global["unlockFrames"] and not CDTL3.db.profile.global["debugMode"] then
@@ -280,11 +297,13 @@ function CDTL3:ApplyCombatVisibility()
 	local gl = CDTL3.db.profile.global
 	if not gl["hideOutOfCombat"] and not gl["hideWhileCasting"] then return end
 
-	for k in pairs(CDTL3.lanes) do
-		CDTL3:RefreshLane(k)
+	-- LOCAL PATCH (Zippy, 2026-11-09): refresh by frame number, not list index (the lists hold only
+	-- created frames in creation order, see RefreshConfig)
+	for _, f in pairs(CDTL3.lanes) do
+		CDTL3:RefreshLane(f.number)
 	end
-	for k in pairs(CDTL3.barFrames) do
-		CDTL3:RefreshBarFrame(k)
+	for _, f in pairs(CDTL3.barFrames) do
+		CDTL3:RefreshBarFrame(f.number)
 	end
 	for i = 1, 3 do
 		if _G["CDTL3_Ready_" .. i] then

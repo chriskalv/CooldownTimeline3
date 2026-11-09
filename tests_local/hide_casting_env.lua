@@ -56,7 +56,7 @@ FR = { lane = newFrame(false), bar = newFrame(true), ready = newFrame(false) }
 CDTL3 = {
 	db = { profile = { global = { hideOutOfCombat = false, hideWhileCasting = false,
 		unlockFrames = false, debugMode = false, autohide = false } } },
-	lanes = { [1] = true }, barFrames = { [1] = true },
+	lanes = { { number = 1 } }, barFrames = { { number = 1 } },
 	testing = false, combat = false, casting = false, enabled = false,
 	retailAPI = true, tocversion = 11507, isForever = true,
 	succeeded = 0,
