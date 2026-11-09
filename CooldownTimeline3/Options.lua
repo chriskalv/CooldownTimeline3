@@ -604,6 +604,21 @@ function CDTL3:GetMainOptions()
 								CDTL3:RefreshConfig()
 							end,
 					},
+					-- LOCAL PATCH (Zippy, 2026-11-09): Hide while casting
+					hideWhileCasting = {
+						name = "Hide while casting",
+						desc = "Frames fade while you cast or channel a spell with a cast time and reappear the moment the cast ends, is interrupted or fails. Instant spells don't count. Cooldown detection keeps running. Unlock frames, Edit Mode and test mode always show the frames",
+						order = 200.6,
+						type = "toggle",
+						width = "full",
+						get = function(info, index)
+								return CDTL3.db.profile.global["hideWhileCasting"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["hideWhileCasting"] = val
+								CDTL3:RefreshConfig()
+							end,
+					},
 					autohide = {
 						name = "Auto-hide Frames",
 						desc = "If selected frames will hide themselves when there is no active bar/icon in it",

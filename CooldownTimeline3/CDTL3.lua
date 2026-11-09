@@ -95,6 +95,8 @@ CDTL3.colors = {
 }
 CDTL3.custom = {}
 CDTL3.combat = false
+-- LOCAL PATCH (Zippy, 2026-11-09): true while the player casts or channels (Hide while casting)
+CDTL3.casting = false
 CDTL3.enabled = false
 local private = {}
 
@@ -767,6 +769,8 @@ local defaults = {
 			enabledGroup = false,
 			enabledInstance = false,
 			hideOutOfCombat = false,
+			-- LOCAL PATCH (Zippy, 2026-11-09): Hide while casting
+			hideWhileCasting = false,
 
 			dynamicSpellDetection = false,
 			
@@ -2565,6 +2569,99 @@ function CDTL3:ITEM_LOCK_CHANGED(...)
 	end
 end
 
+-- LOCAL PATCH (Zippy, 2026-11-09): Hide while casting. CDTL3.casting follows the player's own casts and
+-- channels (cast and channel info is readable for the player on WoW: Forever). Instant spells
+-- fire no START event, so they never count. A failing read counts as "not casting", so a frame
+-- is never left hidden by an error.
+local function ReadPlayerCasting()
+	local ok, name = pcall(UnitCastingInfo, "player")
+	if ok and name then
+		return true
+	end
+	ok, name = pcall(UnitChannelInfo, "player")
+	if ok and name then
+		return true
+	end
+	return false
+end
+
+-- Re-read the cast state (or take "casting" from a START event) and re-apply visibility only
+-- when it changed.
+function CDTL3:UpdateCastingState(started)
+	local casting = (started and true) or ReadPlayerCasting()
+	if casting ~= CDTL3.casting then
+		CDTL3.casting = casting
+		CDTL3:ApplyCombatVisibility()
+	end
+end
+
+local function RecheckCasting()
+	if CDTL3.enabled then	-- detection turned off meanwhile: TurnOff already cleared the state
+		CDTL3:UpdateCastingState()
+	end
+end
+
+local function OnCastStarted(_, event, unit)
+	if unit ~= "player" then return end	-- plain RegisterEvent fallback delivers every unit
+	CDTL3:UpdateCastingState(true)
+end
+
+local function OnCastEnded(_, event, unit)
+	if unit ~= "player" then return end
+	CDTL3:UpdateCastingState()
+	-- the client can still report the cast in the frame its stop event fires: read again on
+	-- the next frame so no frame stays hidden
+	if C_Timer and C_Timer.After then
+		C_Timer.After(0, RecheckCasting)
+	end
+end
+
+CDTL3.UNIT_SPELLCAST_START = OnCastStarted
+CDTL3.UNIT_SPELLCAST_CHANNEL_START = OnCastStarted
+CDTL3.UNIT_SPELLCAST_EMPOWER_START = OnCastStarted
+CDTL3.UNIT_SPELLCAST_STOP = OnCastEnded
+CDTL3.UNIT_SPELLCAST_FAILED = OnCastEnded
+CDTL3.UNIT_SPELLCAST_INTERRUPTED = OnCastEnded
+CDTL3.UNIT_SPELLCAST_CHANNEL_STOP = OnCastEnded
+CDTL3.UNIT_SPELLCAST_EMPOWER_STOP = OnCastEnded
+
+-- Events behind Hide while casting; the EMPOWER pair only where the client knows it.
+local CAST_EVENTS = {
+	"UNIT_SPELLCAST_START",
+	"UNIT_SPELLCAST_STOP",
+	"UNIT_SPELLCAST_FAILED",
+	"UNIT_SPELLCAST_INTERRUPTED",
+	"UNIT_SPELLCAST_CHANNEL_START",
+	"UNIT_SPELLCAST_CHANNEL_STOP",
+}
+local CAST_EVENTS_OPTIONAL = {
+	"UNIT_SPELLCAST_EMPOWER_START",
+	"UNIT_SPELLCAST_EMPOWER_STOP",
+}
+
+function CDTL3:RegisterCastEvents()
+	for _, event in ipairs(CAST_EVENTS) do
+		CDTL3:RegisterUnitEvents(event, "player")
+	end
+	for _, event in ipairs(CAST_EVENTS_OPTIONAL) do
+		pcall(CDTL3.RegisterUnitEvents, CDTL3, event, "player")
+	end
+	-- seed the cast state: a /reload or a TurnOn DURING a cast refires no START event
+	CDTL3.casting = ReadPlayerCasting()
+end
+
+function CDTL3:UnregisterCastEvents()
+	local f = CDTL3.unitEventFrame
+	for _, event in ipairs(CAST_EVENTS) do
+		f:UnregisterEvent(event)
+	end
+	for _, event in ipairs(CAST_EVENTS_OPTIONAL) do
+		pcall(f.UnregisterEvent, f, event)
+	end
+	-- nothing tracks casts any more: never leave the frames hidden by a stale state
+	CDTL3.casting = false
+end
+
 function CDTL3:PLAYER_REGEN_DISABLED()
 	CDTL3.combat = true
 	CDTL3:ApplyCombatVisibility()
@@ -2887,6 +2984,8 @@ function CDTL3:TurnOn()
 		CDTL3.combat = (UnitAffectingCombat and UnitAffectingCombat("player")) or false
 		CDTL3:RegisterUnitEvents("UNIT_POWER_FREQUENT", "player")
 		CDTL3:RegisterUnitEvents("UNIT_POWER_UPDATE", "player")
+		-- LOCAL PATCH (Zippy, 2026-11-09): cast state for Hide while casting (also seeds CDTL3.casting)
+		CDTL3:RegisterCastEvents()
 
 		CDTL3:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
 		
@@ -2916,6 +3015,8 @@ function CDTL3:TurnOff()
 		CDTL3:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		CDTL3.unitEventFrame:UnregisterEvent("UNIT_POWER_FREQUENT")
 		CDTL3.unitEventFrame:UnregisterEvent("UNIT_POWER_UPDATE")
+		-- LOCAL PATCH (Zippy, 2026-11-09): cast events of Hide while casting
+		CDTL3:UnregisterCastEvents()
 
 		CDTL3:UnregisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
 		

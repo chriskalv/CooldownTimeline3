@@ -213,7 +213,11 @@ function CDTL3:Autohide(f, s)
 	-- running (a cooldown started on the last pull is still tracked and shown on the next one).
 	-- Unlock, Edit Mode (which unlocks the frames), debug and test mode all win over it.
 	local gl = CDTL3.db.profile.global
-	if gl["hideOutOfCombat"] and not CDTL3.combat and not CDTL3.testing
+	-- LOCAL PATCH (Zippy, 2026-11-09): Hide while casting fades the frames the same way while the player
+	-- casts or channels (CDTL3.casting), with the same exceptions.
+	local hideNow = (gl["hideOutOfCombat"] and not CDTL3.combat)
+			or (gl["hideWhileCasting"] and CDTL3.casting)
+	if hideNow and not CDTL3.testing
 			and not gl["unlockFrames"] and not gl["debugMode"] then
 		if f:GetAlpha() ~= 0 then
 			if f.animateOut then
@@ -272,7 +276,9 @@ end
 -- appear the moment a pull starts) instead of waiting for the next update poll. The refresh
 -- functions run every frame through CDTL3:Autohide, where the actual rule lives.
 function CDTL3:ApplyCombatVisibility()
-	if not CDTL3.db.profile.global["hideOutOfCombat"] then return end
+	-- LOCAL PATCH (Zippy, 2026-11-09): also re-applied on cast edges for Hide while casting
+	local gl = CDTL3.db.profile.global
+	if not gl["hideOutOfCombat"] and not gl["hideWhileCasting"] then return end
 
 	for k in pairs(CDTL3.lanes) do
 		CDTL3:RefreshLane(k)
