@@ -6,6 +6,7 @@ Zippy's personal build of **CDTL3 (CooldownTimeline3)** for WoW Forever: the rel
 
 - `CooldownTimeline3/`: the addon folder. Copy it to `World of Warcraft\_forever_\Interface\AddOns\CooldownTimeline3\` (replace the files there).
 - `tests/`: simulations of the patched code in Node with fengari (Lua in JavaScript); not part of the addon.
+- `tools/fetch_release.mjs`: downloads a CDTL3 release zip from CurseForge (see below).
 - Branch `upstream`: the unmodified CDTL3 releases, one commit per release. `main` is `upstream` plus the local patches.
 
 | | |
@@ -23,7 +24,7 @@ Every changed place in the addon folder carries a comment `LOCAL PATCH (Zippy, <
 
 ## Updating to a new CDTL3 release
 
-1. Get the release zip (CurseForge or Wago). On branch `upstream`, replace `CooldownTimeline3/` with the folder from the zip and commit it as "CDTL3 <version> as released".
+1. Get the release zip: `npm run fetch` downloads the newest release to `dist/` and prints its SHA-256 (`npm run fetch -- --list` shows all releases, `-- --version 3.0.11` picks one, `-- --unpack` also unpacks it to `dist/<version>/`). The CurseForge project page refuses automated requests, so the script reads the file list from the widget API `api.cfwidget.com/1570576` and loads the file from the CDN `edge.forgecdn.net`; behind an HTTPS proxy it restarts itself with `NODE_USE_ENV_PROXY=1`. On branch `upstream`, replace `CooldownTimeline3/` with the folder from the zip and commit it as "CDTL3 <version> as released", citing the SHA-256.
 2. Merge `upstream` into `main`. Conflicts can only come up at the `LOCAL PATCH` places. If the release fixes something a local patch does, drop that patch.
 3. `npm install`, then `npm test` (and `npm run mutations` after changes to a patch). The simulations read the real addon code, so they fail if a patched function moved or changed.
 4. Copy `CooldownTimeline3/` into the game and `/reload`.
@@ -36,4 +37,4 @@ npm test
 npm run mutations
 ```
 
-`npm test` runs `tests/seal_patches.test.mjs` (patches 1 and 2), `tests/hide_casting.test.mjs` (patch 3: option, events, cast state, the visibility rule) and `tests/timeline.mjs` (patch 3 with 0.3 s fade animations over time). `npm run mutations` breaks patch 3 in a few ways on disk and expects every break to turn a test red; it restores the addon files with git afterwards.
+`npm test` runs `tests/fetch_release.test.mjs` (file choice and CDN URL of the fetch script, offline), `tests/seal_patches.test.mjs` (patches 1 and 2), `tests/hide_casting.test.mjs` (patch 3: option, events, cast state, the visibility rule) and `tests/timeline.mjs` (patch 3 with 0.3 s fade animations over time). `npm run mutations` breaks patch 3 in a few ways on disk and expects every break to turn a test red; it restores the addon files with git afterwards.
