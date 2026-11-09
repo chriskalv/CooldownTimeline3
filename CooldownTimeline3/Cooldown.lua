@@ -1302,6 +1302,12 @@ private.CooldownUpdate = function(f, elapsed)
 								if d["setCustomCD"] and d["customCDTime"] then
 									d["baseCD"] = d["customCDTime"] / 1000
 									duration = d["baseCD"]
+									-- LOCAL PATCH (Zippy, 2026-11-09): a spell without a cooldown of its own
+									-- (a Paladin seal) reports start 0 once the GCD is over, and at once in
+									-- combat; count the custom time from the player's own cast instead.
+									if start == 0 and CDTL3.spellCastTimes and CDTL3.spellCastTimes[d["id"]] then
+										start = CDTL3.spellCastTimes[d["id"]]
+									end
 								end
 								d["currentCD"] = start + duration - GetTime()
 

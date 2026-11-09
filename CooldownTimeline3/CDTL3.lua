@@ -2195,6 +2195,68 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 	end
 end
 
+-- LOCAL PATCH (Zippy, 2026-11-09): only one Paladin seal can be active. Seals are recognized
+-- in any client language: the client names a few known seals (Seal of Righteousness, Command,
+-- the Crusader, Light, Wisdom, Justice), and their common start ("Seal of ", "Siegel de")
+-- also recognizes seals that are not in the list.
+local SEAL_IDS = { 20154, 20375, 20305, 20165, 20166, 20164 }
+local sealNames, sealPrefix, sealCount = nil, nil, 0
+
+local function BuildSealNames()
+	sealNames, sealPrefix, sealCount = {}, nil, 0
+	for _, id in ipairs(SEAL_IDS) do
+		local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+		if type(name) == "string" and name ~= "" then
+			sealNames[name] = true
+			sealCount = sealCount + 1
+			if sealPrefix == nil then
+				sealPrefix = name
+			else
+				local i = 0
+				while i < #sealPrefix and i < #name and sealPrefix:byte(i + 1) == name:byte(i + 1) do
+					i = i + 1
+				end
+				sealPrefix = sealPrefix:sub(1, i)
+			end
+		end
+	end
+	if sealCount < 2 or sealPrefix == nil or #sealPrefix < 4 then
+		sealPrefix = nil
+	end
+end
+
+function CDTL3:IsSealName(name)
+	if type(name) ~= "string" or name == "" then
+		return false
+	end
+	if sealNames == nil or sealCount < 2 then
+		BuildSealNames()
+	end
+	if sealNames[name] then
+		return true
+	end
+	return sealPrefix ~= nil and name:sub(1, #sealPrefix) == sealPrefix
+end
+
+-- Casting a seal ends the running timers of the other seals: straight to the holding area, so
+-- no ready frame or ready sound. Casting the old seal again restarts its timer (SendToLane).
+function CDTL3:EndOtherSealTimers(castName)
+	if not CDTL3.cooldowns or not CDTL3:IsSealName(castName) then
+		return
+	end
+	for _, f in pairs(CDTL3.cooldowns) do
+		local d = f.data
+		if d and d["type"] == "spells" and d["name"] ~= castName and d["currentCD"] and d["currentCD"] >= 0
+				and CDTL3:IsSealName(d["name"]) then
+			d["currentCD"] = -1
+			CDTL3:SendToHolding(f)
+			if CDTL3.SendToBarHolding then
+				CDTL3:SendToBarHolding(f)
+			end
+		end
+	end
+end
+
 function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 	local temp, unitTarget, castGUID, spellID = ...
 
@@ -2234,6 +2296,11 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 		end
 
 		if isKnown or isKnownOrOverridesKnown then
+			-- LOCAL PATCH (Zippy, 2026-11-09): a seal from the spellbook ends the other seals' timers.
+			-- Only known spells count, so a late proc of the old seal (its own spell ID) while seal
+			-- twisting doesn't end the new seal's timer.
+			CDTL3:EndOtherSealTimers(spellName)
+
 			local s = CDTL3:GetSpellSettings(spellName, "spells")
 			if s then
 				-- the poll reads the cooldown by the saved entry's id, which can be another rank's
