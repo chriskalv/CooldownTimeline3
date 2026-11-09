@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const NM = '/home/user/squareminimapbuttons/node_modules';
+const NM = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'node_modules');
 const luaparse = require(NM + '/luaparse');
 const { lua, lauxlib, lualib, to_luastring } = require(NM + '/fengari');
 

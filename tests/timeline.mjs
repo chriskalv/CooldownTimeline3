@@ -3,7 +3,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
-const NM = '/home/user/squareminimapbuttons/node_modules';
+const NM = new URL('../node_modules', import.meta.url).pathname;
 const luaparse = require(NM + '/luaparse');
 const { lua, lauxlib, lualib, to_luastring, to_jsstring } = require(NM + '/fengari');
 

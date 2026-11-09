@@ -1,0 +1,13 @@
+{
+  "name": "cooldowntimeline3-personal",
+  "private": true,
+  "description": "Personal build of CDTL3 (CooldownTimeline3) with local patches for WoW Forever; development tools only.",
+  "scripts": {
+    "test": "node tests/seal_patches.test.mjs && node tests/hide_casting.test.mjs && node tests/timeline.mjs",
+    "mutations": "node tests/mutations.mjs"
+  },
+  "devDependencies": {
+    "fengari": "0.1.5",
+    "luaparse": "0.3.1"
+  }
+}
