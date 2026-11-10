@@ -3,11 +3,14 @@
 // lines are in Cooldown.lua and runs the same rule as a small replica.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 const require = createRequire(import.meta.url);
-const NM = new URL('../node_modules', import.meta.url).pathname;
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const NM = path.join(root, 'node_modules');
 const { lua, lauxlib, lualib, to_luastring } = require(NM + '/fengari');
 
-const ADDON = new URL('../CooldownTimeline3/', import.meta.url).pathname;
+const ADDON = path.join(root, 'CooldownTimeline3') + path.sep;
 const read = (f) => readFileSync(ADDON + f, 'utf8').replace(/\r\n/g, '\n');
 let passed = 0, failed = 0;
 const check = (ok, what) => { if (ok) passed++; else { failed++; console.error('FAIL: ' + what); } };

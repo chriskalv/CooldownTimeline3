@@ -2,13 +2,17 @@
 // in-memory mutation, runs env + addon code + matrix + spec in fengari.
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 const require = createRequire(import.meta.url);
-const NM = new URL('../node_modules', import.meta.url).pathname;
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(here, '..');
+const NM = path.join(root, 'node_modules');
 const luaparse = require(NM + '/luaparse');
 const { lua, lauxlib, lualib, to_luastring, to_jsstring } = require(NM + '/fengari');
 
-const ADDON = new URL('../CooldownTimeline3/', import.meta.url).pathname;
-const HERE = new URL('./', import.meta.url).pathname;
+const ADDON = path.join(root, 'CooldownTimeline3') + path.sep;
+const HERE = here + path.sep;
 
 export function extract(srcs) {
   const out = [];
