@@ -5,7 +5,8 @@
   "scripts": {
     "test": "node --test tests/fetch_release.test.mjs && node tests/seal_patches.test.mjs && node tests/hide_casting.test.mjs && node tests/timeline.mjs",
     "mutations": "node tests/mutations.mjs",
-    "fetch": "node tools/fetch_release.mjs"
+    "fetch": "node tools/fetch_release.mjs",
+    "release": "node tools/release.mjs CooldownTimeline3"
   },
   "devDependencies": {
     "fengari": "0.1.5",
