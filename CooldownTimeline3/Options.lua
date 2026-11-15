@@ -364,6 +364,18 @@ function CDTL3:GetChangeLog()
 	changeLog = changeLog.."CDTL3 continues Cooldown Timeline for Retail (Midnight), Classic Era,\n"
 	changeLog = changeLog.."TBC Anniversary, MoP Classic and World of Warcraft: Forever,\n"
 	changeLog = changeLog.."based on the original by Vreenak and the v2 rewrite by cliffclive.\n\n"
+	changeLog = changeLog.."Changelog 3.1.0:\n\n"
+	changeLog = changeLog.."  - Retail and Forever: combat timers (experimental, on by default). In\n"
+	changeLog = changeLog.."    combat, spell icons, bars and countdown text follow the game's own timer\n"
+	changeLog = changeLog.."    at the real length, and go to ready on time\n"
+	changeLog = changeLog.."  - Buffs in the Cooldown Manager's Tracked Bars (/cdm) get an exact timer\n"
+	changeLog = changeLog.."    in combat; other buffs show an estimate in dimmed text. Global tab:\n"
+	changeLog = changeLog.."    turn combat timers off, or hide Blizzard's Tracked Bars\n"
+	changeLog = changeLog.."  - Lanes: Max Time and Split (Time) values go up to an hour on the slider,\n"
+	changeLog = changeLog.."    and a Long buffs scale button sets up a lane for 10 and 60 minute buffs\n"
+	changeLog = changeLog.."  - Unticking Ignored on a buff that's up shows it at once\n"
+	changeLog = changeLog.."  - Bar frames: unticking Transition bars brings hidden bars back without\n"
+	changeLog = changeLog.."    a reload\n\n"
 	changeLog = changeLog.."Changelog 3.0.13:\n\n"
 	changeLog = changeLog.."  - Forever: spell list updated for the November changes (Lightning\n"
 	changeLog = changeLog.."    Mastery, Totemic Call at 30 s, no Lava Burst; Swift Judgement is a\n"
@@ -484,14 +496,26 @@ function CDTL3:GetChangeLog()
 	return changeLog
 end
 
+-- Shown in the welcome window under the support link, above the changelog
 function CDTL3:GetSpecialMessage()
 	local message = ""
-	--message = message.."\n"
-	--message = message.."Profile import/exporting testing is still ongoing.\n"
-	--message = message.."\n"
-	--message = message.."While I havent seen any issues with this feature yet, I want to make sure it works ok, so please provide feedback where appropriate.\n"
-	--message = message.."\n"
-		
+
+	-- 3.1.0: combat timers are on for everyone; say so once, with how to turn them off
+	local CT = CDTL3.CombatTimers
+	if CT and CT:Available() then
+		message = message.."|cFFffd100New in 3.1.0: combat timers (experimental), on for everyone|r\n\n"
+		message = message.."In combat the game hides cooldown and buff timings from addons. CDTL3 now\n"
+		message = message.."uses the game's own timer instead:\n\n"
+		message = message.."  - Spell cooldowns keep sliding, draining and counting down in combat, at\n"
+		message = message.."    their real length (talents and haste included), and go to ready on time\n"
+		message = message.."  - Buffs you add to Tracked Bars in Blizzard's Cooldown Manager (/cdm) get\n"
+		message = message.."    an exact timer in combat; other buffs show an estimate in dimmed text\n\n"
+		message = message.."To turn them off: Global tab > Combat timers (experimental), or type\n"
+		message = message.."/cdtl3 combattimers off\n\n"
+		message = message.."This is new. If anything looks wrong, please report it at the link above,\n"
+		message = message.."with your class and what you saw. Spells with charges are the least tested.\n\n"
+	end
+
 	return message
 end
 
@@ -645,6 +669,52 @@ function CDTL3:GetMainOptions()
 								CDTL3.db.global.minimapHide = not val
 								if CDTL3.minimapBtn then
 									CDTL3.minimapBtn:SetShown(val)
+								end
+							end,
+					},
+					combatTimers = {
+						name = "Combat timers (experimental)",
+						desc = "Keeps spell cooldowns moving in combat with the game's own timer, and gives buffs in Blizzard's Cooldown Manager Tracked Bars an exact timer. Other buffs keep an estimate.",
+						order = 350,
+						type = "toggle",
+						width = "full",
+						hidden = function(info)
+								local CT = CDTL3.CombatTimers
+								return not (CT and CT:Available())
+							end,
+						get = function(info, index)
+								local CT = CDTL3.CombatTimers
+								return CT and CT:Enabled() or false
+							end,
+						set = function(info, val)
+								local CT = CDTL3.CombatTimers
+								if CT then
+									CT:SetEnabled(val)
+								end
+							end,
+					},
+					combatTimersHideBars = {
+						name = "Hide Blizzard's Tracked Bars",
+						desc = "Blizzard's bars must stay on to feed CDTL3; this makes them invisible.",
+						order = 351,
+						type = "toggle",
+						width = "full",
+						hidden = function(info)
+								local CT = CDTL3.CombatTimers
+								return not (CT and CT:Available())
+							end,
+						disabled = function(info)
+								local CT = CDTL3.CombatTimers
+								return not (CT and CT:Enabled())
+							end,
+						get = function(info, index)
+								local ct = CDTL3.db.profile.global["combatTimers"]
+								return ct and ct["hideBlizzardBars"] or false
+							end,
+						set = function(info, val)
+								local CT = CDTL3.CombatTimers
+								if CT then
+									CT:SetHideBlizzardBars(val)
 								end
 							end,
 					},
@@ -1491,18 +1561,19 @@ function CDTL3:GetFilterOptions()
 					},
 					ignoreThreshold = {
 						name = "Ignore Threshold",
-						desc = "Any cooldown/duration longer than this will be disabled by default\n",
+						desc = "Any cooldown/duration longer than this (in seconds, up to 7200) will be disabled by default\n",
 						order = 251,
 						type = "range",
-						softMin = 5,
-						softMax = 1800,
+						-- hard limits, so the slider can reach and show every value (defaults go to 3600)
+						min = 1,
+						max = 7200,
 						bigStep = 1,
 						hidden = function(info)
 								return CDTL3.currentFilterHidden["default"]
 							end,
 						get = function(info, index)
 								local default = CDTL3.currentFilter["default"]
-								return CDTL3.db.profile.global[string.lower(default)]["ignoreThreshold"]
+								return math.min(CDTL3.db.profile.global[string.lower(default)]["ignoreThreshold"] or 0, 7200)
 							end,
 						set = function(info, val)
 								local default = CDTL3.currentFilter["default"]
@@ -3635,8 +3706,21 @@ private.GetFilterSet = function(t, o)
 							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
 							if s then
 								s.data["ignored"] = val
-							
+
 								CDTL3:RefreshIcon(s)
+							end
+
+							-- Unticked on a buff/debuff that is up right now: show it at once
+							if not val and (t == "buffs" or t == "debuffs") and CDTL3.db.profile.global[t]["enabled"] then
+								local saved = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t)
+								if saved and CDTL3:AuraExists("player", saved["name"]) then
+									if s then
+										CDTL3:SendToLane(s)
+										CDTL3:SendToBarFrame(s)
+									else
+										CDTL3:CreateCooldown(CDTL3:GetUID(), t, saved)
+									end
+								end
 							end
 						end
 					end,
@@ -3832,6 +3916,35 @@ private.GetFilterSet = function(t, o)
 	}
 
 	private.AddEntryColorArgs(options.args, t)
+
+	-- Combat timers: tell the user if this buff gets an exact timer in combat
+	if t == "buffs" then
+		options.args["combatTimerNote"] = {
+			name = function(info)
+					local CT = CDTL3.CombatTimers
+					local inBars = CT and CT:BuffInTrackedBars(CDTL3.currentFilter[t])
+					if inBars then
+						return "\nExact in combat: this buff is in the Cooldown Manager's Tracked Bars."
+					end
+					return "\nEstimated in combat. For an exact timer, add it to Tracked Bars in the Cooldown Manager (/cdm)."
+				end,
+			type = "description",
+			order = 703,
+			width = "full",
+			hidden = function(info)
+					if CDTL3.currentFilterHidden[t] then
+						return true
+					end
+
+					local CT = CDTL3.CombatTimers
+					if not (CT and CT:Available()) then
+						return true
+					end
+
+					return CT:BuffInTrackedBars(CDTL3.currentFilter[t]) == nil
+				end,
+		}
+	end
 
 	return options
 end
@@ -4147,6 +4260,26 @@ private.GetLaneSet = function(i)
 								CDTL3:RefreshLane(i)
 							end,
 					},
+					longBuffs = {
+						name = "Long buffs scale",
+						desc = "Sets this lane to Split (Time) over 60 minutes. The last 30 seconds, 30 seconds to 2 minutes and 2 to 10 minutes each get a quarter of the lane; 10 to 60 minutes share the last quarter. Hide Long Timers is turned off for it.",
+						order = 201.5,
+						type = "execute",
+						func = function(info)
+								lane["mode"]["type"] = "SPLIT_ABS"
+								local sa = lane["mode"]["splitAbs"]
+								sa["max"] = 3600
+								sa["hideTimeSurplus"] = false
+								sa["count"] = 3
+								sa["s1v"] = 30
+								sa["s1p"] = 0.25
+								sa["s2v"] = 120
+								sa["s2p"] = 0.5
+								sa["s3v"] = 600
+								sa["s3p"] = 0.75
+								CDTL3:RefreshLane(i)
+							end,
+					},
 					timeFormat = {
 						name = "Time Format",
 						desc = "Select the format to display times",
@@ -4191,11 +4324,12 @@ private.GetLaneSet = function(i)
 					},
 					maxTime = {
 						name = "Max Time",
-						desc = "How many seconds the lane represents",
+						desc = "How many seconds the lane represents (up to 3600, an hour). Type a number in the box for an exact value.",
 						order = 301,
 						type = "range",
-						softMin = 10,
-						softMax = 180,
+						-- hard limits, so the slider can reach and show every value
+						min = 1,
+						max = 3600,
 						bigStep = 1,
 						get = function(info, index)
 								local mt = 0
@@ -4210,8 +4344,8 @@ private.GetLaneSet = function(i)
 								elseif mode == "SPLIT_ABS" then
 									mt = lane["mode"]["splitAbs"]["max"]
 								end
-								
-								return mt
+
+								return math.min(mt or 0, 3600)
 							end,
 						set = function(info, val)
 								local mode = lane["mode"]["type"]
@@ -4537,7 +4671,7 @@ private.GetLaneSet = function(i)
 					},
 					saSplit1Value = {
 						name = "Split 1 Value",
-						desc = "What percentage should splitAbs 1 occur",
+						desc = "How many seconds from the end split 1 sits at (up to 3600).",
 						order = 512,
 						type = "range",
 						hidden = function(info)
@@ -4547,7 +4681,7 @@ private.GetLaneSet = function(i)
 							return true
 						end,
 						min = 1,
-						max = 360,
+						max = 3600,
 						bigStep = 1,
 						get = function(info, index)
 								return lane["mode"]["splitAbs"]["s1v"]
@@ -4595,7 +4729,7 @@ private.GetLaneSet = function(i)
 					},
 					saSplit2Value = {
 						name = "Split 2 Value",
-						desc = "What percentage should splitAbs 2 occur",
+						desc = "How many seconds from the end split 2 sits at (up to 3600).",
 						order = 522,
 						type = "range",
 						hidden = function(info)
@@ -4607,7 +4741,7 @@ private.GetLaneSet = function(i)
 							return true
 						end,
 						min = 1,
-						max = 360,
+						max = 3600,
 						bigStep = 1,
 						get = function(info, index)
 								return lane["mode"]["splitAbs"]["s2v"]
@@ -4655,7 +4789,7 @@ private.GetLaneSet = function(i)
 					},
 					saSplit3Value = {
 						name = "Split 3 Value",
-						desc = "What percentage should splitAbs 3 occur",
+						desc = "How many seconds from the end split 3 sits at (up to 3600).",
 						order = 532,
 						type = "range",
 						hidden = function(info)
@@ -4666,7 +4800,7 @@ private.GetLaneSet = function(i)
 							end
 							return true
 						end,
-						max = 360,
+						max = 3600,
 						min = 1,
 						bigStep = 1,
 						get = function(info, index)

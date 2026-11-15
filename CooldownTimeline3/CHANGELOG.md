@@ -1,5 +1,21 @@
 # CooldownTimeline 3
 
+## v3.1.0
+
+**Combat timers (Retail and WoW: Forever, experimental, on by default)**
+- **Cooldowns keep moving in combat** — in combat the game hides cooldown timings from addons, so CDTL3 used to estimate them from your cast and the spell's base cooldown: talent and haste reductions were missed and icons could reach ready late. Spell icons now slide, bars drain and countdown text counts from the game's own timer, at the real length, and an icon goes to ready when the spell does
+- **Exact buff timers in combat, for buffs in Tracked Bars** — add a buff to *Tracked Bars* in Blizzard's Cooldown Manager (`/cdm`) and CDTL3 follows Blizzard's own timer for it in combat: refreshes, buffs gained mid-fight and buffs that drop off all show at once. Split (Time) lanes keep their shape for these buffs. Every other buff still uses the estimate, now shown in dimmed text while it is one. In Filters, each buff says whether it gets the exact timer
+- **Settings** — the Global tab has *Combat timers (experimental)* to turn this off and *Hide Blizzard's Tracked Bars* to make Blizzard's own bars invisible while they keep feeding CDTL3. `/cdtl3 combattimers` prints what's running; `/cdtl3 combattimers off` and `on` switch it. A window on the first login after updating explains this
+- **Limits in combat** — item cooldowns keep the estimate (the game gives addons no timer for them); Grouped stacking leaves moving icons out, so they can overlap until combat ends; an icon text with more than the `[cd.time]` tag keeps the estimate. Spells with charges are the least tested part: please report anything odd
+
+**Lanes**
+- **Max Time and the Split (Time) values go up to an hour on the slider** — the Max Time slider stopped at 180 and the split values at 360, while a larger typed number was saved out of sight. Both sliders now reach every value they can hold, and Filters' *Ignore Threshold* slider reaches 7200
+- **Long buffs scale** — a button next to the lane's Mode sets the lane up for 10 and 60 minute buffs: Split (Time) over an hour, with a quarter of the lane each for the last 30 seconds, 30 seconds to 2 minutes and 2 to 10 minutes
+
+**Fixes**
+- **Bar frames: unticking *Transition bars* brings hidden bars back** — a bar the option had hidden stayed hidden until a `/reload`, so unticking it looked like it did nothing
+- **Unticking *Ignored* on a buff that's up shows it at once** — it used to wait for the buff to be applied again
+
 ## v3.0.13
 
 **WoW: Forever**

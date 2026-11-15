@@ -957,7 +957,19 @@ private.BarUpdate = function(f, elapsed)
 			
 			local pBase = d["baseCD"]
 			local pCurrent = d["currentCD"]
-			
+			-- a riding cooldown's bar drains from the game's timer (CombatTimers.lua)
+			local CT = CDTL3.CombatTimers
+			local riding = CT and CT:Riding(f)
+
+			-- "Transition bars" hides a bar once its cooldown is under the lane's Max Time. With the
+			-- option off (or no lane), a bar it hid earlier comes back: it used to stay hidden until
+			-- a /reload, so unticking the option looked like it did nothing.
+			if (d["lane"] == 0 or not s["transition"]["hideTransitioned"]) and not ba.valid
+				and d["enabled"] and not d["ignored"] then
+				ba.valid = true
+				ba:GetParent().triggerUpdate = true
+			end
+
 			if d["lane"] == 0 then
 				-- For now, do nothing
 			else
@@ -969,7 +981,7 @@ private.BarUpdate = function(f, elapsed)
 							ba:GetParent().triggerUpdate = true
 						end
 						
-						if s["transition"]["style"] == "SHORTEN" then
+						if s["transition"]["style"] == "SHORTEN" and not riding then
 							pBase = pBase - ba.transitionThreshold
 							pCurrent = pCurrent - ba.transitionThreshold
 						end
@@ -982,8 +994,10 @@ private.BarUpdate = function(f, elapsed)
 				end
 			end
 			
-			local iconPercent = private.CalcLinearPosition(pCurrent, pBase)
-			ba.bar:SetValue(iconPercent)
+			if not (riding and CT:DriveBar(f)) then
+				local iconPercent = private.CalcLinearPosition(pCurrent, pBase)
+				ba.bar:SetValue(iconPercent)
+			end
 
 			private.UpdateBarDynamicColor(ba, s, d)
 
@@ -1109,6 +1123,8 @@ private.CalcSplitPosition = function(current, total, s)
 	
 	return p
 end
+-- shared with CombatTimers.lua, whose split-lane curves sample it
+CDTL3.CalcSplitPosition = private.CalcSplitPosition
 
 private.CalcTransitionIndicator = function(f, s)
 	local ls = nil
@@ -1222,7 +1238,8 @@ private.CooldownUpdate = function(f, elapsed)
 
 	local icVisible = ic:IsVisible()
 	local baVisible = ba:IsVisible()
-	
+	local CT = CDTL3.CombatTimers
+
 	if icVisible or baVisible then
 		-- SPELLS
 		if d["type"] == "spells" or d["type"] == "petspells" then
@@ -1482,14 +1499,22 @@ private.CooldownUpdate = function(f, elapsed)
 		elseif d["type"] == "testing" or d["type"] == "spacer" then
 			d["currentCD"] = d["currentCD"] - elapsed
 		end
-		
+
+		-- combat timers (CombatTimers.lua): starts/ends riding, may end or hold the estimate
+		if CT then
+			CT:Update(f, elapsed)
+		end
+
 		if icVisible then
 			private.IconUpdate(f, elapsed)
 		end
-		
+
 		if baVisible then
 			private.BarUpdate(f, elapsed)
 		end
+	elseif CT and f.ct and f.ct.riding then
+		-- moved off its lane and bar frame: stop riding
+		CT:Update(f, elapsed)
 	end
 	
 	f.updateCount = f.updateCount + 1
@@ -1499,6 +1524,19 @@ private.CooldownUpdate = function(f, elapsed)
 	end
 	
 	private.ShowHide(f)
+end
+
+-- A riding icon's position is hidden from addons (it hangs off a fill fed a hidden value), so
+-- its mouse-over test may error or come back hidden: treat that as "not over".
+private.IsMouseOver = function(ic)
+	if not ic.ctRiding then
+		return ic:IsMouseOver()
+	end
+	local ok, over = pcall(ic.IsMouseOver, ic)
+	if not ok or (issecretvalue and issecretvalue(over)) then
+		return false
+	end
+	return over
 end
 
 private.IconUpdate = function(f, elapsed)
@@ -1574,30 +1612,34 @@ private.IconUpdate = function(f, elapsed)
 				end
 			end
 			
-			local iconPosition = (s["width"] - s["icons"]["size"]) * iconPercent
-			
-			local anchor = "LEFT"
-			if s["vertical"] then
-				if s["reversed"] then
-					anchor = "TOP"
-					iconPosition = -iconPosition
+			-- a riding icon follows its rider's fill edge instead (CombatTimers.lua)
+			local CT = CDTL3.CombatTimers
+			if not (ic.ctRiding and CT and CT:PlaceIcon(f, s, mode, max)) then
+				local iconPosition = (s["width"] - s["icons"]["size"]) * iconPercent
+
+				local anchor = "LEFT"
+				if s["vertical"] then
+					if s["reversed"] then
+						anchor = "TOP"
+						iconPosition = -iconPosition
+					else
+						anchor = "BOTTOM"
+					end
+
+					ic:ClearAllPoints()
+					ic:SetPoint(anchor, ic.yOffset + ic.sOffset, iconPosition)
 				else
-					anchor = "BOTTOM"
+					if s["reversed"] then
+						anchor = "RIGHT"
+						iconPosition = -iconPosition
+					end
+
+					ic:ClearAllPoints()
+					ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
+					ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
 				end
-				
-				ic:ClearAllPoints()
-				ic:SetPoint(anchor, ic.yOffset + ic.sOffset, iconPosition)
-			else
-				if s["reversed"] then
-					anchor = "RIGHT"
-					iconPosition = -iconPosition
-				end
-				
-				ic:ClearAllPoints()
-				ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
-				ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
 			end
-			
+
 			if ic:GetAlpha() ~= 0 then
 				if ic.txt then
 					private.UpdateText(f, ic.txt.text1, s["icons"]["text1"], s["icons"]["text1"]["text"])
@@ -1606,23 +1648,23 @@ private.IconUpdate = function(f, elapsed)
 				end
 			end
 			
-			if CDTL3.db.profile.global["enableTooltip"] then	
-				if ic:IsMouseOver() then
+			if CDTL3.db.profile.global["enableTooltip"] then
+				if private.IsMouseOver(ic) then
 					-- build the tooltip once per hover, not every frame
 					if d.link and not (GameTooltip:IsOwned(ic) and GameTooltip:IsShown()) then
 						GameTooltip_SetDefaultAnchor(GameTooltip, ic)
 						GameTooltip:SetHyperlink(d.link)
 						GameTooltip:Show()
-					end	
-				else	
-					if GameTooltip:IsOwned(ic) then	
-						GameTooltip:Hide()	
-					end	
-				end	
-			end	
-			
-			if s["stacking"]["raiseOnMouseOver"] then	
-				if ic:IsMouseOver() then	
+					end
+				else
+					if GameTooltip:IsOwned(ic) then
+						GameTooltip:Hide()
+					end
+				end
+			end
+
+			if s["stacking"]["raiseOnMouseOver"] then
+				if private.IsMouseOver(ic) then
 					ic:SetFrameStrata("HIGH")	
 				else
 					ic:SetFrameStrata("MEDIUM")	
@@ -1946,6 +1988,16 @@ private.ShowHide = function(f)
 end
 
 private.UpdateText = function(f, tf, s, iString)
+	-- combat timers (CombatTimers.lua): an estimated buff's text is dimmed, and a riding
+	-- cooldown's [cd.time]-only text follows the game's timer
+	local CT = CDTL3.CombatTimers
+	if CT then
+		CT:DimText(f, tf)
+		if f.ct and f.ct.riding and CT:OwnsText(f, tf, s) then
+			return
+		end
+	end
+
 	if s["enabled"] then
 		-- dynamic tags poll at their rate, time tags faster in the last 10s; whenever
 		-- either is due the whole text is converted (all tag families in one pass)

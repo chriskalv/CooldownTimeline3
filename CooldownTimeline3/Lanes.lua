@@ -462,8 +462,19 @@ private.CalcStacking = function(f, s, count)
 			local height = s["stacking"]["height"]
 			local grow = s["stacking"]["grow"]
 			local iconSize = s["icons"]["size"]
-			
-			table.sort(f.validChildren, function(a, b)
+
+			-- combat timers (CombatTimers.lua): riding icons sit out (stack 1, no offset), and a
+			-- pass is skipped (empty list) while any other position reads back hidden
+			local kids, n = f.validChildren, count
+			local CT = CDTL3.CombatTimers
+			if CT and CT.GroupedChildren then
+				kids, n = CT:GroupedChildren(f.validChildren, count)
+				if not kids then
+					kids, n = {}, 0
+				end
+			end
+
+			table.sort(kids, function(a, b)
 				local aX, aY = a:GetCenter()
 				local bX, bY = b:GetCenter()
 				
@@ -485,13 +496,13 @@ private.CalcStacking = function(f, s, count)
 			local indicies = {}
 			local currentIndex = 1
 			
-			for k, iconA in pairs(f.validChildren) do
+			for k, iconA in pairs(kids) do
 				if k == 1 then
 					table.insert(indicies, currentIndex)
 				end
 				
-				if k + 1 <= count then
-					local iconB = f.validChildren[k + 1]
+				if k + 1 <= n then
+					local iconB = kids[k + 1]
 					local aX, aY = iconA:GetCenter()
 					local bX, bY = iconB:GetCenter()
 					
@@ -517,7 +528,7 @@ private.CalcStacking = function(f, s, count)
 					for k, v in pairs(indicies) do
 						if v == i then
 							stackCount = stackCount + 1
-							table.insert(currentStack, f.validChildren[k])
+							table.insert(currentStack, kids[k])
 						end
 					end
 					
