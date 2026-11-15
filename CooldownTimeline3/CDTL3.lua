@@ -74,7 +74,7 @@ CDTL3.Compat = {
 	end,
 }
 
-CDTL3.version = "3.2.0"
+CDTL3.version = "3.2.1"
 -- the welcome window (GetSpecialMessage + changelog) opens once for anyone whose last seen version is older
 CDTL3.noticeVersion = "3.2"
 CDTL3.cdUID = 999
@@ -1319,6 +1319,8 @@ private.helpLines = {
 	{ "report", L["open a copyable bug-report box"] },
 	{ "log", L["show the error log"] },
 	{ "perf", L["show CPU, memory and frame counts"] },
+	{ "tour", L["take the three-step tour again"] },
+	{ "whatsnew", L["open the What's new window with the changelog"] },
 	{ "help", L["show this list"] },
 }
 
@@ -1379,6 +1381,14 @@ function CDTL3:ChatCommand(input)
 		CDTL3:ShowLog()
 	elseif input:trim() == "perf" then
 		CDTL3:PrintPerf()
+	elseif input:trim() == "tour" then
+		-- the settings window would sit over the frames the tour points at
+		LibStub("AceConfigDialog-3.0"):Close("CDTL3")
+		if CDTL3.Start then
+			CDTL3.Start:StartTour(true)
+		end
+	elseif input:trim() == "whatsnew" then
+		CDTL3:ShowWhatsNew()
 	elseif input:trim() == "minimap" then
 		CDTL3.db.global.minimapHide = not CDTL3.db.global.minimapHide
 		if CDTL3.minimapBtn then
@@ -1535,9 +1545,21 @@ private.CreateDebugFrame = function()
 	CDTL3.debugFrame = f
 end
 
+-- /cdtl3 whatsnew: the welcome window on demand. Opening it changes nothing; only its No and
+-- Take the tour buttons mark it seen, as when it opens by itself.
+function CDTL3:ShowWhatsNew()
+	return private.CreateFirstRunFrame()
+end
+
 private.CreateFirstRunFrame = function()
+	-- made once per session; opening it again shows the same window
+	if private.firstRunFrame then
+		private.firstRunFrame:Show()
+		return private.firstRunFrame
+	end
 	local name = "CDTL3_Firstrun"
 	local f = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	private.firstRunFrame = f
 	f:SetPoint("TOP", 0, -150)
 	f:SetSize(550, 300)
 	
@@ -1664,6 +1686,7 @@ private.CreateFirstRunFrame = function()
 
 	f:SetFrameStrata("DIALOG")
 	f:Show()
+	return f
 end
 
 -- The "Frames currently unlocked" box. Until frames have been locked once (db.global.lockedOnce,
