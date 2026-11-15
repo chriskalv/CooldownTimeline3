@@ -69,7 +69,7 @@ CDTL3.Compat = {
 	end,
 }
 
-CDTL3.version = "3.1.0"
+CDTL3.version = "3.1.1"
 -- the welcome window (GetSpecialMessage + changelog) opens once for anyone whose last seen version is older
 CDTL3.noticeVersion = "3.1"
 CDTL3.cdUID = 999
@@ -884,6 +884,14 @@ local defaults = {
 				defaultReady = 1,
 				defaultBar = 1,
 			},
+
+			-- flight timers (Flights.lua); learned times are account-wide in db.global.flightTimes
+			flights = {
+				enabled = true,
+				defaultLane = 1,
+				defaultReady = 1,
+				defaultBar = 1,
+			},
 		},
 	
 		lanes = {
@@ -994,6 +1002,7 @@ local defaults = {
 			runes = {},
 			customs = {},
 			detected = {},
+			flights = {},	-- always empty: lets lookups by type find nothing for a flight
 		},
 	}
 }

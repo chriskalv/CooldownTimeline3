@@ -3,7 +3,7 @@
 ## IconTexture: Interface\AddOns\CooldownTimeline3\Media\icon-128.tga
 ## Author: cliffclive
 ## Notes: Track cooldowns, items and buffs as icons along a timeline. Original by Vreenak, v2 rewrite by cliffclive, CDTL3 by Nelnamara.
-## Version: 3.1.0
+## Version: 3.1.1
 ## SavedVariables: CDTL3DB CDTL2DB
 ## OptionalDeps: Masque
 
@@ -22,4 +22,6 @@ BarFrames.lua
 Ready.lua
 Cooldown.lua
 CombatTimers.lua
+FlightData\TBC.lua
+Flights.lua
 EditMode.lua

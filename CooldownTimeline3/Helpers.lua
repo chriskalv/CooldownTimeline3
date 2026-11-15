@@ -224,9 +224,11 @@ function CDTL3:Autohide(f, s)
 	-- Hide out of combat: every frame fades while you're out of combat, while detection keeps
 	-- running (a cooldown started on the last pull is still tracked and shown on the next one).
 	-- Unlock, Edit Mode (which unlocks the frames), debug and test mode all win over it.
+	-- A flight in progress (Flights.lua) keeps the frames showing it, since nobody is in combat on a flight.
 	local gl = CDTL3.db.profile.global
 	if gl["hideOutOfCombat"] and not CDTL3.combat and not CDTL3.testing
-			and not gl["unlockFrames"] and not gl["debugMode"] then
+			and not gl["unlockFrames"] and not gl["debugMode"]
+			and not (CDTL3.Flights and CDTL3.Flights:Holds(f)) then
 		if f:GetAlpha() ~= 0 then
 			if f.animateOut then
 				if not f.animateOut:IsPlaying() then

@@ -1,5 +1,14 @@
 # CooldownTimeline 3
 
+## v3.1.1
+
+**Flight timers (every client, on by default)**
+- **A countdown to landing on every flight path** — take a flight and an icon named for where you're going counts down on lane 1 and bar frame 1, then goes to ready frame 1 with the ready sound as you land. It stays in view for the whole flight, past the lane's Max Time and with *Hide out of combat* on
+- **Exact after one flight** — a route you have flown on any character counts down from your last real time. A route you haven't flown counts down from an estimate built from the game's route data, in dimmed text. If the countdown runs out first, the icon waits at the end of the lane until you land
+- **Flights that don't start from the flight map** — the druids' flights out of Moonglade and quest flights started from a chat option get a countdown too: from the first flight when only one route leaves that spot, otherwise from the second
+- **Picks up after a `/reload` or a logout** in mid-air
+- **Settings** — the Global tab's *Flight timers* section turns them off, picks the lane, bar frame and ready frame, and forgets learned flight times
+
 ## v3.1.0
 
 **Combat timers (Retail and WoW: Forever, experimental, on by default)**

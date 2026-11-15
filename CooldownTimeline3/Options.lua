@@ -364,6 +364,11 @@ function CDTL3:GetChangeLog()
 	changeLog = changeLog.."CDTL3 continues Cooldown Timeline for Retail (Midnight), Classic Era,\n"
 	changeLog = changeLog.."TBC Anniversary, MoP Classic and World of Warcraft: Forever,\n"
 	changeLog = changeLog.."based on the original by Vreenak and the v2 rewrite by cliffclive.\n\n"
+	changeLog = changeLog.."Changelog 3.1.1:\n\n"
+	changeLog = changeLog.."  - Flight timers (every client, on by default): a countdown to landing on\n"
+	changeLog = changeLog.."    every flight path, named for where you're going. Exact after one\n"
+	changeLog = changeLog.."    flight, an estimate in dimmed text before that. Global tab: turn it\n"
+	changeLog = changeLog.."    off, pick the lane, bar frame and ready frame, or forget learned times\n\n"
 	changeLog = changeLog.."Changelog 3.1.0:\n\n"
 	changeLog = changeLog.."  - Retail and Forever: combat timers (experimental, on by default). In\n"
 	changeLog = changeLog.."    combat, spell icons, bars and countdown text follow the game's own timer\n"
@@ -715,6 +720,92 @@ function CDTL3:GetMainOptions()
 								local CT = CDTL3.CombatTimers
 								if CT then
 									CT:SetHideBlizzardBars(val)
+								end
+							end,
+					},
+					flightsHeader = {
+						name = "Flight timers",
+						order = 360,
+						type = "header",
+					},
+					flights = {
+						name = "Flight timers",
+						desc = "Taking a flight path shows a countdown to landing, named for the destination. A route you've flown before (on any character) counts down from its real time; a new one from an estimate, in dimmed text, until you land.",
+						order = 361,
+						type = "toggle",
+						width = "full",
+						get = function(info, index)
+								return CDTL3.Flights and CDTL3.Flights:Enabled() or false
+							end,
+						set = function(info, val)
+								if CDTL3.Flights then
+									CDTL3.Flights:SetEnabled(val)
+								end
+							end,
+					},
+					flightsLane = {
+						name = "Lane",
+						desc = "The lane the flight countdown uses",
+						order = 362,
+						type = "select",
+						width = "half",
+						values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+						disabled = function(info)
+								return not (CDTL3.Flights and CDTL3.Flights:Enabled())
+							end,
+						get = function(info)
+								return CDTL3.db.profile.global["flights"]["defaultLane"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["flights"]["defaultLane"] = val
+							end,
+					},
+					flightsBar = {
+						name = "Bar Frame",
+						desc = "The bar frame the flight countdown uses",
+						order = 363,
+						type = "select",
+						width = "half",
+						values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+						disabled = function(info)
+								return not (CDTL3.Flights and CDTL3.Flights:Enabled())
+							end,
+						get = function(info)
+								return CDTL3.db.profile.global["flights"]["defaultBar"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["flights"]["defaultBar"] = val
+							end,
+					},
+					flightsReady = {
+						name = "Ready Frame",
+						desc = "The ready frame the flight goes to when you land",
+						order = 364,
+						type = "select",
+						width = "half",
+						values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+						disabled = function(info)
+								return not (CDTL3.Flights and CDTL3.Flights:Enabled())
+							end,
+						get = function(info)
+								return CDTL3.db.profile.global["flights"]["defaultReady"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["flights"]["defaultReady"] = val
+							end,
+					},
+					flightsForget = {
+						name = "Forget learned flight times",
+						desc = function(info)
+								local n = CDTL3.Flights and CDTL3.Flights:LearnedCount() or 0
+								return "Clears the " .. n .. " flight time" .. (n == 1 and "" or "s") .. " saved on this game client (every character) and the flight speed learned from them. Estimates are used again until each route is flown."
+							end,
+						order = 365,
+						type = "execute",
+						confirm = true,
+						func = function(info)
+								if CDTL3.Flights then
+									CDTL3.Flights:Forget()
 								end
 							end,
 					},

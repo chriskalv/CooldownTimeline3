@@ -1491,6 +1491,13 @@ private.CooldownUpdate = function(f, elapsed)
 		elseif d["type"] == "customs" then
 			d["currentCD"] = d["currentCD"] - elapsed
 
+		-- FLIGHTS (Flights.lua): counts down, and waits at the end until the flight lands
+		elseif d["type"] == "flights" then
+			d["currentCD"] = d["currentCD"] - elapsed
+			if CDTL3.Flights then
+				CDTL3.Flights:Hold(f)
+			end
+
 		-- RUNES
 		elseif d["type"] == "runes" then
 			d["currentCD"] = d["currentCD"] - elapsed
@@ -1594,7 +1601,8 @@ private.IconUpdate = function(f, elapsed)
 			end
 			
 			if d["currentCD"] > max then
-				if hideTimeSurplus == true then
+				-- a flight always shows: it often runs past a lane's Max Time
+				if hideTimeSurplus == true and d["type"] ~= "flights" then
 					if ic.valid then
 						ic.valid = false
 						ic:GetParent().triggerUpdate = true
@@ -1996,6 +2004,10 @@ private.UpdateText = function(f, tf, s, iString)
 		if f.ct and f.ct.riding and CT:OwnsText(f, tf, s) then
 			return
 		end
+	end
+	-- an estimated flight time is dimmed too (Flights.lua)
+	if CDTL3.Flights then
+		CDTL3.Flights:DimText(f, tf)
 	end
 
 	if s["enabled"] then
