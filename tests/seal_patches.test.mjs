@@ -52,23 +52,27 @@ local function frame(name, cd, kind)
 end
 for lang, names in pairs({
   en = { [20154] = "Seal of Righteousness", [20375] = "Seal of Command", [20305] = "Seal of the Crusader",
-         [20165] = "Seal of Light", [20166] = "Seal of Wisdom", [20164] = "Seal of Justice", fury = "Seal of Fury" },
+         [20165] = "Seal of Light", [20166] = "Seal of Wisdom", [20164] = "Seal of Justice", [1311649] = "Seal of Fury",
+         other = "Seal of Blood" },
   de = { [20154] = "Siegel der Rechtschaffenheit", [20375] = "Siegel des Befehls", [20305] = "Siegel des Kreuzfahrers",
-         [20165] = "Siegel des Lichts", [20166] = "Siegel der Weisheit", [20164] = "Siegel der Gerechtigkeit", fury = "Siegel des Zorns" },
+         [20165] = "Siegel des Lichts", [20166] = "Siegel der Weisheit", [20164] = "Siegel der Gerechtigkeit", [1311649] = "Siegel des Zorns",
+         other = "Siegel des Blutes" },
 }) do
   setup(names)
   local soc, sotc, judge = frame(names[20375], 12), frame(names[20305], 25), frame("Judgement", 5)
   local socBuff, socCustom = frame(names[20375], 12, "buffs"), frame(names[20375], 12, "customs")
-  local furySpell, furyBuff = frame(names.fury, 9), frame(names.fury, 9, "buffs")
+  local otherSpell, otherBuff = frame(names.other, 9), frame(names.other, 9, "buffs")
+  local furyBuff = frame(names[1311649], 9, "buffs")
   rec(lang .. ".seal", CDTL3:IsSealName(names[20375]))
   rec(lang .. ".judgement", CDTL3:IsSealName("Judgement"))
-  rec(lang .. ".newseal", CDTL3:IsSealName(names.fury))
+  rec(lang .. ".newseal", CDTL3:IsSealName(names.other))
   CDTL3:EndOtherSealTimers(names[20154])
   rec(lang .. ".soc", soc.data.currentCD); rec(lang .. ".sotc", sotc.data.currentCD); rec(lang .. ".judge", judge.data.currentCD)
   rec(lang .. ".held", #CDTL3.held); rec(lang .. ".barheld", #CDTL3.barHeld); rec(lang .. ".ended", #CDTL3.ended)
   rec(lang .. ".buff", socBuff.data.currentCD); rec(lang .. ".custom", socCustom.data.currentCD)
   rec(lang .. ".live", tostring(soc.pubLive))
-  rec(lang .. ".furyspell", furySpell.data.currentCD); rec(lang .. ".furybuff", furyBuff.data.currentCD)
+  rec(lang .. ".otherspell", otherSpell.data.currentCD); rec(lang .. ".otherbuff", otherBuff.data.currentCD)
+  rec(lang .. ".furybuff", furyBuff.data.currentCD)
   soc.data.currentCD = 20; socBuff.data.currentCD = 20; CDTL3.held = {}
   CDTL3:EndOtherSealTimers(names[20375])
   rec(lang .. ".recast", soc.data.currentCD); rec(lang .. ".recastheld", #CDTL3.held)
@@ -93,10 +97,11 @@ else {
     check(r[lang + '.newseal'] === 'true', lang + ': a seal outside the list is found by the common name start');
     check(r[lang + '.soc'] === '-1' && r[lang + '.sotc'] === '-1', lang + ': casting another seal ends both seal timers');
     check(r[lang + '.judge'] === '5', lang + ': the Judgement timer is untouched');
-    check(r[lang + '.held'] === '4' && r[lang + '.barheld'] === '4', lang + ': ended seal timers (three spells, one buff) go to the holding areas (no ready frame)');
-    check(r[lang + '.ended'] === '4' && r[lang + '.live'] === 'nil', lang + ': other addons hear each ended timer once');
-    check(r[lang + '.furyspell'] === '-1', lang + ': a spell timer outside the list ends by the common name start');
-    check(r[lang + '.furybuff'] === '9', lang + ': a buff timer outside the list is left alone (buffs end only by the six seal names)');
+    check(r[lang + '.held'] === '5' && r[lang + '.barheld'] === '5', lang + ': ended seal timers (three spells, two buffs) go to the holding areas (no ready frame)');
+    check(r[lang + '.ended'] === '5' && r[lang + '.live'] === 'nil', lang + ': other addons hear each ended timer once');
+    check(r[lang + '.otherspell'] === '-1', lang + ': a spell timer outside the list ends by the common name start');
+    check(r[lang + '.otherbuff'] === '9', lang + ': a buff timer outside the list is left alone (buffs end only by the seal names from the client)');
+    check(r[lang + '.furybuff'] === '-1', lang + ': the buff timer of Seal of Fury, the seventh seal of WoW Forever, ends too');
     check(r[lang + '.buff'] === '-1', lang + ': the old seal\'s buff timer ends too');
     check(r[lang + '.custom'] === '12', lang + ': a custom timer named like a seal is left alone');
     check(r[lang + '.recast'] === '20' && r[lang + '.recastheld'] === '0', lang + ': recasting the same seal ends nothing');

@@ -2532,7 +2532,9 @@ end
 -- in any client language: the client names a few known seals (Seal of Righteousness, Command,
 -- the Crusader, Light, Wisdom, Justice), and their common start ("Seal of ", "Siegel de")
 -- also recognizes seals that are not in the list.
-local SEAL_IDS = { 20154, 20375, 20305, 20165, 20166, 20164 }
+-- LOCAL PATCH (Zippy, 2026-11-15): Seal of Fury (1311649) is WoW Forever's seventh seal; a client
+-- without that spell gives no name for it and it is skipped.
+local SEAL_IDS = { 20154, 20375, 20305, 20165, 20166, 20164, 1311649 }
 local sealNames, sealPrefix, sealCount = nil, nil, 0
 
 local function BuildSealNames()
@@ -2578,7 +2580,7 @@ end
 -- (the poll and the combat timers' update only run for a visible timer at 0 or above,
 -- Cooldown.lua), so a ride on the game's timer simply ends when the timer restarts. Spell
 -- timers count as seals by name or by the seals' common name start; buff timers only by the
--- six names from the client, so no other buff that starts like a seal ends. Casting the old
+-- seal names from the client, so no other buff that starts like a seal ends. Casting the old
 -- seal again restarts its timer (SendToLane).
 function CDTL3:EndOtherSealTimers(castName)
 	if not CDTL3.cooldowns or not CDTL3:IsSealName(castName) then
