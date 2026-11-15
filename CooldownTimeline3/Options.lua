@@ -4,6 +4,7 @@
 ]]--
 
 local private = {}
+local L = LibStub("AceLocale-3.0"):GetLocale("CDTL3")
 
 -- Free-text seconds inputs: reject anything that isn't a positive number before the
 -- setter runs (it used to do val * 1000 on raw text, which errors on "", "abc", "1,5")
@@ -13,7 +14,7 @@ private.ValidateSeconds = function(info, val)
 		return true
 	end
 
-	return "Enter a time in seconds, e.g. 30 or 1.5"
+	return L["Enter a time in seconds, e.g. 30 or 1.5"]
 end
 
 -- The combat log is closed to addons on retail 12.x and WoW: Forever (CDTL3:NoCombatLog in
@@ -45,6 +46,30 @@ private.KeepAfterClear = function(entry)
 	return false
 end
 
+-- Filters › Clear Individual Settings: the saved entry of list t that Filters shows this character
+-- under the selected name (items by item name), and its index
+private.SelectedEntry = function(t)
+	local name = CDTL3.currentFilter[t] or ""
+	local index = nil
+	for k, spell in pairs(CDTL3.db.profile.tables[t]) do
+		local n = (t == "items") and spell["itemName"] or spell["name"]
+		if n == name and CDTL3:IsMyEntry(spell) then
+			index = k
+		end
+	end
+	return index and CDTL3.db.profile.tables[t][index], index
+end
+
+-- another character on this profile uses the entry too
+private.UsedByOthers = function(entry)
+	for _, guid in pairs(entry["usedBy"] or {}) do
+		if guid ~= CDTL3.player["guid"] then
+			return true
+		end
+	end
+	return false
+end
+
 -- Border texture, colour, size and padding controls, added to args: texture and colour at
 -- first, first+1 (default base+1), size and padding at base+11, base+12. border() returns
 -- the live { style, color, size, padding } settings table.
@@ -52,8 +77,8 @@ private.AddBorderArgs = function(args, base, border, refresh, first)
 	first = first or base + 1
 
 	args["border"] = {
-		name = "                    Border Texture",
-		desc = "Selects the border texture",
+		name = "                    " .. L["Border Texture"],
+		desc = L["Selects the border texture"],
 		order = first,
 		type = "select",
 		dialogControl = 'LSM30_Border',
@@ -65,8 +90,8 @@ private.AddBorderArgs = function(args, base, border, refresh, first)
 			end,
 	}
 	args["borderColor"] = {
-		name = "Color",
-		desc = "Selects the border color",
+		name = L["Color"],
+		desc = L["Selects the border color"],
 		order = first + 1,
 		type = "color",
 		hasAlpha = true,
@@ -85,8 +110,8 @@ private.AddBorderArgs = function(args, base, border, refresh, first)
 		order = base + 10,
 	}
 	args["borderSize"] = {
-		name = "Size",
-		desc = "Sets the size of the border",
+		name = L["Size"],
+		desc = L["Sets the size of the border"],
 		order = base + 11,
 		type = "range",
 		softMin = 1,
@@ -99,8 +124,8 @@ private.AddBorderArgs = function(args, base, border, refresh, first)
 			end,
 	}
 	args["borderPadding"] = {
-		name = "Padding",
-		desc = "Sets the space between the border and the frame",
+		name = L["Padding"],
+		desc = L["Sets the space between the border and the frame"],
 		order = base + 12,
 		type = "range",
 		softMin = 0,
@@ -117,10 +142,14 @@ end
 -- Spell school colors (Colors tab). Schools are learned from the combat log, so these and
 -- the bar frames' "Spell School Color" option are hidden where the log is closed.
 private.SCHOOLS = { "Physical", "Holy", "Fire", "Nature", "Frost", "Shadow", "Arcane", "Other" }
+private.SCHOOL_LABELS = {
+	Physical = L["Physical"], Holy = L["Holy"], Fire = L["Fire"], Nature = L["Nature"],
+	Frost = L["Frost"], Shadow = L["Shadow"], Arcane = L["Arcane"], Other = L["Other"],
+}
 
 private.AddSchoolColorArgs = function(args)
 	args["spacer300"] = {
-		name = "\n\nSpell School Colors\n|cffaaaaaaUsed by bar frames with Spell School Color ticked. Multi-school and not-yet-seen spells use Other.|r",
+		name = "\n\n" .. L["Spell School Colors\n|cffaaaaaaUsed by bar frames with Spell School Color ticked. Multi-school and not-yet-seen spells use Other.|r"],
 		type = "description",
 		fontSize = "large",
 		order = 300,
@@ -128,8 +157,8 @@ private.AddSchoolColorArgs = function(args)
 	}
 	for n, school in ipairs(private.SCHOOLS) do
 		args["school"..school] = {
-			name = school,
-			desc = "Set the "..school.." school color",
+			name = private.SCHOOL_LABELS[school],
+			desc = string.format(L["Set the %s school color"], private.SCHOOL_LABELS[school]),
 			order = 300 + n,
 			type = "color",
 			hasAlpha = true,
@@ -151,18 +180,18 @@ private.selectedPreset = "minimal"
 
 private.AddStyleArgs = function(args)
 	args["style"] = {
-		name = "Quick Style",
+		name = L["Quick Style"],
 		type = "group",
 		order = 150,
 		args = {
 			intro = {
-				name = "\nPick a style and apply it to every lane, bar frame and ready frame at once. Only looks change (textures, colours, borders, fonts); sizes, positions and what is tracked stay as they are. Fine-tune anything afterwards in the Lanes, Bar Frames and Ready tabs.\n",
+				name = "\n" .. L["Pick a style and apply it to every lane, bar frame and ready frame at once. Only looks change (textures, colours, borders, fonts); sizes, positions and what is tracked stay as they are. Fine-tune anything afterwards in the Lanes, Bar Frames and Ready tabs."] .. "\n",
 				type = "description",
 				fontSize = "medium",
 				order = 100,
 			},
 			preset = {
-				name = "Style",
+				name = L["Style"],
 				desc = function(info)
 						for _, preset in ipairs(CDTL3.presets) do
 							if preset.key == private.selectedPreset then
@@ -190,18 +219,29 @@ private.AddStyleArgs = function(args)
 				order = 102,
 			},
 			apply = {
-				name = "Apply Style",
-				desc = "Apply the selected style to every lane, bar frame and ready frame",
+				name = L["Apply Style"],
+				desc = L["Apply the selected style to every lane, bar frame and ready frame"],
 				order = 103,
 				type = "execute",
 				confirm = true,
-				confirmText = "Apply this style to every lane, bar frame and ready frame? Your current textures, colours, borders and fonts will be replaced (export your profile first if you want to keep them).",
+				confirmText = L["Apply this style to every lane, bar frame and ready frame? Your current textures, colours, borders and fonts will be replaced (export your profile first if you want to keep them)."],
 				func = function(info)
 						CDTL3:ApplyPreset(private.selectedPreset)
 					end,
 			},
 		},
 	}
+end
+
+-- the Filters > Defaults selection's name inside a sentence ("all new spells icons"); a translator
+-- gives each type its own wording
+private.TypeNoun = function()
+	local key = CDTL3.currentFilter["default"]
+	local nouns = {
+		SPELLS = L["spells"], ITEMS = L["items"], BUFFS = L["buffs"], DEBUFFS = L["debuffs"],
+		OFFENSIVES = L["offensives"], PETSPELLS = L["pet spells"], CUSTOMS = L["customs"], RUNES = L["runes"],
+	}
+	return nouns[key] or string.lower(tostring(key))
 end
 
 -- "Copy settings from" (each lane / bar frame / ready frame's General tab)
@@ -211,13 +251,13 @@ private.AddCopyArgs = function(args, group, i, label)
 	local id = group..i
 
 	args["copyHeader"] = {
-		name = "Copy Settings",
+		name = L["Copy Settings"],
 		type = "header",
 		order = 900,
 	}
 	args["copyFrom"] = {
-		name = "Copy From",
-		desc = "Copy every setting from another "..label:lower().." to this one, except its name, position and whether it's enabled",
+		name = L["Copy From"],
+		desc = string.format(L["Copy every setting from another %s to this one, except its name, position and whether it's enabled"], label:lower()),
 		order = 901,
 		type = "select",
 		values = function()
@@ -233,11 +273,11 @@ private.AddCopyArgs = function(args, group, i, label)
 		set = function(info, val) private.copySource[id] = val end,
 	}
 	args["copyApply"] = {
-		name = "Copy",
+		name = L["Copy"],
 		order = 902,
 		type = "execute",
 		confirm = true,
-		confirmText = "Replace this "..label:lower().."'s settings with a copy?",
+		confirmText = string.format(L["Replace this %s's settings with a copy?"], label:lower()),
 		disabled = function(info) return not private.copySource[id] end,
 		func = function(info)
 				CDTL3:CopyFrameSettings(group, private.copySource[id], i)
@@ -245,6 +285,200 @@ private.AddCopyArgs = function(args, group, i, label)
 			end,
 	}
 end
+
+-- "Copy this lane" (each lane's General tab, under Copy Settings): shows a share string of just
+-- this lane, which the Import box (Import/Export tab) puts on the same lane number
+private.laneShareShown = {}
+
+private.AddShareLaneArgs = function(args, i)
+	args["shareLane"] = {
+		name = L["Copy this lane"],
+		desc = L["Show this lane's settings as a share string to copy, for another profile or another player's Import box"],
+		order = 910,
+		type = "execute",
+		func = function(info)
+				private.laneShareShown[i] = true
+			end,
+	}
+	args["shareLaneBox"] = {
+		name = L["Lane share string (select all of it and copy it with Ctrl+C)"],
+		desc = L["Importing it replaces that lane's settings, except its name, position and whether it's on"],
+		order = 911,
+		type = "input",
+		multiline = 3,
+		width = "full",
+		hidden = function(info)
+				return not private.laneShareShown[i]
+			end,
+		get = function(info)
+				return CDTL3:ExportString("LANE", i)
+			end,
+		set = function(info, val)
+				return nil
+			end,
+	}
+end
+
+-- FONT, BAR TEXTURE AND SOUND DROPDOWNS: a saved name that isn't registered here (its media
+-- pack was removed, or the settings came from someone else's string) says so, "(missing)" on
+-- the label and the tooltip naming what is used instead (CDTL3.LSM's fallback, Media.lua).
+-- Added to every such dropdown in the window, whichever tab builds it (CDTL3:GetFullOptions).
+private.MEDIA_CONTROLS = { LSM30_Font = "font", LSM30_Statusbar = "statusbar", LSM30_Sound = "sound" }
+private.mediaNoted = setmetatable({}, { __mode = "k" })
+
+private.AddMediaNote = function(option, kind, rawGet, applies)
+	if private.mediaNoted[option] or type(option.get) ~= "function" then
+		return
+	end
+	private.mediaNoted[option] = true
+
+	local name, desc, get = option.name, option.desc, rawGet or option.get
+	local function text(v, info)
+		if type(v) == "function" then
+			return v(info)
+		end
+		return v
+	end
+	local function missing(info)
+		local ok, value = pcall(get, info)
+		if not ok or (applies and not applies(value)) then
+			return false
+		end
+		local gone, using = CDTL3:MediaMissing(kind, value)
+		return gone, using, value
+	end
+
+	option.name = function(info)
+			local base = text(name, info) or ""
+			if missing(info) then
+				return base.." |cffff9900"..L["(missing)"].."|r"
+			end
+			return base
+		end
+	option.desc = function(info)
+			local base = text(desc, info)
+			local gone, using, value = missing(info)
+			if not gone then
+				return base
+			end
+			local note = string.format(L["|cffff9900Missing, using the default: %s.|r \"%s\" isn't installed here (a media pack may have been removed)."], tostring(using), (tostring(value):gsub("|", "||")))
+			if base and base ~= "" then
+				return note.."\n\n"..base
+			end
+			return note
+		end
+end
+
+-- SOUND DROPDOWNS: Blizzard's own sounds ("Blizzard: ...", Media.lua) get their own menu, "Blizzard
+-- sound", right after the main one. Both read and write the same saved setting; the menu that
+-- doesn't hold the saved sound shows no selection (a blank box). Lists are made when a menu is
+-- opened, since other addons register sounds after this one loads.
+private.BLIZZARD_SOUND_PREFIX = "Blizzard: "
+private.soundSplit = setmetatable({}, { __mode = "k" })
+
+private.IsBlizzardSound = function(value)
+	return type(value) == "string" and value:sub(1, #private.BLIZZARD_SOUND_PREFIX) == private.BLIZZARD_SOUND_PREFIX
+end
+
+private.SplitBlizzardSound = function(args, key, option)
+	if private.soundSplit[option] or type(option.get) ~= "function" then
+		return
+	end
+	private.soundSplit[option] = true
+
+	local rawGet, rawValues = option.get, option.values
+	local function source(info)
+		local list = rawValues
+		if type(list) == "function" then
+			list = list(info)
+		end
+		return list or (AceGUIWidgetLSMlists and AceGUIWidgetLSMlists.sound) or {}
+	end
+	local function listOf(blizzard)
+		return function(info)
+				local out = {}
+				for name, v in pairs(source(info)) do
+					if private.IsBlizzardSound(name) == blizzard then
+						out[name] = v
+					end
+				end
+				return out
+			end
+	end
+
+	local blizzard = {}
+	for k, v in pairs(option) do
+		blizzard[k] = v
+	end
+	private.soundSplit[blizzard] = true
+
+	option.values = listOf(false)
+	option.get = function(info)
+			local value = rawGet(info)
+			if private.IsBlizzardSound(value) then
+				return nil
+			end
+			return value
+		end
+
+	blizzard.name = L["Blizzard sound"]
+	blizzard.desc = L["Blizzard's own game sounds. Picking one here replaces the sound chosen in the other menu."]
+	-- Rows: the main menu starts its own row (a full-width break before it), its Play sound button
+	-- (args[key.."Test"], where there is one) follows it, then a break, the Blizzard menu (same
+	-- width, so the two line up) and a last break so the next control starts a new row.
+	local main = option.order or 0
+	local play = args[key.."Test"]
+	local last = main
+	if type(play) == "table" and type(play.order) == "number" and play.order > main then
+		last = play.order
+	end
+	local function rowBreak(order)
+		return { name = "", type = "description", width = "full", order = order, hidden = option.hidden }
+	end
+	args[key.."RowA"] = rowBreak(main - 0.3)
+	args[key.."RowB"] = rowBreak(last + 0.2)
+	args[key.."RowC"] = rowBreak(last + 0.4)
+
+	blizzard.order = last + 0.3
+	blizzard.values = listOf(true)
+	blizzard.get = function(info)
+			local value = rawGet(info)
+			if private.IsBlizzardSound(value) then
+				return value
+			end
+			return nil
+		end
+	private.AddMediaNote(blizzard, "sound", rawGet, private.IsBlizzardSound)
+	args[key.."Blizzard"] = blizzard
+end
+
+private.AddMediaNotes = function(group, seen)
+	seen = seen or {}
+	if type(group) ~= "table" or type(group.args) ~= "table" or seen[group] then
+		return
+	end
+	seen[group] = true
+
+	local found = {}
+	for key, option in pairs(group.args) do
+		if type(option) == "table" then
+			local kind = option.type == "select" and private.MEDIA_CONTROLS[option.dialogControl]
+			if kind then
+				private.AddMediaNote(option, kind)
+				if kind == "sound" and not private.soundSplit[option] then
+					found[#found + 1] = key
+				end
+			elseif option.type == "group" and key ~= "profiles" then
+				private.AddMediaNotes(option, seen)
+			end
+		end
+	end
+	for _, key in ipairs(found) do
+		private.SplitBlizzardSound(group.args, key, group.args[key])
+	end
+end
+
+CDTL3.AddMediaNotes = private.AddMediaNotes	-- Start.lua's Simple tab has a sound dropdown too
 
 -- The Filters entry being edited: the saved entry, or the in-progress custom when adding one
 private.FilterEntry = function(t)
@@ -287,8 +521,8 @@ private.AddEntryColorArgs = function(args, t)
 			end,
 	}
 	args["customColor"] = {
-		name = "Own Bar Color",
-		desc = "Give this entry's bar its own color instead of the bar frame's (class / school / frame color)",
+		name = L["Own Bar Color"],
+		desc = L["Give this entry's bar its own color instead of the bar frame's (class / school / frame color)"],
 		order = 701,
 		type = "toggle",
 		hidden = function(info)
@@ -303,8 +537,8 @@ private.AddEntryColorArgs = function(args, t)
 			end,
 	}
 	args["color"] = {
-		name = "Bar Color",
-		desc = "This entry's bar color",
+		name = L["Bar Color"],
+		desc = L["This entry's bar color"],
 		order = 702,
 		type = "color",
 		hasAlpha = true,
@@ -331,21 +565,26 @@ end
 private.TrackingValues = function(info)
 	local swingNote = ""
 	if private.NoCombatLog() then
-		swingNote = " (needs combat log)"
+		swingNote = " "..L["(needs combat log)"]
 	end
 
-	return {
-		["NONE"] = "None",
-		["GCD"] = "GCD",
-		["HEALTH"] = "Health",
-		["CLASS_POWER"] = "Class Power",
-		["COMBO_POINTS"] = "Combo Points",
-		["MANA_TICK"] = "Mana Tick",
-		["ENERGY_TICK"] = "Energy Tick",
-		["MH_SWING"] = "MH Swing"..swingNote,
-		["OH_SWING"] = "OH Swing"..swingNote,
-		["RANGE_SWING"] = "Ranged Auto-attack",
+	local values = {
+		["NONE"] = L["None"],
+		["GCD"] = L["GCD"],
+		["HEALTH"] = L["Health"],
+		["CLASS_POWER"] = L["Class Power"],
+		["COMBO_POINTS"] = L["Combo Points"],
+		["MANA_TICK"] = L["Mana Tick"],
+		["ENERGY_TICK"] = L["Energy Tick"],
+		["MH_SWING"] = L["MH Swing"]..swingNote,
+		["OH_SWING"] = L["OH Swing"]..swingNote,
+		["RANGE_SWING"] = L["Ranged Auto-attack"],
 	}
+	-- Brewmaster stagger, offered to monks on a client that has UnitStagger (Retail; MoP if it has it)
+	if UnitStagger and CDTL3.player and CDTL3.player["class"] == "MONK" then
+		values["STAGGER"] = L["Stagger"]
+	end
+	return values
 end
 
 -- Lanes and bars only ever draw the player's own class colour
@@ -364,6 +603,52 @@ function CDTL3:GetChangeLog()
 	changeLog = changeLog.."CDTL3 continues Cooldown Timeline for Retail (Midnight), Classic Era,\n"
 	changeLog = changeLog.."TBC Anniversary, MoP Classic and World of Warcraft: Forever,\n"
 	changeLog = changeLog.."based on the original by Vreenak and the v2 rewrite by cliffclive.\n\n"
+	changeLog = changeLog.."Changelog 3.2.1:\n\n"
+	changeLog = changeLog.."  - /cdtl3 tour takes the three-step tour again, and /cdtl3 whatsnew opens\n"
+	changeLog = changeLog.."    this window any time. Both are on the Help tab with a Run button\n\n"
+	changeLog = changeLog.."Changelog 3.2.0:\n\n"
+	changeLog = changeLog.."  - Getting started: a short tour on a first install, a Simple tab, setups\n"
+	changeLog = changeLog.."    by role (Starter, Healer, Tank, DPS) shown on your frames with Keep or\n"
+	changeLog = changeLog.."    Undo, and a Help tab (Alt-click the minimap button)\n"
+	changeLog = changeLog.."  - Lanes and icons: charge pips, buff alerts, a burst window, a pulse before\n"
+	changeLog = changeLog.."    a cooldown is back, a mana gauge, and GCD waits in the Ready frame\n"
+	changeLog = changeLog.."  - Boards and groups: a Ready frame that shows every cooldown you pin, a\n"
+	changeLog = changeLog.."    fight timeline, a Caster lane with each caster's name, and group\n"
+	changeLog = changeLog.."    cooldowns from the addon CooldownCollaborator on your lanes\n"
+	changeLog = changeLog.."  - Filters say why a spell or buff isn't showing, list your spellbook's\n"
+	changeLog = changeLog.."    cooldowns, and can pull buffs from the Cooldown Manager\n"
+	changeLog = changeLog.."  - A ready sound per spell, names said out loud, and Blizzard sounds in\n"
+	changeLog = changeLog.."    their own menu next to every sound menu\n"
+	changeLog = changeLog.."  - Frames can follow the player frame or any frame; profiles by zone and\n"
+	changeLog = changeLog.."    for new characters; share strings show what's in them first\n"
+	changeLog = changeLog.."  - /cdtl3 report, log, perf and help. The full list of fixes is on the\n"
+	changeLog = changeLog.."    addon's page\n\n"
+	changeLog = changeLog.."Changelog 3.1.1:\n\n"
+	changeLog = changeLog.."  - Flight timers (every client, on by default): a countdown to landing on\n"
+	changeLog = changeLog.."    every flight path, named for where you're going. Exact after one\n"
+	changeLog = changeLog.."    flight, an estimate in dimmed text before that. Global tab: turn it\n"
+	changeLog = changeLog.."    off, pick the lane, bar frame and ready frame, or forget learned times\n\n"
+	changeLog = changeLog.."Changelog 3.1.0:\n\n"
+	changeLog = changeLog.."  - Retail and Forever: combat timers (experimental, on by default). In\n"
+	changeLog = changeLog.."    combat, spell icons, bars and countdown text follow the game's own timer\n"
+	changeLog = changeLog.."    at the real length, and go to ready on time\n"
+	changeLog = changeLog.."  - Buffs in the Cooldown Manager's Tracked Bars (/cdm) get an exact timer\n"
+	changeLog = changeLog.."    in combat; other buffs show an estimate in dimmed text. Global tab:\n"
+	changeLog = changeLog.."    turn combat timers off, or hide Blizzard's Tracked Bars\n"
+	changeLog = changeLog.."  - Lanes: Max Time and Split (Time) values go up to an hour on the slider,\n"
+	changeLog = changeLog.."    and a Long buffs scale button sets up a lane for 10 and 60 minute buffs\n"
+	changeLog = changeLog.."  - Unticking Ignored on a buff that's up shows it at once\n"
+	changeLog = changeLog.."  - Bar frames: unticking Transition bars brings hidden bars back without\n"
+	changeLog = changeLog.."    a reload\n\n"
+	changeLog = changeLog.."Changelog 3.0.13:\n\n"
+	changeLog = changeLog.."  - Forever: spell list updated for the November changes (Lightning\n"
+	changeLog = changeLog.."    Mastery, Totemic Call at 30 s, no Lava Burst; Swift Judgement is a\n"
+	changeLog = changeLog.."    normal cooldown again)\n"
+	changeLog = changeLog.."  - Forever and Retail: a buff you recast in combat restarts from its last\n"
+	changeLog = changeLog.."    known length (an estimate, corrected when combat ends)\n"
+	changeLog = changeLog.."  - Custom CD Time works on spells without a cooldown (e.g. seals): it\n"
+	changeLog = changeLog.."    counts from your last cast\n"
+	changeLog = changeLog.."  - Custom timers with trigger type Spell fire for spells you know\n\n"
 	changeLog = changeLog.."Changelog 3.0.12:\n\n"
 	changeLog = changeLog.."  - Forever: spell data corrected from Forever's own game data (spells\n"
 	changeLog = changeLog.."    and ranks it doesn't have removed, renamed spells, changed cooldowns);\n"
@@ -475,14 +760,52 @@ function CDTL3:GetChangeLog()
 	return changeLog
 end
 
+-- Shown in the welcome window under the support link, above the changelog
 function CDTL3:GetSpecialMessage()
 	local message = ""
-	--message = message.."\n"
-	--message = message.."Profile import/exporting testing is still ongoing.\n"
-	--message = message.."\n"
-	--message = message.."While I havent seen any issues with this feature yet, I want to make sure it works ok, so please provide feedback where appropriate.\n"
-	--message = message.."\n"
-		
+
+	-- 3.2.0: the big update, for every client
+	message = message.."|cFFffd100New in 3.2.0|r\n\n"
+	message = message.."This is the biggest update CDTL3 has had, so here's the quick version:\n\n"
+	message = message.."  - The Simple tab is up front, with the settings most people actually change\n"
+	message = message.."  - Quick Style > Setup has Healer, Tank and DPS setups. Try one on your own\n"
+	message = message.."    frames first, then Keep it or Undo it\n"
+	message = message.."  - Filters says why a spell or buff isn't showing, and you can pick spells\n"
+	message = message.."    right out of your spellbook\n"
+	message = message.."  - Every spell can have its own ready sound and say its name out loud, and\n"
+	message = message.."    Blizzard's own sounds have their own menu\n"
+	message = message.."  - Lanes > (a lane) > Effects has charge pips, a burst window and a pulse\n"
+	message = message.."    right before a cooldown is back\n"
+	message = message.."  - Tick Pinned on a spell in Filters to keep it on the Ready board\n"
+	message = message.."    (Ready > Mode > Stay until used) and on the Fight Timeline tab\n"
+	message = message.."  - The Caster lane, and your group's cooldowns from CooldownCollaborator\n"
+	message = message.."  - Profiles by zone\n"
+	message = message.."  - Alt-click the minimap button, or type /cdtl3 help, for every command\n\n"
+	message = message.."CooldownCollaborator is my other addon. It shares your group's big cooldowns\n"
+	message = message.."(yours, and anyone in your group who runs it) right onto CDTL3's lanes, on\n"
+	message = message.."every client. Please try it! Testing in all kinds of groups (dungeons, raids,\n"
+	message = message.."battlegrounds, with friends who run it too) is encouraged and really\n"
+	message = message.."appreciated. Let me know what you see at\n"
+	message = message.."https://github.com/Nelnamara/CooldownCollaborator/issues\n\n"
+	message = message.."Hit Take the tour below for a quick look around.\n\n"
+
+	-- 3.1.0: combat timers are on for everyone; say so once, with how to turn them off.
+	-- Only where they run, and only for a player who hasn't seen 3.1 yet (or is new).
+	local CT = CDTL3.CombatTimers
+	if CT and CT:Available() and (CDTL3.db.profile.global["firstRun"] or CDTL3:LastSeenOlderThan("3.1")) then
+		message = message.."|cFFffd100New in 3.1.0: combat timers (experimental), on for everyone|r\n\n"
+		message = message.."In combat the game hides cooldown and buff timings from addons. CDTL3 now\n"
+		message = message.."uses the game's own timer instead:\n\n"
+		message = message.."  - Spell cooldowns keep sliding, draining and counting down in combat, at\n"
+		message = message.."    their real length (talents and haste included), and go to ready on time\n"
+		message = message.."  - Buffs you add to Tracked Bars in Blizzard's Cooldown Manager (/cdm) get\n"
+		message = message.."    an exact timer in combat; other buffs show an estimate in dimmed text\n\n"
+		message = message.."To turn them off: Global tab > Combat timers (experimental), or type\n"
+		message = message.."/cdtl3 combattimers off\n\n"
+		message = message.."This is new. If anything looks wrong, please report it at the link above,\n"
+		message = message.."with your class and what you saw. Spells with charges are the least tested.\n\n"
+	end
+
 	return message
 end
 
@@ -493,19 +816,19 @@ function CDTL3:GetMainOptions()
 		childGroups  = "tab",
 		args = {
 			global = {
-				name = "Global",
+				name = L["Global"],
 				type = "group",
 				order = 100,
 				childGroups  = "tab",
 				args = {
 					spacer100 = {
-						name = "\nEnabled:\n",
+						name = "\n" .. L["Enabled:"] .. "\n",
 						type = "description",
 						order = 100,
 					},
 					enabledAlways = {
-						name = "Always",
-						desc = "If selected, CD/Duration detection will always be on",
+						name = L["Always"],
+						desc = L["If selected, CD/Duration detection will always be on"],
 						order = 101,
 						type = "toggle",
 						--width = "full",
@@ -525,8 +848,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					enabledGroup = {
-						name = "In Group",
-						desc = "If selected, CD/Duration detection will be enabled when in a party/raid",
+						name = L["In Group"],
+						desc = L["If selected, CD/Duration detection will be enabled when in a party/raid"],
 						order = 102,
 						type = "toggle",
 						--width = "full",
@@ -549,8 +872,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					enabledInstance = {
-						name = "In Instance",
-						desc = "If selected, CD/Duration detection will be enabled when in an instance/raid/bg/arena",
+						name = L["In Instance"],
+						desc = L["If selected, CD/Duration detection will be enabled when in an instance/raid/bg/arena"],
 						order = 103,
 						type = "toggle",
 						--width = "full",
@@ -578,8 +901,8 @@ function CDTL3:GetMainOptions()
 						order = 199,
 					},
 					unlockFrames = {
-						name = "Unlock Frames",
-						desc = "Unlock frames to allow drag and drop movement",
+						name = L["Unlock Frames"],
+						desc = L["Unlock frames to allow drag and drop movement"],
 						order = 200,
 						type = "toggle",
 						width = "full",
@@ -591,8 +914,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					hideOutOfCombat = {
-						name = "Hide out of combat",
-						desc = "Frames appear when you enter combat and fade when you leave it. Cooldown detection keeps running the whole time, so a cooldown started on the last pull is still tracked and shown on the next one. Unlock frames, Edit Mode and test mode always show the frames",
+						name = L["Hide out of combat"],
+						desc = L["Frames appear when you enter combat and fade when you leave it. Cooldown detection keeps running the whole time, so a cooldown started on the last pull is still tracked and shown on the next one. Unlock frames, Edit Mode and test mode always show the frames"],
 						order = 200.5,
 						type = "toggle",
 						width = "full",
@@ -604,10 +927,11 @@ function CDTL3:GetMainOptions()
 								CDTL3:RefreshConfig()
 							end,
 					},
-					-- LOCAL PATCH (Zippy, 2026-11-09): Hide while casting
+					-- LOCAL PATCH (Zippy, 2026-11-15): Hide while casting (default off, CDTL3.lua defaults;
+					-- the rule is CDTL3:CastRuleHides in Helpers.lua)
 					hideWhileCasting = {
-						name = "Hide while casting",
-						desc = "Frames fade while you cast or channel a spell with a cast time and reappear the moment the cast ends, is interrupted or fails. Instant spells don't count. Cooldown detection keeps running. Unlock frames, Edit Mode and test mode always show the frames",
+						name = L["Hide while casting"],
+						desc = L["Frames fade while you cast or channel a spell with a cast time and reappear the moment the cast ends, is interrupted or fails. Instant spells don't count. It works on top of each frame's Show setting, Always included; a frame set to Dim instead of hide dims instead. Cooldown detection keeps running. Unlock frames, Edit Mode, test mode and flight timers always show the frames"],
 						order = 200.6,
 						type = "toggle",
 						width = "full",
@@ -620,8 +944,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					autohide = {
-						name = "Auto-hide Frames",
-						desc = "If selected frames will hide themselves when there is no active bar/icon in it",
+						name = L["Auto-hide Frames"],
+						desc = L["If selected frames will hide themselves when there is no active bar/icon in it"],
 						order = 201,
 						type = "toggle",
 						width = "full",
@@ -639,8 +963,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					showMinimapButton = {
-						name = "Minimap button",
-						desc = "Show the CDTL3 button on the minimap (also: /cdtl3 minimap). Account-wide.",
+						name = L["Minimap button"],
+						desc = L["Show the CDTL3 button on the minimap (also: /cdtl3 minimap). Account-wide."],
 						order = 299,
 						type = "toggle",
 						width = "full",
@@ -654,9 +978,141 @@ function CDTL3:GetMainOptions()
 								end
 							end,
 					},
+					combatTimers = {
+						name = L["Combat timers (experimental)"],
+						desc = L["Keeps spell cooldowns moving in combat with the game's own timer, and gives buffs in Blizzard's Cooldown Manager Tracked Bars an exact timer. Other buffs keep an estimate."],
+						order = 350,
+						type = "toggle",
+						width = "full",
+						hidden = function(info)
+								local CT = CDTL3.CombatTimers
+								return not (CT and CT:Available())
+							end,
+						get = function(info, index)
+								local CT = CDTL3.CombatTimers
+								return CT and CT:Enabled() or false
+							end,
+						set = function(info, val)
+								local CT = CDTL3.CombatTimers
+								if CT then
+									CT:SetEnabled(val)
+								end
+							end,
+					},
+					combatTimersHideBars = {
+						name = L["Hide Blizzard's Tracked Bars"],
+						desc = L["Blizzard's bars must stay on to feed CDTL3; this makes them invisible."],
+						order = 351,
+						type = "toggle",
+						width = "full",
+						hidden = function(info)
+								local CT = CDTL3.CombatTimers
+								return not (CT and CT:Available())
+							end,
+						disabled = function(info)
+								local CT = CDTL3.CombatTimers
+								return not (CT and CT:Enabled())
+							end,
+						get = function(info, index)
+								local ct = CDTL3.db.profile.global["combatTimers"]
+								return ct and ct["hideBlizzardBars"] or false
+							end,
+						set = function(info, val)
+								local CT = CDTL3.CombatTimers
+								if CT then
+									CT:SetHideBlizzardBars(val)
+								end
+							end,
+					},
+					flightsHeader = {
+						name = L["Flight timers"],
+						order = 360,
+						type = "header",
+					},
+					flights = {
+						name = L["Flight timers"],
+						desc = L["Taking a flight path shows a countdown to landing, named for the destination. A route you've flown before (on any character) counts down from its real time; a new one from an estimate, in dimmed text, until you land."],
+						order = 361,
+						type = "toggle",
+						width = "full",
+						get = function(info, index)
+								return CDTL3.Flights and CDTL3.Flights:Enabled() or false
+							end,
+						set = function(info, val)
+								if CDTL3.Flights then
+									CDTL3.Flights:SetEnabled(val)
+								end
+							end,
+					},
+					flightsLane = {
+						name = L["Lane"],
+						desc = L["The lane the flight countdown uses"],
+						order = 362,
+						type = "select",
+						width = "half",
+						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
+						disabled = function(info)
+								return not (CDTL3.Flights and CDTL3.Flights:Enabled())
+							end,
+						get = function(info)
+								return CDTL3.db.profile.global["flights"]["defaultLane"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["flights"]["defaultLane"] = val
+							end,
+					},
+					flightsBar = {
+						name = L["Bar Frame"],
+						desc = L["The bar frame the flight countdown uses"],
+						order = 363,
+						type = "select",
+						width = "half",
+						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
+						disabled = function(info)
+								return not (CDTL3.Flights and CDTL3.Flights:Enabled())
+							end,
+						get = function(info)
+								return CDTL3.db.profile.global["flights"]["defaultBar"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["flights"]["defaultBar"] = val
+							end,
+					},
+					flightsReady = {
+						name = L["Ready Frame"],
+						desc = L["The ready frame the flight goes to when you land"],
+						order = 364,
+						type = "select",
+						width = "half",
+						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
+						disabled = function(info)
+								return not (CDTL3.Flights and CDTL3.Flights:Enabled())
+							end,
+						get = function(info)
+								return CDTL3.db.profile.global["flights"]["defaultReady"]
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["flights"]["defaultReady"] = val
+							end,
+					},
+					flightsForget = {
+						name = L["Forget learned flight times"],
+						desc = function(info)
+								local n = CDTL3.Flights and CDTL3.Flights:LearnedCount() or 0
+								return string.format(n == 1 and L["Clears the %d flight time saved on this game client (every character) and the flight speed learned from them. Estimates are used again until each route is flown."] or L["Clears the %d flight times saved on this game client (every character) and the flight speed learned from them. Estimates are used again until each route is flown."], n)
+							end,
+						order = 365,
+						type = "execute",
+						confirm = true,
+						func = function(info)
+								if CDTL3.Flights then
+									CDTL3.Flights:Forget()
+								end
+							end,
+					},
 					enableTooltip = {
-						name = "Enable tooltips",
-						desc = "If selected mousing over icons will display a tooltip",
+						name = L["Enable tooltips"],
+						desc = L["If selected mousing over icons will display a tooltip"],
 						order = 300,
 						type = "toggle",
 						width = "full",
@@ -668,8 +1124,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					detectSharedCD = {
-						name = "Detect Shared Spell Cooldowns",
-						desc = "If selected the mod will attempt to detect other spells that share a cooldown as the initially cast spell and generate icons/bars for them",
+						name = L["Detect Shared Spell Cooldowns"],
+						desc = L["If selected the mod will attempt to detect other spells that share a cooldown as the initially cast spell and generate icons/bars for them"],
 						order = 401,
 						type = "toggle",
 						width = "full",
@@ -686,8 +1142,8 @@ function CDTL3:GetMainOptions()
 						order = 500,
 					},
 					zoom = {
-						name = "Icon Zoom",
-						desc = "Sets the zoom level of icons",
+						name = L["Icon Zoom"],
+						desc = L["Sets the zoom level of icons"],
 						order = 501,
 						type = "range",
 						softMin = 1,
@@ -707,8 +1163,8 @@ function CDTL3:GetMainOptions()
 						order = 600,
 					},
 					notUsableTint = {
-						name = "Tint Unusable Icons",
-						desc = "If selected unusable icons (eg. not enough mana) will be desaturated/tinted",
+						name = L["Tint Unusable Icons"],
+						desc = L["If selected unusable icons (eg. not enough mana) will be desaturated/tinted"],
 						order = 601,
 						type = "toggle",
 						width = "full",
@@ -728,8 +1184,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					notUsableDesaturate = {
-						name = "Desaturate",
-						desc = "If selected non usable icons will be desaturated instead of colored",
+						name = L["Desaturate"],
+						desc = L["If selected non usable icons will be desaturated instead of colored"],
 						order = 603,
 						type = "toggle",
 						hidden = function(info)
@@ -743,8 +1199,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					notUsableColor = {
-						name = "Not Usable Color",
-						desc = "Select the tint color of non usable icons",
+						name = L["Not Usable Color"],
+						desc = L["Select the tint color of non usable icons"],
 						order = 604,
 						type = "color",
 						hidden = function(info)
@@ -764,6 +1220,25 @@ function CDTL3:GetMainOptions()
 								CDTL3:RefreshAllIcons()
 							end,
 					},
+					spacer680 = {
+						name = "\n\n",
+						type = "description",
+						order = 680,
+					},
+					updateRate = {
+						name = L["Update rate"],
+						desc = L["How often icons slide, bars fill and texts change; lower saves some CPU, and timers, Ready and sounds stay exact"],
+						order = 681,
+						type = "select",
+						values = { [0] = L["Full"], [30] = L["30 per second"], [15] = L["15 per second"] },
+						sorting = { 0, 30, 15 },
+						get = function(info)
+								return CDTL3.db.profile.global["updateRate"] or 0
+							end,
+						set = function(info, val)
+								CDTL3.db.profile.global["updateRate"] = val
+							end,
+					},
 					spacer700 = {
 						name = "\n\n",
 						type = "description",
@@ -771,7 +1246,7 @@ function CDTL3:GetMainOptions()
 					},
 					openTestPanel = {
 						name = function(info)
-								return "Open Test Panel"
+								return L["Open Test Panel"]
 							end,
 						desc = function(info)
 								return ""
@@ -786,13 +1261,13 @@ function CDTL3:GetMainOptions()
 				},
 			},
 			colors = {
-				name = "Colors",
+				name = L["Colors"],
 				type = "group",
 				order = 200,
 				childGroups  = "tab",
 				args = {
 					spacer100 = {
-						name = "\nClass Colors",
+						name = "\n" .. L["Class Colors"],
 						type = "description",
 						fontSize = "large",
 						order = 100,
@@ -803,8 +1278,8 @@ function CDTL3:GetMainOptions()
 						order = 200,
 					},
 					deathknightColor = {
-						name = "Death Knight",
-						desc = "Set the Death Knight class color",
+						name = L["Death Knight"],
+						desc = L["Set the Death Knight class color"],
 						order = 201,
 						type = "color",
 						hasAlpha = true,
@@ -830,8 +1305,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					demonhunterColor = {
-						name = "Demon Hunter",
-						desc = "Set the Demon Hunter class color",
+						name = L["Demon Hunter"],
+						desc = L["Set the Demon Hunter class color"],
 						order = 202,
 						type = "color",
 						hasAlpha = true,
@@ -857,8 +1332,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					druidColor = {
-						name = "Druid",
-						desc = "Set the Druid class color",
+						name = L["Druid"],
+						desc = L["Set the Druid class color"],
 						order = 203,
 						type = "color",
 						hasAlpha = true,
@@ -877,8 +1352,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					evokerColor = {
-						name = "Evoker",
-						desc = "Set the Evoker class color",
+						name = L["Evoker"],
+						desc = L["Set the Evoker class color"],
 						order = 204,
 						type = "color",
 						hasAlpha = true,
@@ -904,8 +1379,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					hunterColor = {
-						name = "Hunter",
-						desc = "Set the Hunter class color",
+						name = L["Hunter"],
+						desc = L["Set the Hunter class color"],
 						order = 205,
 						type = "color",
 						hasAlpha = true,
@@ -924,8 +1399,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					mageColor = {
-						name = "Mage",
-						desc = "Set the Mage class color",
+						name = L["Mage"],
+						desc = L["Set the Mage class color"],
 						order = 206,
 						type = "color",
 						hasAlpha = true,
@@ -944,8 +1419,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					monkColor = {
-						name = "Monk",
-						desc = "Set the Monk class color",
+						name = L["Monk"],
+						desc = L["Set the Monk class color"],
 						order = 207,
 						type = "color",
 						hasAlpha = true,
@@ -971,8 +1446,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					paladinColor = {
-						name = "Paladin",
-						desc = "Set the Paladin class color",
+						name = L["Paladin"],
+						desc = L["Set the Paladin class color"],
 						order = 208,
 						type = "color",
 						hasAlpha = true,
@@ -991,8 +1466,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					priestColor = {
-						name = "Priest",
-						desc = "Set the Priest class color",
+						name = L["Priest"],
+						desc = L["Set the Priest class color"],
 						order = 209,
 						type = "color",
 						hasAlpha = true,
@@ -1011,8 +1486,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					rogueColor = {
-						name = "Rogue",
-						desc = "Set the Rogue class color",
+						name = L["Rogue"],
+						desc = L["Set the Rogue class color"],
 						order = 210,
 						type = "color",
 						hasAlpha = true,
@@ -1031,8 +1506,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					shamanColor = {
-						name = "Shaman",
-						desc = "Set the Shaman class color",
+						name = L["Shaman"],
+						desc = L["Set the Shaman class color"],
 						order = 211,
 						type = "color",
 						hasAlpha = true,
@@ -1051,8 +1526,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					warlockColor = {
-						name = "Warlock",
-						desc = "Set the Warlock class color",
+						name = L["Warlock"],
+						desc = L["Set the Warlock class color"],
 						order = 212,
 						type = "color",
 						hasAlpha = true,
@@ -1071,8 +1546,8 @@ function CDTL3:GetMainOptions()
 							end,
 					},
 					warriorColor = {
-						name = "Warrior",
-						desc = "Set the Warrior class color",
+						name = L["Warrior"],
+						desc = L["Set the Warrior class color"],
 						order = 213,
 						type = "color",
 						hasAlpha = true,
@@ -1093,13 +1568,13 @@ function CDTL3:GetMainOptions()
 				},
 			},
 			importexport = {
-				name = "Import/Export",
+				name = L["Import/Export"],
 				type = "group",
 				order = 300,
 				childGroups  = "tab",
 				args = {
 					spacer100 = {
-						name = "\nExport",
+						name = "\n" .. L["Export"],
 						type = "description",
 						fontSize = "large",
 						order = 100,
@@ -1107,13 +1582,13 @@ function CDTL3:GetMainOptions()
 					},
 					exportMode = {
 						name = "",
-						desc = "What should be exported",
+						desc = L["What should be exported"],
 						order = 101,
 						type = "select",
 						values = {
-								["ALL"] = "All Settings and Data",
-								["CDDATA"] = "Cooldown Data Only",
-								["SETTINGS"] = "CDTL3 Settings Only",
+								["ALL"] = L["All Settings and Data"],
+								["CDDATA"] = L["Cooldown Data Only"],
+								["SETTINGS"] = L["CDTL3 Settings Only"],
 							},
 						get = function(info, index)
 								return CDTL3.db.profile.global["exportMode"]
@@ -1129,45 +1604,15 @@ function CDTL3:GetMainOptions()
 						order = 200,
 						width = "full",
 						get = function(info)
-								local exportMode = CDTL3.db.profile.global["exportMode"]
-
-								local table = {}
-
-								if exportMode == "CDDATA" then
-									table = CDTL3:TableCopy(CDTL3.db.profile.tables)
-								else
-									table = CDTL3:TableCopy(CDTL3.db.profile)
-
-									if exportMode == "SETTINGS" then
-										table.tables.spells = {}
-										table.tables.petspells = {}
-										table.tables.items = {}
-										table.tables.buffs = {}
-										table.tables.debuffs = {}
-										table.tables.offensives = {}
-										table.tables.runes = {}
-										table.tables.customs = {}
-										table.tables.detected = {}
-									end
-								end
-
-								-- SERIALIZE
-								local LibAceSerializer = LibStub:GetLibrary("AceSerializer-3.0")	
-								local serialized = LibAceSerializer:Serialize(table)
-
-								-- DEFLATE
-								local LibDeflate = LibStub:GetLibrary("LibDeflate")
-								local deflated = LibDeflate:CompressDeflate(serialized)
-								local printable = LibDeflate:EncodeForPrint(deflated)
-
-								return printable
+								-- a "!CDTL3:2!" share string (Helpers.lua), with this client and CDTL3 version
+								return CDTL3:ExportString(CDTL3.db.profile.global["exportMode"])
 							end,
 						set = function(info, val)
 								return nil
 							end,
 					},
 					spacer300 = {
-						name = "\nImport",
+						name = "\n" .. L["Import"],
 						type = "description",
 						fontSize = "large",
 						order = 300,
@@ -1175,13 +1620,13 @@ function CDTL3:GetMainOptions()
 					},
 					importMode = {
 						name = "",
-						desc = "What should be imported",
+						desc = L["What should be imported"],
 						order = 301,
 						type = "select",
 						values = {
-								["ALL"] = "All Settings and Data",
-								["CDDATA"] = "Cooldown Data Only",
-								["SETTINGS"] = "CDTL3 Settings Only",
+								["ALL"] = L["All Settings and Data"],
+								["CDDATA"] = L["Cooldown Data Only"],
+								["SETTINGS"] = L["CDTL3 Settings Only"],
 							},
 						get = function(info, index)
 								return CDTL3.db.profile.global["importMode"]
@@ -1190,12 +1635,29 @@ function CDTL3:GetMainOptions()
 								CDTL3.db.profile.global["importMode"] = val
 							end,
 					},
+					importNewProfile = {
+						name = L["Import into a new profile"],
+						desc = L["Import into a new profile (Imported, Imported 2, ...) and switch to it, leaving this profile as it is"],
+						order = 302,
+						type = "toggle",
+						width = 1.5,
+						get = function(info)
+								return CDTL3.db.global["importNewProfile"] == true
+							end,
+						set = function(info, val)
+								CDTL3.db.global["importNewProfile"] = val or nil
+							end,
+					},
 					importbox = {
 						name = "",
 						type = "input",
 						multiline = 10,
 						order = 400,
 						width = "full",
+						-- a preview of what the string holds, with Accept / Cancel, before anything is written
+						confirm = function(info, val)
+								return CDTL3:ImportPreview(val)
+							end,
 						get = function(info)
 								return ""
 							end,
@@ -1206,7 +1668,7 @@ function CDTL3:GetMainOptions()
 				}
 			},
 			changelog = {
-				name = "Changelog",
+				name = L["Changelog"],
 				type = "group",
 				order = 400,
 				childGroups  = "tab",
@@ -1218,7 +1680,7 @@ function CDTL3:GetMainOptions()
 						order = 100,
 					},
 					support = {
-						name = "Issues & suggestions (GitHub; or comment on CurseForge)",
+						name = L["Issues & suggestions (GitHub; or comment on CurseForge)"],
 						type = "input",
 						order = 200,
 						width = "full",
@@ -1245,23 +1707,48 @@ function CDTL3:GetMainOptions()
 
 	private.AddSchoolColorArgs(options.args.colors.args)
 	private.AddStyleArgs(options.args)
+	private.AddPreviewArgs(options.args.global.args)
 
 	return options
 end
 
 function CDTL3:GetFilterOptions()
+	local options = private.BuildFilterOptions()
+
+	-- a timer type another addon registered has no saved list, Ignore Threshold or Set All: only
+	-- Enabled and the default lane, bar frame and Ready frame apply
+	local defaultsArgs = options.args.defaults.args
+	for _, k in ipairs({ "clearAll", "showByDefault", "ignoreThreshold", "setDefaultLane", "setDefaultBar", "setDefaultReady" }) do
+		local hidden = defaultsArgs[k].hidden
+		defaultsArgs[k].hidden = function(info)
+			if CDTL3.timerTypes and CDTL3.timerTypes[string.lower(CDTL3.currentFilter["default"] or "")] then
+				return true
+			end
+			if type(hidden) == "function" then
+				return hidden(info)
+			end
+			return hidden
+		end
+	end
+
+	CDTL3:AddGroupDefaultsArgs(defaultsArgs)
+
+	return options
+end
+
+private.BuildFilterOptions = function()
 	local options = {
-		name = "Filters",
+		name = L["Filters"],
 		type = "group",
 		childGroups  = "tab",
 		args = {
 			defaults = {
-				name = "Defaults",
+				name = L["Defaults"],
 				type = "group",
 				order = 100,
 				args = {
 					spacer100 = {
-						name = "\n\nSelect a type to edit its default settings\n",
+						name = "\n\n" .. L["Select a type to edit its default settings"] .. "\n",
 						type = "description",
 						order = 100,
 					},
@@ -1272,20 +1759,26 @@ function CDTL3:GetFilterOptions()
 						type = "select",
 						values = function(info)
 								local choices = {}
-									choices["SPELLS"] = "Spells"
-									choices["ITEMS"] = "Items"
-									choices["BUFFS"] = "Buffs"
-									choices["DEBUFFS"] = "Debuffs"
-									choices["OFFENSIVES"] = "Offensives"
-									choices["PETSPELLS"] = "Pet Spells"
-									choices["CUSTOMS"] = "Customs"
+									choices["SPELLS"] = L["Spells"]
+									choices["ITEMS"] = L["Items"]
+									choices["BUFFS"] = L["Buffs"]
+									choices["DEBUFFS"] = L["Debuffs"]
+									choices["OFFENSIVES"] = L["Offensives"]
+									choices["PETSPELLS"] = L["Pet Spells"]
+									choices["CUSTOMS"] = L["Customs"]
 
 									--[[if CDTL3.db.profile.global["debugMode"] then
 										choices["OTHER"] = "Other"
 									end]]--
 									
-								if CDTL3.player["class"] == "DEATHKNIGHT" then
-									choices["RUNES"] = "Runes"
+								-- timer types other addons registered (CDTL3:RegisterTimerType)
+									for key, t in pairs(CDTL3.timerTypes or {}) do
+										CDTL3:TimerTypeSettings(key)
+										choices[string.upper(key)] = t.name
+									end
+
+									if CDTL3.player["class"] == "DEATHKNIGHT" then
+									choices["RUNES"] = L["Runes"]
 								end
 								
 								return choices
@@ -1307,9 +1800,9 @@ function CDTL3:GetFilterOptions()
 						order = 102,
 					},
 					clearAll = {
-						name = "Clear Settings",
+						name = L["Clear Settings"],
 						desc = function(info)
-								return "This will clear this character's "..string.lower(CDTL3.currentFilter["default"]).." cooldown settings"
+								return string.format(L["This will clear this character's %s cooldown settings"], private.TypeNoun())
 							end,
 						confirm = true,
 						order = 103,
@@ -1328,6 +1821,8 @@ function CDTL3:GetFilterOptions()
 								for _, v in pairs(list) do
 									if private.KeepAfterClear(v) then
 										table.insert(kept, v)
+									else
+										CDTL3:ForgetSharedEntry(string.lower(default), v)
 									end
 								end
 								for k in pairs(list) do
@@ -1342,9 +1837,9 @@ function CDTL3:GetFilterOptions()
 							end
 					},
 					clearQuestItems = {
-						name = "Clear Quest Items",
+						name = L["Clear Quest Items"],
 						desc = function(info)
-								return "This will clear this character's saved settings of quest items"
+								return L["This will clear this character's saved settings of quest items"]
 							end,
 						confirm = true,
 						order = 104,
@@ -1364,10 +1859,15 @@ function CDTL3:GetFilterOptions()
 									
 									if classID ~= 12 or private.KeepAfterClear(v) then
 										table.insert(cleanTable, v)
+									else
+										CDTL3:ForgetSharedEntry("items", v)
 									end
 								end
 								
 								CDTL3.db.profile.tables["items"] = cleanTable
+
+								-- the Items tab may still have a cleared item selected
+								CDTL3:ResetStaleFilters()
 							end
 					},
 					spacer200 = {
@@ -1379,8 +1879,8 @@ function CDTL3:GetFilterOptions()
 						order = 200,
 					},
 					enabled = {
-						name = "Enabled",
-						desc = "If unselected cooldowns of this type will be ignored",
+						name = L["Enabled"],
+						desc = L["If unselected cooldowns of this type will be ignored"],
 						order = 201.1,
 						type = "toggle",
 						--width = "half",
@@ -1403,10 +1903,10 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					onlyPlayer = {
-						name = "Player Only",
+						name = L["Player Only"],
 						desc = function(info)
 								local default = string.lower(CDTL3.currentFilter["default"])
-								return "If selected only "..default.." applied by the player will be tracked"
+								return string.format(L["If selected only %s applied by the player will be tracked"], private.TypeNoun())
 							end,
 						order = 201.2,
 						type = "toggle",
@@ -1438,8 +1938,8 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					showByDefault = {
-						name = "Show by Default",
-						desc = "If unselected you will need to manually enable each newly detected cooldown in order for them to show as bars/icons",
+						name = L["Show by Default"],
+						desc = L["If unselected you will need to manually enable each newly detected cooldown in order for them to show as bars/icons"],
 						order = 202.1,
 						type = "toggle",
 						--width = "half",
@@ -1456,8 +1956,8 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					useItemIcon = {
-						name = "Use Item Icon",
-						desc = "If selected the displayed icon will be the item icon\nOtherwise the spell icon will be used instead",
+						name = L["Use Item Icon"],
+						desc = L["If selected the displayed icon will be the item icon\nOtherwise the spell icon will be used instead"],
 						order = 202.1,
 						type = "toggle",
 						--width = "half",
@@ -1496,19 +1996,20 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					ignoreThreshold = {
-						name = "Ignore Threshold",
-						desc = "Any cooldown/duration longer than this will be disabled by default\n",
+						name = L["Ignore Threshold"],
+						desc = L["Any cooldown/duration longer than this (in seconds, up to 7200) will be disabled by default"] .. "\n",
 						order = 251,
 						type = "range",
-						softMin = 5,
-						softMax = 1800,
+						-- hard limits, so the slider can reach and show every value (defaults go to 3600)
+						min = 1,
+						max = 7200,
 						bigStep = 1,
 						hidden = function(info)
 								return CDTL3.currentFilterHidden["default"]
 							end,
 						get = function(info, index)
 								local default = CDTL3.currentFilter["default"]
-								return CDTL3.db.profile.global[string.lower(default)]["ignoreThreshold"]
+								return math.min(CDTL3.db.profile.global[string.lower(default)]["ignoreThreshold"] or 0, 7200)
 							end,
 						set = function(info, val)
 								local default = CDTL3.currentFilter["default"]
@@ -1550,9 +2051,9 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					defaultLane = {
-						name = "Default Lane",
+						name = L["Default Lane"],
 						desc = function(info)
-								return "Set the default lane all new "..string.lower(CDTL3.currentFilter["default"]).." icons will use"
+								return string.format(L["Set the default lane all new %s icons will use"], private.TypeNoun())
 							end,
 						order = 301,
 						type = "select",
@@ -1560,7 +2061,7 @@ function CDTL3:GetFilterOptions()
 								return CDTL3.currentFilterHidden["default"]
 							end,
 						width = "half",
-						values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 						get = function(info)
 								local default = CDTL3.currentFilter["default"]
 								return CDTL3.db.profile.global[string.lower(default)]["defaultLane"]
@@ -1571,9 +2072,9 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					setDefaultLane = {
-						name = "Set All",
+						name = L["Set All"],
 						desc = function(info)
-								return "This will override current settings, and set all of this character's "..string.lower(CDTL3.currentFilter["default"]).." cooldowns to the default value"
+								return string.format(L["This will override current settings, and set all of this character's %s cooldowns to the default value"], private.TypeNoun())
 							end,
 						confirm = true,
 						order = 302,
@@ -1614,9 +2115,9 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					defaultBar = {
-						name = "Default Bar",
+						name = L["Default Bar"],
 						desc = function(info)
-								return "Set the default bar frame all new "..string.lower(CDTL3.currentFilter["default"]).." will use"
+								return string.format(L["Set the default bar frame all new %s will use"], private.TypeNoun())
 							end,
 						order = 311,
 						type = "select",
@@ -1624,7 +2125,7 @@ function CDTL3:GetFilterOptions()
 								return CDTL3.currentFilterHidden["default"]
 							end,
 						width = "half",
-						values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 						get = function(info)
 								local default = CDTL3.currentFilter["default"]
 								return CDTL3.db.profile.global[string.lower(default)]["defaultBar"]
@@ -1635,9 +2136,9 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					setDefaultBar = {
-						name = "Set All",
+						name = L["Set All"],
 						desc = function(info)
-								return "This will override current settings, and set all of this character's "..string.lower(CDTL3.currentFilter["default"]).." cooldowns to the default value"
+								return string.format(L["This will override current settings, and set all of this character's %s cooldowns to the default value"], private.TypeNoun())
 							end,
 						confirm = true,
 						order = 312,
@@ -1683,9 +2184,9 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					defaultReady = {
-						name = "Default Ready",
+						name = L["Default Ready"],
 						desc = function(info)
-								return "Set the default ready frame all new "..string.lower(CDTL3.currentFilter["default"]).." icons will use"
+								return string.format(L["Set the default ready frame all new %s icons will use"], private.TypeNoun())
 							end,
 						order = 321,
 						hidden = function(info)
@@ -1696,7 +2197,7 @@ function CDTL3:GetFilterOptions()
 								return CDTL3.currentFilterHidden["default"]
 							end,
 						width = "half",
-						values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 						get = function(info)
 								local default = CDTL3.currentFilter["default"]
 								return CDTL3.db.profile.global[string.lower(default)]["defaultReady"]
@@ -1707,9 +2208,9 @@ function CDTL3:GetFilterOptions()
 							end,
 					},
 					setDefaultReady = {
-						name = "Set All",
+						name = L["Set All"],
 						desc = function(info)
-								return "This will override current settings, and set all of this character's "..string.lower(CDTL3.currentFilter["default"]).." cooldowns to the default value"
+								return string.format(L["This will override current settings, and set all of this character's %s cooldowns to the default value"], private.TypeNoun())
 							end,
 						confirm = true,
 						order = 322,
@@ -1757,7 +2258,7 @@ end
 
 function CDTL3:GetLaneOptions()
 	local options = {
-		name = "Lanes",
+		name = L["Lanes"],
 		type = "group",
 		childGroups  = "tab",
 		args = {
@@ -1772,7 +2273,7 @@ end
 
 function CDTL3:GetReadyOptions()
 	local options = {
-		name = "Ready",
+		name = L["Ready"],
 		type = "group",
 		childGroups  = "tab",
 		args = {
@@ -1781,13 +2282,14 @@ function CDTL3:GetReadyOptions()
 			ready3 = private.GetReadySet(3),
 		}
 	}
-	
-	return options	
+	private.AddReadySoundArgs(options.args)
+
+	return options
 end
 
 function CDTL3:GetBarFrameOptions()
 	local options = {
-		name = "Bar Frames",
+		name = L["Bar Frames"],
 		type = "group",
 		childGroups  = "tab",
 		args = {
@@ -1819,12 +2321,12 @@ private.GetBarFrameSet = function(i)
 		order = 100,
 		args = {
 			general = {
-				name = "General",
+				name = L["General"],
 				type = "group",
 				order = 100,
 				args = {
 					barFrameName = {
-						name = "Frame Name",
+						name = L["Frame Name"],
 						type = "input",
 						order = 101,
 						get = function(info)
@@ -1836,7 +2338,7 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					barFrameEnabled = {
-						name = "Enabled",
+						name = L["Enabled"],
 						desc = "",
 						order = 102,
 						type = "toggle",
@@ -1859,8 +2361,8 @@ private.GetBarFrameSet = function(i)
 						order = 200,
 					},
 					grow = {
-						name = "Grow Direction",
-						desc = "Select which direction new bars will grow in",
+						name = L["Grow Direction"],
+						desc = L["Select which direction new bars will grow in"],
 						order = 201,
 						type = "select",
 						values = {
@@ -1884,8 +2386,8 @@ private.GetBarFrameSet = function(i)
 						order = 300,
 					},
 					hideTransitioned = {
-						name = "Transition bars",
-						desc = "If enabled, bars will be hidden once its cooldown drops below the lane max time, and its icon has appeared",
+						name = L["Transition bars"],
+						desc = L["If enabled, bars will be hidden once its cooldown drops below the lane max time, and its icon has appeared"],
 						order = 301,
 						type = "toggle",
 						get = function(info, index)
@@ -1904,8 +2406,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					showTI = {
-						name = "Show Indicator",
-						desc = "If enabled, the bar will have an indicator showing when it will transition",
+						name = L["Show Indicator"],
+						desc = L["If enabled, the bar will have an indicator showing when it will transition"],
 						order = 311,
 						type = "toggle",
 						hidden = function(info)
@@ -1920,8 +2422,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					style = {
-						name = "Indicator Style",
-						desc = "Select a style of indicator",
+						name = L["Indicator Style"],
+						desc = L["Select a style of indicator"],
 						order = 312,
 						type = "select",
 						hidden = function(info)
@@ -1934,9 +2436,9 @@ private.GetBarFrameSet = function(i)
 								return true
 							end,
 						values = {
-								["SHORTEN"] = "Shorten",
-								["LINE"] = "Line",
-								["REGION"] = "Region",
+								["SHORTEN"] = L["Shorten"],
+								["LINE"] = L["Line"],
+								["REGION"] = L["Region"],
 							},
 						get = function(info, index)
 								return frame["transition"]["style"]
@@ -1964,8 +2466,8 @@ private.GetBarFrameSet = function(i)
 						order = 320,
 					},
 					fgTexture = {
-						name = "Indicator Texture",
-						desc = "Selects the texture",
+						name = L["Indicator Texture"],
+						desc = L["Selects the texture"],
 						order = 321,
 						type = "select",
 						hidden = function(info)
@@ -1991,8 +2493,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					fgTextureColor = {
-						name = "Indicator Color",
-						desc = "Sets the texture color",
+						name = L["Indicator Color"],
+						desc = L["Sets the texture color"],
 						order = 322,
 						type = "color",
 						hidden = function(info)
@@ -2038,8 +2540,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					widthTI = {
-						name = "Indicator Line Width",
-						desc = "Sets the width of the transition indicator line",
+						name = L["Indicator Line Width"],
+						desc = L["Sets the width of the transition indicator line"],
 						order = 331,
 						type = "range",
 						hidden = function(info)
@@ -2071,8 +2573,8 @@ private.GetBarFrameSet = function(i)
 						order = 500,
 					},
 					xPadding = {
-						name = "x Padding",
-						desc = "Sets the x offset between growing bars",
+						name = L["x Padding"],
+						desc = L["Sets the x offset between growing bars"],
 						order = 601,
 						type = "range",
 						softMin = -20,
@@ -2086,8 +2588,8 @@ private.GetBarFrameSet = function(i)
 						end,
 					},
 					yPadding = {
-						name = "y Padding",
-						desc = "Sets the y offset between growing bars",
+						name = L["y Padding"],
+						desc = L["Sets the y offset between growing bars"],
 						order = 602,
 						type = "range",
 						softMin = -20,
@@ -2103,13 +2605,13 @@ private.GetBarFrameSet = function(i)
 				}
 			},
 			appearance = {
-				name = "Appearance",
+				name = L["Appearance"],
 				type = "group",
 				order = 200,
 				args = {
 					posX = {
-						name = "x Position",
-						desc = "Sets the x position of the frame",
+						name = L["x Position"],
+						desc = L["Sets the x position of the frame"],
 						order = 111,
 						type = "range",
 						softMin = -500,
@@ -2124,8 +2626,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					posY = {
-						name = "y Position",
-						desc = "Sets the y position of the frame",
+						name = L["y Position"],
+						desc = L["Sets the y position of the frame"],
 						order = 112,
 						type = "range",
 						softMin = -500,
@@ -2145,8 +2647,8 @@ private.GetBarFrameSet = function(i)
 						order = 113,
 					},
 					relativeTo = {
-						name = "Anchor Point",
-						desc = "The x/y position is relative to this point of the screen",
+						name = L["Anchor Point"],
+						desc = L["The x/y position is relative to this point of the screen"],
 						order = 114,
 						type = "select",
 						values = {
@@ -2174,8 +2676,8 @@ private.GetBarFrameSet = function(i)
 						order = 200,
 					},
 					padding = {
-						name = "Padding",
-						desc = "Sets the amount of padding in the frame",
+						name = L["Padding"],
+						desc = L["Sets the amount of padding in the frame"],
 						order = 201,
 						type = "range",
 						softMin = 0,
@@ -2196,8 +2698,8 @@ private.GetBarFrameSet = function(i)
 						order = 300,
 					},
 					bgTexture = {
-						name = "Background Texture",
-						desc = "Sets the background texture",
+						name = L["Background Texture"],
+						desc = L["Sets the background texture"],
 						order = 301,
 						type = "select",
 						dialogControl = 'LSM30_Statusbar',
@@ -2211,8 +2713,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					bgTextureColor = {
-						name = "Color",
-						desc = "Sets the background texture color",
+						name = L["Color"],
+						desc = L["Sets the background texture color"],
 						order = 302,
 						type = "color",
 						hasAlpha = true,
@@ -2236,17 +2738,17 @@ private.GetBarFrameSet = function(i)
 				}
 			},
 			bars = {
-				name = "Bars",
+				name = L["Bars"],
 				type = "group",
 				order = 300,
 				args = {
 					width = {
-						name = "Width",
-						desc = "Sets the width of the bars",
+						name = L["Width"],
+						desc = L["Sets the width of the bars"],
 						order = 101,
 						type = "range",
-						softMin = 1,
-						softMax = 300,
+						min = 1,
+						max = 600,
 						bigStep = 1,
 						get = function(info, index)
 								return frame["width"]
@@ -2258,8 +2760,8 @@ private.GetBarFrameSet = function(i)
 						end,
 					},
 					height = {
-						name = "Height",
-						desc = "Sets the height of the bars",
+						name = L["Height"],
+						desc = L["Sets the height of the bars"],
 						order = 102,
 						type = "range",
 						softMin = 1,
@@ -2280,8 +2782,8 @@ private.GetBarFrameSet = function(i)
 						order = 103,
 					},
 					fgTexture = {
-						name = "Foreground Texture",
-						desc = "Selects the texture",
+						name = L["Foreground Texture"],
+						desc = L["Selects the texture"],
 						order = 104,
 						type = "select",
 						width = 0.7,
@@ -2296,8 +2798,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					fgTextureColor = {
-						name = "Color",
-						desc = "Sets the texture color",
+						name = L["Color"],
+						desc = L["Sets the texture color"],
 						order = 105,
 						type = "color",
 						width = 0.4,
@@ -2330,8 +2832,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					fgClassColor = {
-						name = "Class Color",
-						desc = "Set the texture color to your class color",
+						name = L["Class Color"],
+						desc = L["Set the texture color to your class color"],
 						order = 107,
 						type = "toggle",
 						width = 0.5,
@@ -2349,8 +2851,8 @@ private.GetBarFrameSet = function(i)
 						order = 109,
 					},
 					bgTexture = {
-						name = "Background Texture",
-						desc = "Sets the background texture",
+						name = L["Background Texture"],
+						desc = L["Sets the background texture"],
 						order = 110,
 						type = "select",
 						width = 0.7,
@@ -2365,8 +2867,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					bgTextureColor = {
-						name = "Color",
-						desc = "Sets the background texture color",
+						name = L["Color"],
+						desc = L["Sets the background texture color"],
 						order = 111,
 						type = "color",
 						width = 0.4,
@@ -2397,8 +2899,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					bgClassColor = {
-						name = "Class Color",
-						desc = "Set the texture color to your class color",
+						name = L["Class Color"],
+						desc = L["Set the texture color to your class color"],
 						order = 113,
 						type = "toggle",
 						width = 0.5,
@@ -2411,8 +2913,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					fgSchoolColor = {
-						name = "Spell School Color",
-						desc = "Color each bar by its spell's school (fire, frost, etc). Schools are learned from the combat log as you cast; set the colors under Colors.",
+						name = L["Spell School Color"],
+						desc = L["Color each bar by its spell's school (fire, frost, etc). Schools are learned from the combat log as you cast; set the colors under Colors."],
 						order = 108,
 						type = "toggle",
 						width = 0.7,
@@ -2426,13 +2928,13 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					dynamicHeader = {
-						name = "Dynamic Color",
+						name = L["Dynamic Color"],
 						type = "header",
 						order = 114.1,
 					},
 					dynamicEnabled = {
-						name = "Enable Dynamic Color",
-						desc = "As a cooldown approaches ready, the bar blends from the warning color into the ready color. Above the warning window the normal bar color applies.",
+						name = L["Enable Dynamic Color"],
+						desc = L["As a cooldown approaches ready, the bar blends from the warning color into the ready color. Above the warning window the normal bar color applies."],
 						order = 114.2,
 						type = "toggle",
 						width = 1,
@@ -2446,8 +2948,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					dynamicWarnTime = {
-						name = "Warning Window (sec)",
-						desc = "How many seconds before ready the color blend begins",
+						name = L["Warning Window (sec)"],
+						desc = L["How many seconds before ready the color blend begins"],
 						order = 114.3,
 						type = "range",
 						softMin = 1,
@@ -2465,8 +2967,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					dynamicWarnColor = {
-						name = "Warning Color",
-						desc = "Bar color when the warning window begins",
+						name = L["Warning Color"],
+						desc = L["Bar color when the warning window begins"],
 						order = 114.4,
 						type = "color",
 						width = 0.5,
@@ -2484,8 +2986,8 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					dynamicReadyColor = {
-						name = "Ready Color",
-						desc = "Bar color the moment the cooldown is ready",
+						name = L["Ready Color"],
+						desc = L["Bar color the moment the cooldown is ready"],
 						order = 114.5,
 						type = "color",
 						width = 0.5,
@@ -2508,7 +3010,7 @@ private.GetBarFrameSet = function(i)
 						order = 115,
 					},
 					textHeader = {
-						name = "Bar Text",
+						name = L["Bar Text"],
 						type = "header",
 						order = 200.1,
 					},
@@ -2592,7 +3094,7 @@ private.GetBarFrameSet = function(i)
 						order = 300,
 					},
 					iconEnabled = {
-						name = "Show icon",
+						name = L["Show icon"],
 						desc = "",
 						order = 301,
 						type = "toggle",
@@ -2605,13 +3107,13 @@ private.GetBarFrameSet = function(i)
 							end,
 					},
 					iconPosition = {
-						name = "Icon position",
-						desc = "Which side of the bar should the icon appear",
+						name = L["Icon position"],
+						desc = L["Which side of the bar should the icon appear"],
 						order = 302,
 						type = "select",
 						values = {
-								["LEFT"] = "Left",
-								["RIGHT"] = "Right",
+								["LEFT"] = L["Left"],
+								["RIGHT"] = L["Right"],
 							},
 						get = function(info, index)
 								return frame["bar"]["iconPosition"]
@@ -2632,9 +3134,11 @@ private.GetBarFrameSet = function(i)
 	}
 	
 	private.AddBorderArgs(options.args.appearance.args, 400, function() return frame["border"] end, function() CDTL3:RefreshBarFrame(i) end)
+	CDTL3:AddAnchorArgs(options.args.appearance.args, 115, function() return frame end, function() CDTL3:RefreshBarFrame(i) end, L["bar frame"])
 	private.AddBorderArgs(options.args.bars.args, 400, function() return frame["bar"]["border"] end, function() CDTL3:RefreshAllBars() end)
 
-	private.AddCopyArgs(options.args.general.args, "barFrames", i, "Bar Frame")
+	private.AddCopyArgs(options.args.general.args, "barFrames", i, L["Bar Frame"])
+	private.AddShowArgs(options.args.general.args, function() return frame end, function() CDTL3:RefreshBarFrame(i) end)
 
 	return options
 end
@@ -2643,10 +3147,14 @@ private.GetFilterSet = function(t, o)
 	local options = {
 		name = function(info)
 				if t == "customs" then
-					return "Custom"
+					return L["Custom"]
 				end
 
-				return t:gsub("^%l", string.upper)
+				local tabNames = {
+					spells = L["Spells"], items = L["Items"], buffs = L["Buffs"], debuffs = L["Debuffs"],
+					offensives = L["Offensives"], petspells = L["Pet Spells"], runes = L["Runes"],
+				}
+				return tabNames[t] or t:gsub("^%l", string.upper)
 			end,
 		type = "group",
 		order = o,
@@ -2663,10 +3171,10 @@ private.GetFilterSet = function(t, o)
 			spacer100 = {
 				name = function(info)
 						if t == "offensives" and private.NoCombatLog() then
-							return "\n\n|cffffd100Offensive debuffs are detected from the combat log, which this client doesn't give to addons, so nothing new will appear here.|r\n\nSelect something to edit its settings\n"
+							return "\n\n|cffffd100"..L["Offensive debuffs are detected from the combat log, which this client doesn't give to addons, so nothing new will appear here."].."|r\n\n"..L["Select something to edit its settings"].."\n"
 						end
 
-						return "\n\nSelect something to edit its settings\n"
+						return "\n\n"..L["Select something to edit its settings"].."\n"
 					end,
 				type = "description",
 				order = 100,
@@ -2710,10 +3218,10 @@ private.GetFilterSet = function(t, o)
 				--name = "*Spells will show up here once they have been detected at least once*\n\n\n",
 				name = function(info)
 					if t == "customs" then
-						return "*Custom cooldowns will appear here once saved*\n\n\n"
+						return L["*Custom cooldowns will appear here once saved*"].."\n\n\n"
 					end
 
-					return "*Cooldowns will appear here once they have been detected at least once*\n\n\n"
+					return L["*Cooldowns will appear here once they have been detected at least once*"].."\n\n\n"
 					end,
 				type = "description",
 				order = 110,
@@ -2722,8 +3230,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			triggerType = {
-				name = "Trigger Type",
-				desc = "What will trigger the cooldown to begin, a spell or aura?",
+				name = L["Trigger Type"],
+				desc = L["What will trigger the cooldown to begin, a spell or aura?"],
 				order = 111,
 				hidden = function(info)
 						if t == "customs" then
@@ -2736,8 +3244,8 @@ private.GetFilterSet = function(t, o)
 				width = "half",
 				values = function(info)
 						local choices = {}
-						choices["spell"] = "Spell"
-						choices["aura"] = "Aura"
+						choices["spell"] = L["Spell"]
+						choices["aura"] = L["Aura"]
 							
 						return choices
 					end,
@@ -2771,8 +3279,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			triggerID = {
-				name = "Trigger ID",
-				desc = "Entering a valid Spell/Aura ID here will populate the other fields",
+				name = L["Trigger ID"],
+				desc = L["Entering a valid Spell/Aura ID here will populate the other fields"],
 				type = "input",
 				order = 112,
 				hidden = function(info)
@@ -2820,7 +3328,8 @@ private.GetFilterSet = function(t, o)
 						if CDTL3.currentFilter[t] == "<< Add New >>" then
 							local spellName, icon, originalIcon = CDTL3:GetSpellInfo(val)
 
-							if spellName then
+							-- Retail and Forever give "" (not nil) for an ID that isn't a spell
+							if spellName and spellName ~= "" then
 								CDTL3.custom["id"] = tonumber(val)
 								CDTL3.custom["name"] = spellName
 								CDTL3.custom["icon"] = icon
@@ -2858,7 +3367,7 @@ private.GetFilterSet = function(t, o)
 			},
 			itemTypePrefix = {
 				name = function(info)
-						local n = "Item:   "
+						local n = L["Item:"].."   "
 						
 						return n
 					end,
@@ -2936,13 +3445,13 @@ private.GetFilterSet = function(t, o)
 						local n = " "
 						
 						if t == "spells" or t == "items" or t == "petspells" then
-							n = "Spell:   "
+							n = L["Spell:"].."   "
 						elseif t == "buffs" or t == "debuffs" or t == "offensives" then
-							n = "Aura:   "
+							n = L["Aura:"].."   "
 						elseif t == "runes" then
-							n = "Rune:   "
+							n = L["Rune:"].."   "
 						elseif t == "customs" then
-							n = "Name:   "
+							n = L["Name:"].."   "
 						end
 						
 						return n
@@ -2964,9 +3473,9 @@ private.GetFilterSet = function(t, o)
 									n = CDTL3.custom["name"]
 								else
 									if CDTL3.customIsValid == false then
-										n = "Enter valid trigger ID"
+										n = L["Enter valid trigger ID"]
 									else
-										n = "New Custom"
+										n = L["New Custom"]
 									end
 								end
 							else
@@ -3043,11 +3552,11 @@ private.GetFilterSet = function(t, o)
 						local n = " "
 						
 						if t == "spells" or t == "items" or t == "petspells" or t == "customs" then
-							n = "Cooldown:"
+							n = L["Cooldown:"]
 						elseif t == "buffs" or t == "debuffs" or t == "offensives" then
-							n = "Duration:"
+							n = L["Duration:"]
 						elseif t == "runes" then
-							n = "Recharge:"
+							n = L["Recharge:"]
 						end
 						
 						return n
@@ -3073,7 +3582,7 @@ private.GetFilterSet = function(t, o)
 							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
 							
 							if s then
-								n =	n.."  "..(s["bCD"] / 1000).." sec\n"
+								n =	n.."  "..string.format(L["%s sec"], s["bCD"] / 1000).."\n"
 							end								
 						end
 						
@@ -3109,7 +3618,7 @@ private.GetFilterSet = function(t, o)
 			},
 			setNewCD = {
 				name = " ",
-				desc = "Set the default cooldown value.",
+				desc = L["Set the default cooldown value."],
 				order = 303,
 				hidden = function(info)
 						if t == "customs" then
@@ -3171,7 +3680,7 @@ private.GetFilterSet = function(t, o)
 			},
 			customCDTime = {
 				name = "",
-				desc = "Set the value of the custom CD",
+				desc = L["Set the value of the custom CD"],
 				type = "input",
 				order = 304,
 				hidden = function(info)
@@ -3238,8 +3747,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			setCustomCD = {
-				name = "Custom CD Time",
-				desc = "Allows you to set a custom time for the cooldown.  This can be used for if a talent changes a cooldown time and the mod cannot detect it.",
+				name = L["Custom CD Time"],
+				desc = L["Allows you to set a custom time for the cooldown.  This can be used for if a talent changes a cooldown time and the mod cannot detect it."],
 				order = 305,
 				hidden = function(info)
 						if t == "customs" or CDTL3.currentFilterHidden[t] then
@@ -3290,14 +3799,14 @@ private.GetFilterSet = function(t, o)
 				--name = "Clear Individual Settings",
 				name = function(info)
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							return "Clear"
+							return L["Clear"]
 						end
 
-						return "Clear Individual Settings"
+						return L["Clear Individual Settings"]
 					end,
 				desc = function(info)
 						if t == "customs" then
-							return "Clear unsaved custom settings"
+							return L["Clear unsaved custom settings"]
 						end
 
 						local s = ""
@@ -3306,9 +3815,18 @@ private.GetFilterSet = function(t, o)
 							s = CDTL3.currentFilter[t]
 						end
 				
-						return "This will clear cooldown settings for "..s
+						return string.format(L["This will clear cooldown settings for %s"], s)
 					end,
-				confirm = true,
+				-- an entry other characters use too asks with its own warning, then goes for everyone
+				confirm = function(info)
+						if not (t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>") then
+							local entry = private.SelectedEntry(t)
+							if entry and private.UsedByOthers(entry) then
+								return string.format(L["Other characters on this profile use these settings for %s.\n\nClearing them resets them for every character on this profile."], tostring(CDTL3.currentFilter[t]))
+							end
+						end
+						return true
+					end,
 				order = 401,
 				type = "execute",
 				hidden = function(info)
@@ -3337,22 +3855,13 @@ private.GetFilterSet = function(t, o)
 							CDTL3.custom = {}
 							CDTL3.customIsValid = false
 						else
-							local s = ""
-							
-							if CDTL3.currentFilter[t] then
-								s = CDTL3.currentFilter[t]
-							end
-							
-							-- items are selected by item name in this tab
-							local index = nil
-							for k, spell in pairs(CDTL3.db.profile.tables[t]) do
-								local n = (t == "items") and spell["itemName"] or spell["name"]
-								if n == s then
-									index = k
-								end
-							end
-							
+							-- only this character's entry (the one Filters lists) goes; one other
+							-- characters use too was confirmed above and goes for all of them (only
+							-- dropping this character from it let the next cast claim it back)
+							local _, index = private.SelectedEntry(t)
+
 							if index then
+								CDTL3:ForgetSharedEntry(t, CDTL3.db.profile.tables[t][index])
 								table.remove(CDTL3.db.profile.tables[t], index)
 
 								-- back to this tab's own placeholder: the custom editor for
@@ -3370,9 +3879,9 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			saveCustom = {
-				name = "Save Custom",
+				name = L["Save Custom"],
 				desc = function(info)
-						return "Save current details as a custom cooldown"
+						return L["Save current details as a custom cooldown"]
 					end,
 				confirm = true,
 				order = 402,
@@ -3408,9 +3917,9 @@ private.GetFilterSet = function(t, o)
 							CDTL3.customIsValid = false
 							CDTL3.currentFilter[t] = name
 
-							CDTL3:Print("CUSTOM: "..name.." saved")
+							CDTL3:Print(string.format(L["CUSTOM: %s saved"], name))
 						else
-							CDTL3:Print("CUSTOM: "..tostring(s["name"]).." already saved")
+							CDTL3:Print(string.format(L["CUSTOM: %s already saved"], tostring(s["name"])))
 						end
 					end,
 			},
@@ -3423,8 +3932,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			enabled = {
-				name = "Enabled",
-				desc = "Untick this to never show this as an icon/bar",
+				name = L["Enabled"],
+				desc = L["Untick this to never show this as an icon/bar"],
 				order = 501,
 				type = "toggle",
 				width = "half",
@@ -3444,8 +3953,9 @@ private.GetFilterSet = function(t, o)
 					end,
 				get = function(info, index)
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["enabled"] then
-								return CDTL3.custom["enabled"]
+							-- an unticked box is false, not "not set yet" (that showed it ticked)
+							if CDTL3.custom["enabled"] ~= nil then
+								return CDTL3.custom["enabled"] and true or false
 							else
 								return CDTL3.db.profile.global["customs"]["showByDefault"]
 							end
@@ -3480,8 +3990,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			highlight = {
-				name = "Highlight",
-				desc = "Tick to apply highlighting to the icon",
+				name = L["Highlight"],
+				desc = L["Tick to apply highlighting to the icon"],
 				order = 502,
 				type = "toggle",
 				width = "half",
@@ -3536,8 +4046,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			pinned = {
-				name = "Pinned",
-				desc = "Tick to keep an icon in the ready frame until the cooldown is used again",
+				name = L["Pinned"],
+				desc = L["Tick to keep an icon in the ready frame until the cooldown is used again"],
 				order = 503,
 				type = "toggle",
 				width = "half",
@@ -3592,8 +4102,8 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			ignored = {
-				name = "Ignored",
-				desc = "Manually choose if something should be ignored or not.\nThis can be used in tandem with setting custom cooldown times to force misbehaving cooldowns to show correctly",
+				name = L["Ignored"],
+				desc = L["Manually choose if something should be ignored or not.\nThis can be used in tandem with setting custom cooldown times to force misbehaving cooldowns to show correctly"],
 				order = 504,
 				type = "toggle",
 				width = "half",
@@ -3641,14 +4151,27 @@ private.GetFilterSet = function(t, o)
 							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
 							if s then
 								s.data["ignored"] = val
-							
+
 								CDTL3:RefreshIcon(s)
+							end
+
+							-- Unticked on a buff/debuff that is up right now: show it at once
+							if not val and (t == "buffs" or t == "debuffs") and CDTL3.db.profile.global[t]["enabled"] then
+								local saved = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t)
+								if saved and CDTL3:AuraExists("player", saved["name"]) then
+									if s then
+										CDTL3:SendToLane(s)
+										CDTL3:SendToBarFrame(s)
+									else
+										CDTL3:CreateCooldown(CDTL3:GetUID(), t, saved)
+									end
+								end
 							end
 						end
 					end,
 			},
 			spacer600 = {
-				name = "\n\nSelect the frame the icon/bar will be shown\nIf the selected frame is not enabled, the icon/bar will not appear\n\n",
+				name = "\n\n" .. L["Select the frame the icon/bar will be shown\nIf the selected frame is not enabled, the icon/bar will not appear"] .. "\n\n",
 				type = "description",
 				order = 600,
 				hidden = function(info)
@@ -3656,7 +4179,7 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			lane = {
-				name = "Lane",
+				name = L["Lane"],
 				desc = "",
 				order = 601,
 				type = "select",
@@ -3675,7 +4198,7 @@ private.GetFilterSet = function(t, o)
 							return false
 						end,
 				width = "half",
-				values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+				values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 				get = function(info)
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
 							if CDTL3.custom["lane"] then
@@ -3716,7 +4239,7 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			barFrame = {
-				name = "Bar Frame",
+				name = L["Bar Frame"],
 				desc = "",
 				order = 602,
 				type = "select",
@@ -3735,7 +4258,7 @@ private.GetFilterSet = function(t, o)
 							return false
 						end,
 				width = "half",
-				values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+				values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 				get = function(info)
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
 							if CDTL3.custom["barFrame"] then
@@ -3775,7 +4298,7 @@ private.GetFilterSet = function(t, o)
 					end,
 			},
 			readyFrame = {
-				name = "Ready Frame",
+				name = L["Ready Frame"],
 				desc = "",
 				order = 603,
 				hidden = function(info)
@@ -3794,7 +4317,7 @@ private.GetFilterSet = function(t, o)
 					end,
 				type = "select",
 				width = "half",
-				values = { [0] = "Hide", [1] = "1", [2] = "2", [3] = "3" },
+				values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 				get = function(info)
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
 							if CDTL3.custom["readyFrame"] then
@@ -3838,21 +4361,300 @@ private.GetFilterSet = function(t, o)
 	}
 
 	private.AddEntryColorArgs(options.args, t)
+	private.AddEntryReadyArgs(options.args, t)
+	CDTL3:AddEffectArgs(options.args, t, private.FilterEntry)
+	CDTL3.IconFx:AddEntryArgs(options.args, t)
+
+	-- Combat timers: tell the user if this buff gets an exact timer in combat
+	if t == "buffs" then
+		options.args["combatTimerNote"] = {
+			name = function(info)
+					local CT = CDTL3.CombatTimers
+					local inBars = CT and CT:BuffInTrackedBars(CDTL3.currentFilter[t])
+					if inBars then
+						return "\n"..L["Exact in combat: this buff is in the Cooldown Manager's Tracked Bars."]
+					end
+					return "\n"..L["Estimated in combat. For an exact timer, add it to Tracked Bars in the Cooldown Manager (/cdm)."]
+				end,
+			type = "description",
+			order = 703,
+			width = "full",
+			hidden = function(info)
+					if CDTL3.currentFilterHidden[t] then
+						return true
+					end
+
+					local CT = CDTL3.CombatTimers
+					if not (CT and CT:Available()) then
+						return true
+					end
+
+					return CT:BuffInTrackedBars(CDTL3.currentFilter[t]) == nil
+				end,
+		}
+	end
+
+	-- why the entry won't show (every tab); My spells and the spec rules (Spells); the Cooldown
+	-- Manager's Tracked Bars (Buffs)
+	private.AddEntryReasonArgs(options.args, t)
+	if t == "spells" then
+		private.AddSpellRuleArgs(options.args, t)
+	elseif t == "buffs" then
+		private.AddCooldownManagerArgs(options.args)
+	end
 
 	return options
+end
+
+-- WHY ISN'T IT SHOWING: a one-line reason under the entry's name, and Show anyway
+private.ReasonEntry = function(t)
+	if CDTL3.currentFilterHidden[t] or (t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>") then
+		return nil
+	end
+
+	return CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, t == "items")
+end
+
+private.ShowAnywayText = {
+	unignore = L["Unticks Ignored for it"],
+	enable = L["Ticks its Enabled box"],
+	tick = L["Ticks it in My spells"],
+	spec = L["Adds the spec you're in now to the specs it shows in"],
+	type = L["Switches this whole type back on (Filters > Defaults)"],
+	lane = L["Puts it on a lane: the type's Default Lane, or the first lane that's switched on"],
+	laneOn = L["Switches its lane on"],
+}
+
+private.AddEntryReasonArgs = function(args, t)
+	args["whyNotShowing"] = {
+		name = function(info)
+				local text = CDTL3:WhyNotShowing(private.ReasonEntry(t), t)
+				return "|cffffd100" .. tostring(text or "") .. "|r"
+			end,
+		type = "description",
+		order = 206,
+		width = "full",
+		hidden = function(info)
+				return CDTL3:WhyNotShowing(private.ReasonEntry(t), t) == nil
+			end,
+	}
+	args["showAnyway"] = {
+		name = L["Show anyway"],
+		desc = function(info)
+				local _, fix = CDTL3:WhyNotShowing(private.ReasonEntry(t), t)
+				return private.ShowAnywayText[fix or ""] or ""
+			end,
+		type = "execute",
+		order = 207,
+		hidden = function(info)
+				local _, fix = CDTL3:WhyNotShowing(private.ReasonEntry(t), t)
+				return fix == nil
+			end,
+		func = function(info)
+				local s = private.ReasonEntry(t)
+				local _, fix, n = CDTL3:WhyNotShowing(s, t)
+
+				-- the same change the entry's own control makes (live icons included)
+				if fix == "unignore" then
+					args["ignored"].set(info, false)
+				elseif fix == "enable" then
+					args["enabled"].set(info, true)
+				elseif fix == "lane" then
+					args["lane"].set(info, n)
+				elseif fix == "tick" then
+					CDTL3:TickSpell(s["name"], true)
+				elseif fix == "spec" then
+					CDTL3:SetOnlyThisSpec(s, true)
+				elseif fix == "type" then
+					CDTL3.db.profile.global[t]["enabled"] = true
+					for _, cd in pairs(CDTL3.cooldowns) do
+						if cd.data["type"] == t then
+							local saved = CDTL3:GetSpellSettings(cd.data["name"], t)
+							cd.data["enabled"] = not (saved and saved["enabled"] == false)
+						end
+					end
+				elseif fix == "laneOn" then
+					CDTL3.db.profile.lanes["lane" .. n]["enabled"] = true
+					CDTL3:CreateLanes()
+					CDTL3:RefreshLane(n)
+				end
+			end,
+	}
+end
+
+-- FILTERS > SPELLS: Hide spells I don't know, Show only the ticked spells, My spells, Only for this spec
+private.AddSpellRuleArgs = function(args, t)
+	args["hideUnknown"] = {
+		name = L["Hide spells I don't know"],
+		desc = L["Spells this character doesn't know right now (another spec's, or a talent you've swapped out) don't show; their settings are kept"],
+		type = "toggle",
+		order = 90,
+		width = 1.5,
+		get = function(info)
+				return CDTL3.db.profile.global["spells"]["hideUnknown"] and true or false
+			end,
+		set = function(info, val)
+				CDTL3:SetHideUnknownSpells(val)
+			end,
+	}
+	args["onlyTicked"] = {
+		name = L["Show only the ticked spells"],
+		desc = L["Only the spells ticked in My spells (below) show; every other spell counts as ignored while this is on and keeps its settings. Just for this character."],
+		type = "toggle",
+		order = 91,
+		width = 1.5,
+		get = function(info)
+				return CDTL3:OnlyTickedSpells()
+			end,
+		set = function(info, val)
+				CDTL3:SetOnlyTickedSpells(val)
+			end,
+	}
+
+	args["onlyThisSpec"] = {
+		name = function(info)
+				local s = private.ReasonEntry(t)
+				if CDTL3:IsSpecLimited(s) then
+					return string.format(L["Only for %s"], CDTL3:SpecNames(s["onlySpecs"]))
+				end
+				local _, specName = CDTL3:CurrentSpec()
+				if specName then
+					return string.format(L["Only for this spec (%s)"], tostring(specName))
+				end
+				return L["Only for this spec"]
+			end,
+		desc = L["Show this spell only in the specs named here; ticking adds the spec you're in now, unticking shows it in every spec"],
+		type = "toggle",
+		order = 505,
+		width = 1.5,
+		hidden = function(info)
+				return not (CDTL3:HasSpecs() and private.ReasonEntry(t))
+			end,
+		disabled = function(info)
+				return not CDTL3:IsSpecLimited(private.ReasonEntry(t)) and not CDTL3:CurrentSpec()
+			end,
+		get = function(info)
+				return CDTL3:IsSpecLimited(private.ReasonEntry(t))
+			end,
+		set = function(info, val)
+				CDTL3:SetOnlyThisSpec(private.ReasonEntry(t), val)
+			end,
+	}
+
+	args["mySpells"] = {
+		name = L["My spells"],
+		type = "group",
+		inline = true,
+		order = 950,
+		args = {
+			intro = {
+				name = L["Tick the spellbook spells you want to see. Ticking one sets it up before you've ever cast it. Only spells with a cooldown are listed."] .. "\n",
+				type = "description",
+				order = 1,
+			},
+			none = {
+				name = L["|cffaaaaaaNo spells with a cooldown in your spellbook yet.|r"],
+				type = "description",
+				order = 2,
+				hidden = function(info)
+						return #CDTL3:MySpellsList() > 0
+					end,
+			},
+			list = {
+				name = "",
+				desc = L["Ticked spells show and are never ignored; unticking keeps the spell's settings"],
+				type = "multiselect",
+				order = 3,
+				values = function(info)
+						local values = {}
+						for _, e in ipairs(CDTL3:MySpellsList()) do
+							values[e.key] = e.label
+						end
+						return values
+					end,
+				get = function(info, key)
+						return CDTL3:IsSpellTicked(key)
+					end,
+				set = function(info, key, val)
+						CDTL3:TickSpell(key, val)
+					end,
+			},
+		},
+	}
+end
+
+-- FILTERS > BUFFS: Pull from Cooldown Manager (Retail and Forever; hidden elsewhere)
+private.NoCooldownManager = function()
+	local CT = CDTL3.CombatTimers
+	return not (CT and CT:Available() and CT.TrackedBarBuffs)
+end
+
+private.PullFromCooldownManager = function()
+	local r = CDTL3:PullTrackedBuffs()
+	if not r then
+		CDTL3:Print(L["The Cooldown Manager isn't available on this client."])
+		return
+	end
+
+	if r.tracked == 0 then
+		CDTL3:Print(L["The Cooldown Manager's Tracked Bars have no buffs yet: add some there (/cdm), then pull again."])
+	else
+		CDTL3:Print(string.format(r.tracked == 1 and L["Pulled %d buff from the Cooldown Manager's Tracked Bars: %d new, %d already saved."] or L["Pulled %d buffs from the Cooldown Manager's Tracked Bars: %d new, %d already saved."],
+				r.tracked, #r.made, #r.claimed))
+	end
+	if #r.notTracked > 0 then
+		CDTL3:Print(string.format(L["Not in Tracked Bars, so estimated in combat: %s."], table.concat(r.notTracked, ", ")))
+	end
+	if not r.viewerOn then
+		CDTL3:Print(L["The Cooldown Manager is switched off in the game's options; turn it on for exact buff timers in combat."])
+	end
+end
+
+private.AddCooldownManagerArgs = function(args)
+	args["pullCooldownManager"] = {
+		name = L["Pull from Cooldown Manager"],
+		desc = L["Makes a Buffs entry, on the Buffs default lane, for every buff in the Cooldown Manager's Tracked Bars, and lists your buffs that aren't there"],
+		type = "execute",
+		order = 90,
+		width = 1.5,
+		confirm = true,
+		confirmText = L["Make an entry for every buff in the Cooldown Manager's Tracked Bars? Buffs you already have keep their settings but stop being ignored."],
+		hidden = private.NoCooldownManager,
+		func = function(info)
+				private.PullFromCooldownManager()
+			end,
+	}
+	args["notInTrackedBars"] = {
+		name = function(info)
+				local bars = CDTL3.CombatTimers:TrackedBarBuffs()
+				local list = CDTL3:BuffsNotInTrackedBars(bars) or {}
+				return string.format(L["|cffaaaaaaNot in Tracked Bars, so estimated in combat: %s|r"], table.concat(list, ", "))
+			end,
+		type = "description",
+		order = 91,
+		width = "full",
+		hidden = function(info)
+				if private.NoCooldownManager() then
+					return true
+				end
+				local bars, viewerOn = CDTL3.CombatTimers:TrackedBarBuffs()
+				local list = bars and viewerOn and CDTL3:BuffsNotInTrackedBars(bars)
+				return not (list and #list > 0)
+			end,
+	}
 end
 
 private.GetCustomSet = function(t, o)
 
 	local options = {
-		name = "Custom",
+		name = L["Custom"],
 		type = "group",
 		order = o,
 		childGroups  = "tab",
 		args = {
 			saved = private.GetFilterSet(t, 100),
 			detected = {
-				name = "Detected",
+				name = L["Detected"],
 				type = "group",
 				order = 200,
 				args = {
@@ -3860,9 +4662,9 @@ private.GetCustomSet = function(t, o)
 						name = function(info, index)
 								local s = " \n\n"
 
-								s = s.."When detection is enabled, spell data will be kept for all spells cast by the player.\n"
-								s = s.."This will include many instances of spells cast by game systems that can mostly be ignored.\n"
-								s = s.."To save a spell as a custom trigger, just select the spell from the list and then hit the 'Save As Custom' button.\n"
+								s = s..L["When detection is enabled, spell data will be kept for all spells cast by the player."].."\n"
+								s = s..L["This will include many instances of spells cast by game systems that can mostly be ignored."].."\n"
+								s = s..L["To save a spell as a custom trigger, just select the spell from the list and then hit the 'Save As Custom' button."].."\n"
 								s = s.." \n"
 
 								return s
@@ -3872,8 +4674,8 @@ private.GetCustomSet = function(t, o)
 						width = "full"
 					},
 					customDetection = {
-						name = "Enable Detection",
-						desc = "Detect and record 'miscellaneous' spells",
+						name = L["Enable Detection"],
+						desc = L["Detect and record 'miscellaneous' spells"],
 						order = 101,
 						type = "toggle",
 						--width = "half",
@@ -3885,9 +4687,9 @@ private.GetCustomSet = function(t, o)
 							end,
 					},
 					clearAllDetected = {
-						name = "Clear Detected",
+						name = L["Clear Detected"],
 						desc = function(info)
-								return "This will clear all detected 'miscellaneous' spells"
+								return L["This will clear all detected 'miscellaneous' spells"]
 							end,
 						confirm = true,
 						order = 102,
@@ -3902,7 +4704,7 @@ private.GetCustomSet = function(t, o)
 					},
 					spacer200 = {
 						--name = "\n\nSelect something to edit its settings\n",
-						name = " \n\nSelect a detected spell to create a custom cooldown\n",
+						name = " \n\n" .. L["Select a detected spell to create a custom cooldown"] .. "\n",
 						type = "description",
 						order = 200,
 					},
@@ -3936,7 +4738,7 @@ private.GetCustomSet = function(t, o)
 					},
 					spacer202 = {
 						name = function(info)
-								return "*Miscellaneous spells that have been detected will appear here*\n\n\n"
+								return L["*Miscellaneous spells that have been detected will appear here*"].."\n\n\n"
 							end,
 						type = "description",
 						order = 202,
@@ -3946,13 +4748,13 @@ private.GetCustomSet = function(t, o)
 								local n = " "
 								
 								if t == "spells" or t == "items" or t == "petspells" then
-									n = "Spell:   "
+									n = L["Spell:"].."   "
 								elseif t == "buffs" or t == "debuffs" or t == "offensives" then
-									n = "Aura:   "
+									n = L["Aura:"].."   "
 								elseif t == "runes" then
-									n = "Rune:   "
+									n = L["Rune:"].."   "
 								elseif t == "customs" or t == "detected" then
-									n = "Name:   "
+									n = L["Name:"].."   "
 								end
 								
 								return n
@@ -3966,7 +4768,7 @@ private.GetCustomSet = function(t, o)
 								local n = " "
 								
 								if CDTL3.currentFilter["detected"] == "<< Select Detected >>" then
-									n = "Select a detected spell"
+									n = L["Select a detected spell"]
 								else
 									local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["detected"], "detected", false)
 									if s then
@@ -4003,9 +4805,9 @@ private.GetCustomSet = function(t, o)
 						order = 300,
 					},
 					saveDetected = {
-						name = "Save As Custom",
+						name = L["Save As Custom"],
 						desc = function(info)
-								return "This will save the detected spell as custom cooldown"
+								return L["This will save the detected spell as custom cooldown"]
 							end,
 						confirm = true,
 						order = 301,
@@ -4064,12 +4866,12 @@ private.GetLaneSet = function(i)
 		order = 100,
 		args = {
 			general = {
-				name = "General",
+				name = L["General"],
 				type = "group",
 				order = 100,
 				args = {
 					name = {
-						name = "Frame Name",
+						name = L["Frame Name"],
 						type = "input",
 						order = 101,
 						get = function(info)
@@ -4081,7 +4883,7 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					enabled = {
-						name = "Enabled",
+						name = L["Enabled"],
 						desc = "",
 						order = 102,
 						type = "toggle",
@@ -4104,8 +4906,8 @@ private.GetLaneSet = function(i)
 						order = 103,
 					},
 					reversed = {
-						name = "Reversed",
-						desc = "Selecting this will reverse icon travel direction from right-to-left, to left-to-right",
+						name = L["Reversed"],
+						desc = L["Selecting this will reverse icon travel direction from right-to-left, to left-to-right"],
 						order = 104,
 						type = "toggle",
 						get = function(info, index)
@@ -4117,8 +4919,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					vertical = {
-						name = "Vertical",
-						desc = "The frame will be vertical instead of horizontal",
+						name = L["Vertical"],
+						desc = L["The frame will be vertical instead of horizontal"],
 						order = 105,
 						type = "toggle",
 						get = function(info, index)
@@ -4135,15 +4937,15 @@ private.GetLaneSet = function(i)
 						order = 200,
 					},
 					mode = {
-						name = "Mode",
-						desc = "How icons will progress along the lane",
+						name = L["Mode"],
+						desc = L["How icons will progress along the lane"],
 						order = 201,
 						type = "select",
 						values = {
-								["LINEAR"] = "Linear (%)",
-								["LINEAR_ABS"] = "Linear (Time)",
-								["SPLIT"] = "Split (%)",
-								["SPLIT_ABS"] = "Split (Time)",
+								["LINEAR"] = L["Linear (%)"],
+								["LINEAR_ABS"] = L["Linear (Time)"],
+								["SPLIT"] = L["Split (%)"],
+								["SPLIT_ABS"] = L["Split (Time)"],
 							},
 						get = function(info, index)
 								return lane["mode"]["type"]
@@ -4153,9 +4955,29 @@ private.GetLaneSet = function(i)
 								CDTL3:RefreshLane(i)
 							end,
 					},
+					longBuffs = {
+						name = L["Long buffs scale"],
+						desc = L["Sets this lane to Split (Time) over 60 minutes. The last 30 seconds, 30 seconds to 2 minutes and 2 to 10 minutes each get a quarter of the lane; 10 to 60 minutes share the last quarter. Hide Long Timers is turned off for it."],
+						order = 201.5,
+						type = "execute",
+						func = function(info)
+								lane["mode"]["type"] = "SPLIT_ABS"
+								local sa = lane["mode"]["splitAbs"]
+								sa["max"] = 3600
+								sa["hideTimeSurplus"] = false
+								sa["count"] = 3
+								sa["s1v"] = 30
+								sa["s1p"] = 0.25
+								sa["s2v"] = 120
+								sa["s2p"] = 0.5
+								sa["s3v"] = 600
+								sa["s3p"] = 0.75
+								CDTL3:RefreshLane(i)
+							end,
+					},
 					timeFormat = {
-						name = "Time Format",
-						desc = "Select the format to display times",
+						name = L["Time Format"],
+						desc = L["Select the format to display times"],
 						order = 202,
 						type = "select",
 						hidden = function(info)
@@ -4196,12 +5018,13 @@ private.GetLaneSet = function(i)
 						order = 300,
 					},
 					maxTime = {
-						name = "Max Time",
-						desc = "How many seconds the lane represents",
+						name = L["Max Time"],
+						desc = L["How many seconds the lane represents (up to 3600, an hour). Type a number in the box for an exact value."],
 						order = 301,
 						type = "range",
-						softMin = 10,
-						softMax = 180,
+						-- hard limits, so the slider can reach and show every value
+						min = 1,
+						max = 3600,
 						bigStep = 1,
 						get = function(info, index)
 								local mt = 0
@@ -4216,8 +5039,8 @@ private.GetLaneSet = function(i)
 								elseif mode == "SPLIT_ABS" then
 									mt = lane["mode"]["splitAbs"]["max"]
 								end
-								
-								return mt
+
+								return math.min(mt or 0, 3600)
 							end,
 						set = function(info, val)
 								local mode = lane["mode"]["type"]
@@ -4236,8 +5059,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					hideLongTimers = {
-						name = "Hide Long Timers",
-						desc = "Should icons with remaining cooldowns longer than the max time be hidden",
+						name = L["Hide Long Timers"],
+						desc = L["Should icons with remaining cooldowns longer than the max time be hidden"],
 						order = 302,
 						type = "toggle",
 						get = function(info, index)
@@ -4281,8 +5104,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplitCount = {
-						name = "Split Count",
-						desc = "How many % splits appear on the lane",
+						name = L["Split Count"],
+						desc = L["How many % splits appear on the lane"],
 						order = 401,
 						type = "range",
 						hidden = function(info)
@@ -4293,9 +5116,10 @@ private.GetLaneSet = function(i)
 						end,
 						min = 1,
 						max = 3,
+						step = 1,
 						bigStep = 1,
 						get = function(info, index)
-								return lane["mode"]["split"]["count"]
+								return CDTL3:SplitCount(lane["mode"]["split"])
 							end,
 						set = function(info, val)
 								lane["mode"]["split"]["count"] = val
@@ -4314,8 +5138,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplit1Position = {
-						name = "Split 1 Position",
-						desc = "What position should split 1 appear",
+						name = L["Split 1 Position"],
+						desc = L["What position should split 1 appear"],
 						order = 411,
 						type = "range",
 						hidden = function(info)
@@ -4335,8 +5159,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplit1Value = {
-						name = "Split 1 Value",
-						desc = "What percentage should split 1 occur",
+						name = L["Split 1 Value"],
+						desc = L["What percentage should split 1 occur"],
 						order = 412,
 						type = "range",
 						hidden = function(info)
@@ -4362,7 +5186,7 @@ private.GetLaneSet = function(i)
 						order = 420,
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT" then
-								if lane["mode"]["split"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
 									return false
 								end
 							end
@@ -4370,13 +5194,13 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplit2Position = {
-						name = "Split 2 Position",
-						desc = "What position should split 2 appear",
+						name = L["Split 2 Position"],
+						desc = L["What position should split 2 appear"],
 						order = 421,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT" then
-								if lane["mode"]["split"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
 									return false
 								end
 							end
@@ -4393,13 +5217,13 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplit2Value = {
-						name = "Split 2 Value",
-						desc = "What percentage should split 2 occur",
+						name = L["Split 2 Value"],
+						desc = L["What percentage should split 2 occur"],
 						order = 422,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT" then
-								if lane["mode"]["split"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
 									return false
 								end
 							end
@@ -4422,7 +5246,7 @@ private.GetLaneSet = function(i)
 						order = 430,
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT" then
-								if lane["mode"]["split"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
 									return false
 								end
 							end
@@ -4430,13 +5254,13 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplit3Position = {
-						name = "Split 3 Position",
-						desc = "What position should split 3 appear",
+						name = L["Split 3 Position"],
+						desc = L["What position should split 3 appear"],
 						order = 431,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT" then
-								if lane["mode"]["split"]["count"] >= 3 then
+								if CDTL3:SplitCount(lane["mode"]["split"]) >= 3 then
 									return false
 								end
 							end
@@ -4453,13 +5277,13 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					sSplit3Value = {
-						name = "Split 3 Value",
-						desc = "What percentage should split 3 occur",
+						name = L["Split 3 Value"],
+						desc = L["What percentage should split 3 occur"],
 						order = 432,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT" then
-								if lane["mode"]["split"]["count"] >= 3 then
+								if CDTL3:SplitCount(lane["mode"]["split"]) >= 3 then
 									return false
 								end
 							end
@@ -4488,8 +5312,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplitCount = {
-						name = "Split Count",
-						desc = "How many % splits appear on the lane",
+						name = L["Split Count"],
+						desc = L["How many % splits appear on the lane"],
 						order = 502,
 						type = "range",
 						hidden = function(info)
@@ -4500,9 +5324,10 @@ private.GetLaneSet = function(i)
 						end,
 						min = 1,
 						max = 3,
+						step = 1,
 						bigStep = 1,
 						get = function(info, index)
-								return lane["mode"]["splitAbs"]["count"]
+								return CDTL3:SplitCount(lane["mode"]["splitAbs"])
 							end,
 						set = function(info, val)
 								lane["mode"]["splitAbs"]["count"] = val
@@ -4521,8 +5346,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplit1Position = {
-						name = "Split 1 Position",
-						desc = "What position should splitAbs 1 appear",
+						name = L["Split 1 Position"],
+						desc = L["What position should splitAbs 1 appear"],
 						order = 511,
 						type = "range",
 						hidden = function(info)
@@ -4542,8 +5367,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplit1Value = {
-						name = "Split 1 Value",
-						desc = "What percentage should splitAbs 1 occur",
+						name = L["Split 1 Value"],
+						desc = L["How many seconds from the end split 1 sits at (up to 3600)."],
 						order = 512,
 						type = "range",
 						hidden = function(info)
@@ -4553,7 +5378,7 @@ private.GetLaneSet = function(i)
 							return true
 						end,
 						min = 1,
-						max = 360,
+						max = 3600,
 						bigStep = 1,
 						get = function(info, index)
 								return lane["mode"]["splitAbs"]["s1v"]
@@ -4569,7 +5394,7 @@ private.GetLaneSet = function(i)
 						order = 520,
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if lane["mode"]["splitAbs"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
 									return false
 								end
 							end
@@ -4577,13 +5402,13 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplit2Position = {
-						name = "Split 2 Position",
-						desc = "What position should splitAbs 2 appear",
+						name = L["Split 2 Position"],
+						desc = L["What position should splitAbs 2 appear"],
 						order = 521,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if lane["mode"]["splitAbs"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
 									return false
 								end
 							end
@@ -4600,20 +5425,20 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplit2Value = {
-						name = "Split 2 Value",
-						desc = "What percentage should splitAbs 2 occur",
+						name = L["Split 2 Value"],
+						desc = L["How many seconds from the end split 2 sits at (up to 3600)."],
 						order = 522,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if lane["mode"]["splitAbs"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
 									return false
 								end
 							end
 							return true
 						end,
 						min = 1,
-						max = 360,
+						max = 3600,
 						bigStep = 1,
 						get = function(info, index)
 								return lane["mode"]["splitAbs"]["s2v"]
@@ -4629,7 +5454,7 @@ private.GetLaneSet = function(i)
 						order = 530,
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if lane["mode"]["splitAbs"]["count"] >= 2 then
+								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
 									return false
 								end
 							end
@@ -4637,13 +5462,13 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplit3Position = {
-						name = "Split 3 Position",
-						desc = "What position should splitAbs 3 appear",
+						name = L["Split 3 Position"],
+						desc = L["What position should splitAbs 3 appear"],
 						order = 531,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if lane["mode"]["splitAbs"]["count"] >= 3 then
+								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 3 then
 									return false
 								end
 							end
@@ -4660,19 +5485,19 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					saSplit3Value = {
-						name = "Split 3 Value",
-						desc = "What percentage should splitAbs 3 occur",
+						name = L["Split 3 Value"],
+						desc = L["How many seconds from the end split 3 sits at (up to 3600)."],
 						order = 532,
 						type = "range",
 						hidden = function(info)
 							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if lane["mode"]["splitAbs"]["count"] >= 3 then
+								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 3 then
 									return false
 								end
 							end
 							return true
 						end,
-						max = 360,
+						max = 3600,
 						min = 1,
 						bigStep = 1,
 						get = function(info, index)
@@ -4689,12 +5514,12 @@ private.GetLaneSet = function(i)
 						order = 600,
 					},
 					overrideAutohide = {
-						name = "Override Autohide",
+						name = L["Override Autohide"],
 						desc = function(info, index)
-								local desc = "This will override autohiding, and show the lane in the following circumstances:\n\n"
-									desc = desc.."Player Health: while health is below max\n"
-									desc = desc.."Class Power: while class power is below max (or above 0 in the case of rage)\n"
-									desc = desc.."Energy Tick: while in stealth\n"
+								local desc = L["This will override autohiding, and show the lane in the following circumstances:"].."\n\n"
+									desc = desc..L["Player Health: while health is below max"].."\n"
+									desc = desc..L["Class Power: while class power is below max (or above 0 in the case of rage)"].."\n"
+									desc = desc..L["Energy Tick: while in stealth"].."\n"
 								return desc
 							end,
 						order = 601,
@@ -4707,13 +5532,25 @@ private.GetLaneSet = function(i)
 								CDTL3:RefreshLane(i)
 							end,
 					},
+					pauseHidden = {
+						name = L["Pause while hidden"],
+						desc = L["While this lane is faded out, its icons stop sliding and updating their texts; timers, Ready and sounds keep running"],
+						order = 601.5,
+						type = "toggle",
+						get = function(info, index)
+								return lane["pauseHidden"]
+							end,
+						set = function(info, val)
+								lane["pauseHidden"] = val
+							end,
+					},
 					spacer602 = {
 						name = "\n",
 						type = "description",
 						order = 602,
 					},
 					primaryTracking = {
-						name = "Primary Tracking",
+						name = L["Primary Tracking"],
 						desc = "",
 						order = 603,
 						type = "select",
@@ -4726,8 +5563,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					primaryReversed = {
-						name = "Reverse",
-						desc = "Reverse the direction of the primary tracking indicator",
+						name = L["Reverse"],
+						desc = L["Reverse the direction of the primary tracking indicator"],
 						order = 604,
 						type = "toggle",
 						get = function(info, index)
@@ -4744,7 +5581,7 @@ private.GetLaneSet = function(i)
 						order = 610,
 					},
 					secondaryTracking = {
-						name = "Secondary Tracking",
+						name = L["Secondary Tracking"],
 						desc = "",
 						order = 611,
 						type = "select",
@@ -4754,11 +5591,12 @@ private.GetLaneSet = function(i)
 							end,
 						set = function(info, val)
 								lane["tracking"]["secondaryTracking"] = val
+								CDTL3:RefreshLane(i)
 							end,
 					},
 					secondaryReversed = {
-						name = "Reverse",
-						desc = "Reverse the direction of the secondary tracking indicator",
+						name = L["Reverse"],
+						desc = L["Reverse the direction of the secondary tracking indicator"],
 						order = 612,
 						type = "toggle",
 						get = function(info, index)
@@ -4774,8 +5612,8 @@ private.GetLaneSet = function(i)
 						order = 613,
 					},
 					stWidth = {
-						name = "ST Width",
-						desc = "Set the width of the secondary tracker",
+						name = L["ST Width"],
+						desc = L["Set the width of the secondary tracker"],
 						order = 614,
 						type = "range",
 						hidden = function(info)
@@ -4796,8 +5634,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					stHeight = {
-						name = "ST Height",
-						desc = "Set the height of the secondary tracker",
+						name = L["ST Height"],
+						desc = L["Set the height of the secondary tracker"],
 						order = 615,
 						type = "range",
 						hidden = function(info)
@@ -4829,8 +5667,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					stTexture = {
-						name = "ST Texture",
-						desc = "Selects the ST texture",
+						name = L["ST Texture"],
+						desc = L["Selects the ST texture"],
 						order = 617,
 						type = "select",
 						hidden = function(info)
@@ -4850,8 +5688,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					stTextureColor = {
-						name = "ST Color",
-						desc = "Sets the ST texture color",
+						name = L["ST Color"],
+						desc = L["Sets the ST texture color"],
 						order = 618,
 						type = "color",
 						hidden = function(info)
@@ -4876,17 +5714,17 @@ private.GetLaneSet = function(i)
 				},
 			},
 			appearance = {
-				name = "Appearance",
+				name = L["Appearance"],
 				type = "group",
 				order = 200,
 				args = {
 					width = {
-						name = "Width",
-						desc = "Sets the width for the lane",
+						name = L["Width"],
+						desc = L["Sets the width for the lane"],
 						order = 201,
 						type = "range",
-						softMin = 1,
-						softMax = 600,
+						min = 1,
+						max = 1000,
 						bigStep = 1,
 						get = function(info, index)
 								return lane["width"]
@@ -4897,8 +5735,8 @@ private.GetLaneSet = function(i)
 						end,
 					},
 					height = {
-						name = "Height",
-						desc = "Sets the height for the lane",
+						name = L["Height"],
+						desc = L["Sets the height for the lane"],
 						order = 202,
 						type = "range",
 						softMin = 1,
@@ -4918,8 +5756,8 @@ private.GetLaneSet = function(i)
 						order = 300,
 					},
 					posX = {
-						name = "x Position",
-						desc = "Sets the x position of the lane",
+						name = L["x Position"],
+						desc = L["Sets the x position of the lane"],
 						order = 301,
 						type = "range",
 						softMin = -500,
@@ -4934,8 +5772,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					posY = {
-						name = "y Position",
-						desc = "Sets the y position of the lane",
+						name = L["y Position"],
+						desc = L["Sets the y position of the lane"],
 						order = 302,
 						type = "range",
 						softMin = -500,
@@ -4955,8 +5793,8 @@ private.GetLaneSet = function(i)
 						order = 400,
 					},
 					relativeTo = {
-						name = "Anchor Point",
-						desc = "The x/y position is relative to this point of the screen",
+						name = L["Anchor Point"],
+						desc = L["The x/y position is relative to this point of the screen"],
 						order = 401,
 						type = "select",
 						values = {
@@ -4984,8 +5822,8 @@ private.GetLaneSet = function(i)
 						order = 500,
 					},
 					fgTexture = {
-						name = "Foreground Texture",
-						desc = "Selects the texture",
+						name = L["Foreground Texture"],
+						desc = L["Selects the texture"],
 						order = 501,
 						type = "select",
 						width = 0.7,
@@ -5000,8 +5838,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					fgTextureColor = {
-						name = "Color",
-						desc = "Sets the texture color",
+						name = L["Color"],
+						desc = L["Sets the texture color"],
 						order = 502,
 						type = "color",
 						width = 0.4,
@@ -5028,8 +5866,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					fgClassColor = {
-						name = "Class Color",
-						desc = "Set the texture color to your class color",
+						name = L["Class Color"],
+						desc = L["Set the texture color to your class color"],
 						order = 503,
 						type = "toggle",
 						width = 0.5,
@@ -5047,8 +5885,8 @@ private.GetLaneSet = function(i)
 						order = 600,
 					},
 					bgTexture = {
-						name = "Background Texture",
-						desc = "Sets the background texture",
+						name = L["Background Texture"],
+						desc = L["Sets the background texture"],
 						order = 601,
 						type = "select",
 						width = 0.7,
@@ -5063,8 +5901,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					bgTextureColor = {
-						name = "Color",
-						desc = "Sets the background texture color",
+						name = L["Color"],
+						desc = L["Sets the background texture color"],
 						order = 602,
 						type = "color",
 						width = 0.4,
@@ -5091,8 +5929,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					bgClassColor = {
-						name = "Class Color",
-						desc = "Set the texture color to your class color",
+						name = L["Class Color"],
+						desc = L["Set the texture color to your class color"],
 						order = 603,
 						type = "toggle",
 						width = 0.5,
@@ -5110,8 +5948,8 @@ private.GetLaneSet = function(i)
 						order = 700,
 					},
 					laneAlpha = {
-						name = "Lane Alpha",
-						desc = "Set the alpha for the lane (this will reset custom text alpha settings, but they can be adjusted again after setting this)",
+						name = L["Lane Alpha"],
+						desc = L["Set the alpha for the lane (this will reset custom text alpha settings, but they can be adjusted again after setting this)"],
 						order = 701,
 						type = "range",
 						min = 0,
@@ -5132,13 +5970,13 @@ private.GetLaneSet = function(i)
 				},
 			},
 			icons = {
-				name = "Icons",
+				name = L["Icons"],
 				type = "group",
 				order = 300,
 				args = {
 					size = {
-						name = "Size",
-						desc = "Sets the size of icons in lane "..i,
+						name = L["Size"],
+						desc = string.format(L["Sets the size of icons in lane %s"], i),
 						order = 101,
 						type = "range",
 						softMin = 1,
@@ -5158,8 +5996,8 @@ private.GetLaneSet = function(i)
 						order = 102,
 					},
 					iconAlpha = {
-						name = "Icon Transparency",
-						desc = "Set the alpha for the icon (text alpha is set in text settings)",
+						name = L["Icon Transparency"],
+						desc = L["Set the alpha for the icon (text alpha is set in text settings)"],
 						order = 103,
 						type = "range",
 						min = 0,
@@ -5179,8 +6017,8 @@ private.GetLaneSet = function(i)
 						order = 110,
 					},
 					yOffset = {
-						name = "Icon Offset",
-						desc = "Offsets icons position on the lane from the center line",
+						name = L["Icon Offset"],
+						desc = L["Offsets icons position on the lane from the center line"],
 						order = 111,
 						type = "range",
 						softMin = -30,
@@ -5200,7 +6038,7 @@ private.GetLaneSet = function(i)
 						order = 120,
 					},
 					textHeader = {
-						name = "Icon Text",
+						name = L["Icon Text"],
 						type = "header",
 						order = 200.1,
 					},
@@ -5294,15 +6132,15 @@ private.GetLaneSet = function(i)
 						order = 400,
 					},
 					highlightStyle = {
-						name = "Highlight Style",
-						desc = "How to highlight icons",
+						name = L["Highlight Style"],
+						desc = L["How to highlight icons"],
 						order = 401,
 						type = "select",
 						values = {
-								["BORDER"] = "Border",
-								["BORDER_FLASH"] = "Border Flash",
-								["FLASH"] = "Flash Icon",
-								["GLOW"] = "Glow",
+								["BORDER"] = L["Border"],
+								["BORDER_FLASH"] = L["Border Flash"],
+								["FLASH"] = L["Flash Icon"],
+								["GLOW"] = L["Glow"],
 							},
 						get = function(info, index)
 								return lane["icons"]["highlight"]["style"]
@@ -5327,8 +6165,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					hlBorder = {
-						name = "                    Border Texture",
-						desc = "Selects the border texture",
+						name = "                    " .. L["Border Texture"],
+						desc = L["Selects the border texture"],
 						order = 501,
 						hidden = function(info)
 								if	lane["icons"]["highlight"]["style"] == "BORDER" or
@@ -5349,8 +6187,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					hlBorderColor = {
-						name = "Color",
-						desc = "Selects the border color",
+						name = L["Color"],
+						desc = L["Selects the border color"],
 						order = 502,
 						hidden = function(info)
 								if	lane["icons"]["highlight"]["style"] == "BORDER" or
@@ -5391,8 +6229,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					hlBorderSize = {
-						name = "Size",
-						desc = "Sets the size of the border",
+						name = L["Size"],
+						desc = L["Sets the size of the border"],
 						order = 511,
 						hidden = function(info)
 								if	lane["icons"]["highlight"]["style"] == "BORDER" or
@@ -5414,8 +6252,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					hlBorderPadding = {
-						name = "Padding",
-						desc = "Sets the space between the border and the frame",
+						name = L["Padding"],
+						desc = L["Sets the space between the border and the frame"],
 						order = 511,
 						hidden = function(info)
 								if	lane["icons"]["highlight"]["style"] == "BORDER" or
@@ -5439,13 +6277,13 @@ private.GetLaneSet = function(i)
 				}
 			},
 			stacking = {
-				name = "Stacking",
+				name = L["Stacking"],
 				type = "group",
 				order = 400,
 				args = {
 					enabled = {
-						name = "Enabled",
-						desc = "Enable icon stacking",
+						name = L["Enabled"],
+						desc = L["Enable icon stacking"],
 						order = 101,
 						type = "toggle",
 						width = 0.5,
@@ -5457,8 +6295,8 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					raise = {
-						name = "Raise On Mouseover",
-						desc = "Mousing over an icon will raise it to the top of its stack and make it easier to see",
+						name = L["Raise On Mouseover"],
+						desc = L["Mousing over an icon will raise it to the top of its stack and make it easier to see"],
 						order = 102,
 						type = "toggle",
 						get = function(info)
@@ -5474,13 +6312,13 @@ private.GetLaneSet = function(i)
 						order = 200,
 					},
 					style = {
-						name = "Stack Style",
-						desc = "Select which direction new icons will grow in",
+						name = L["Stack Style"],
+						desc = L["Select which direction new icons will grow in"],
 						order = 201,
 						type = "select",
 						values = {
-								["GROUPED"] = "Grouped",
-								["OFFSET"] = "Offset",
+								["GROUPED"] = L["Grouped"],
+								["OFFSET"] = L["Offset"],
 							},
 						get = function(info, index)
 								return lane["stacking"]["style"]
@@ -5490,14 +6328,14 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					grow = {
-						name = "Grow Direction",
-						desc = "What direction should icon stacks grow",
+						name = L["Grow Direction"],
+						desc = L["What direction should icon stacks grow"],
 						order = 202,
 						type = "select",
 						values = {
-								["UP"] = "Up",
-								["DOWN"] = "Down",
-								["CENTER"] = "Center",
+								["UP"] = L["Up"],
+								["DOWN"] = L["Down"],
+								["CENTER"] = L["Center"],
 							},
 						get = function(info, index)
 								return lane["stacking"]["grow"]
@@ -5512,8 +6350,8 @@ private.GetLaneSet = function(i)
 						order = 300,
 					},
 					height = {
-						name = "Height",
-						desc = "Sets the max height of the stack",
+						name = L["Height"],
+						desc = L["Sets the max height of the stack"],
 						order = 301,
 						type = "range",
 						softMin = 0,
@@ -5529,12 +6367,12 @@ private.GetLaneSet = function(i)
 				}
 			},
 			text = {
-				name = "Text",
+				name = L["Text"],
 				type = "group",
 				order = 500,
 				args = {
 					defaultHeader = {
-						name = "Default Text",
+						name = L["Default Text"],
 						type = "header",
 						order = 100,
 					},
@@ -5646,7 +6484,7 @@ private.GetLaneSet = function(i)
 					dText5XOffset = private.GetTextXOffset(lane["modeText"]["text5"], 250, i, "LANE"),
 					dText5YOffset = private.GetTextYOffset(lane["modeText"]["text5"], 250, i, "LANE"),
 					customHeader = {
-						name = "Custom Text",
+						name = L["Custom Text"],
 						type = "header",
 						order = 300,
 					},
@@ -5765,9 +6603,15 @@ private.GetLaneSet = function(i)
 	}
 	
 	private.AddBorderArgs(options.args.appearance.args, 700, function() return lane["border"] end, function() CDTL3:RefreshLane(i) end, 703)
+	CDTL3:AddAnchorArgs(options.args.appearance.args, 402, function() return lane end, function() CDTL3:RefreshLane(i) end, L["lane"])
 	private.AddBorderArgs(options.args.icons.args, 300, function() return lane["icons"]["border"] end, function() CDTL3:RefreshAllIcons() end)
 
-	private.AddCopyArgs(options.args.general.args, "lanes", i, "Lane")
+	private.AddCopyArgs(options.args.general.args, "lanes", i, L["Lane"])
+	private.AddShowArgs(options.args.general.args, function() return lane end, function() CDTL3:RefreshLane(i) end)
+	private.AddShareLaneArgs(options.args.general.args, i)
+	CDTL3:AddCasterLaneArgs(options.args.general.args, i, lane)
+	CDTL3.IconFx:AddLaneArgs(options.args, i)
+	CDTL3:AddResourceBarArgs(options.args.general.args, i, lane)	-- ResourceBars.lua
 
 	return options
 end
@@ -5791,12 +6635,12 @@ private.GetReadySet = function(i)
 		order = 100,
 		args = {
 			general = {
-				name = "General",
+				name = L["General"],
 				type = "group",
 				order = 100,
 				args = {
 					name = {
-						name = "Frame Name",
+						name = L["Frame Name"],
 						type = "input",
 						order = 101,
 						get = function(info)
@@ -5808,7 +6652,7 @@ private.GetReadySet = function(i)
 							end,
 					},
 					enabled = {
-						name = "Enabled",
+						name = L["Enabled"],
 						desc = "",
 						order = 102,
 						type = "toggle",
@@ -5831,8 +6675,8 @@ private.GetReadySet = function(i)
 						order = 200,
 					},
 					grow = {
-						name = "Grow Direction",
-						desc = "Select which direction new icons will grow in",
+						name = L["Grow Direction"],
+						desc = L["Select which direction new icons will grow in"],
 						order = 201,
 						type = "select",
 						values = {
@@ -5856,8 +6700,8 @@ private.GetReadySet = function(i)
 						order = 300,
 					},
 					nTime = {
-						name = "Normal Duration",
-						desc = "How long an icon should stay in the ready frame",
+						name = L["Normal Duration"],
+						desc = L["How long an icon should stay in the ready frame"],
 						order = 301,
 						type = "range",
 						softMin = 1,
@@ -5871,10 +6715,11 @@ private.GetReadySet = function(i)
 						end,
 					},
 					nSound = {
-						name = "Normal Sound",
-						desc = "Select which sound to play when an icon enters the frame",
+						name = L["Normal Sound"],
+						desc = L["Select which sound to play when an icon enters the frame"],
 						order = 302,
 						type = "select",
+						width = "double",
 						dialogControl = 'LSM30_Sound',
 						values = AceGUIWidgetLSMlists.sound,
 						get = function(info, index)
@@ -5882,6 +6727,7 @@ private.GetReadySet = function(i)
 							end,
 						set = function(info, val)
 								ready["nSound"] = val
+								CDTL3:PlayPicked(val)
 							end,
 					},
 					spacer400 = {
@@ -5890,8 +6736,8 @@ private.GetReadySet = function(i)
 						order = 400,
 					},
 					hTime = {
-						name = "Highlight Duration",
-						desc = "How long a highlighted icon should stay in the ready frame",
+						name = L["Highlight Duration"],
+						desc = L["How long a highlighted icon should stay in the ready frame"],
 						order = 401,
 						type = "range",
 						softMin = 1,
@@ -5905,10 +6751,11 @@ private.GetReadySet = function(i)
 						end,
 					},
 					hSound = {
-						name = "Highlight Sound",
-						desc = "Select which sound to play when a highlighted icon enters the frame",
+						name = L["Highlight Sound"],
+						desc = L["Select which sound to play when a highlighted icon enters the frame"],
 						order = 402,
 						type = "select",
+						width = "double",
 						dialogControl = 'LSM30_Sound',
 						values = AceGUIWidgetLSMlists.sound,
 						get = function(info, index)
@@ -5916,6 +6763,7 @@ private.GetReadySet = function(i)
 							end,
 						set = function(info, val)
 								ready["hSound"] = val
+								CDTL3:PlayPicked(val)
 							end,
 					},
 					spacer500 = {
@@ -5924,8 +6772,8 @@ private.GetReadySet = function(i)
 						order = 500,
 					},
 					pTime = {
-						name = "Pinned Hide Time",
-						desc = "How long the ready frame will stay visible after combat ends",
+						name = L["Pinned Hide Time"],
+						desc = L["How long the ready frame will stay visible after combat ends"],
 						order = 501,
 						type = "range",
 						softMin = 1,
@@ -5944,8 +6792,8 @@ private.GetReadySet = function(i)
 						order = 600,
 					},
 					xPadding = {
-						name = "x Padding",
-						desc = "Sets the x offset between growing icons",
+						name = L["x Padding"],
+						desc = L["Sets the x offset between growing icons"],
 						order = 601,
 						type = "range",
 						softMin = -20,
@@ -5959,8 +6807,8 @@ private.GetReadySet = function(i)
 						end,
 					},
 					yPadding = {
-						name = "y Padding",
-						desc = "Sets the y offset between growing icons",
+						name = L["y Padding"],
+						desc = L["Sets the y offset between growing icons"],
 						order = 602,
 						type = "range",
 						softMin = -20,
@@ -5976,13 +6824,13 @@ private.GetReadySet = function(i)
 				}
 			},
 			appearance = {
-				name = "Appearance",
+				name = L["Appearance"],
 				type = "group",
 				order = 200,
 				args = {
 					posX = {
-						name = "x Position",
-						desc = "Sets the x position of the frame",
+						name = L["x Position"],
+						desc = L["Sets the x position of the frame"],
 						order = 111,
 						type = "range",
 						softMin = -500,
@@ -5997,8 +6845,8 @@ private.GetReadySet = function(i)
 							end,
 					},
 					posY = {
-						name = "y Position",
-						desc = "Sets the y position of the frame",
+						name = L["y Position"],
+						desc = L["Sets the y position of the frame"],
 						order = 112,
 						type = "range",
 						softMin = -500,
@@ -6018,8 +6866,8 @@ private.GetReadySet = function(i)
 						order = 113,
 					},
 					relativeTo = {
-						name = "Anchor Point",
-						desc = "The x/y position is relative to this point of the screen",
+						name = L["Anchor Point"],
+						desc = L["The x/y position is relative to this point of the screen"],
 						order = 114,
 						type = "select",
 						values = {
@@ -6047,8 +6895,8 @@ private.GetReadySet = function(i)
 						order = 200,
 					},
 					padding = {
-						name = "Padding",
-						desc = "Sets the amount of padding in the frame",
+						name = L["Padding"],
+						desc = L["Sets the amount of padding in the frame"],
 						order = 201,
 						type = "range",
 						softMin = 0,
@@ -6069,8 +6917,8 @@ private.GetReadySet = function(i)
 						order = 300,
 					},
 					bgTexture = {
-						name = "Background Texture",
-						desc = "Sets the background texture",
+						name = L["Background Texture"],
+						desc = L["Sets the background texture"],
 						order = 301,
 						type = "select",
 						dialogControl = 'LSM30_Statusbar',
@@ -6084,8 +6932,8 @@ private.GetReadySet = function(i)
 							end,
 					},
 					bgTextureColor = {
-						name = "Color",
-						desc = "Sets the background texture color",
+						name = L["Color"],
+						desc = L["Sets the background texture color"],
 						order = 302,
 						type = "color",
 						hasAlpha = true,
@@ -6109,13 +6957,13 @@ private.GetReadySet = function(i)
 				}
 			},
 			icons = {
-				name = "Icons",
+				name = L["Icons"],
 				type = "group",
 				order = 300,
 				args = {
 					size = {
-						name = "Size",
-						desc = "Sets the size of the frame, and icons in the ready frame",
+						name = L["Size"],
+						desc = L["Sets the size of the frame, and icons in the ready frame"],
 						order = 101,
 						type = "range",
 						softMin = 1,
@@ -6136,8 +6984,8 @@ private.GetReadySet = function(i)
 						order = 102,
 					},
 					iconAlpha = {
-						name = "Icon Transparency",
-						desc = "Set the alpha for the icon (text alpha is set in text settings)",
+						name = L["Icon Transparency"],
+						desc = L["Set the alpha for the icon (text alpha is set in text settings)"],
 						order = 103,
 						type = "range",
 						min = 0,
@@ -6157,7 +7005,7 @@ private.GetReadySet = function(i)
 						order = 104,
 					},
 					textHeader = {
-						name = "Icon Text",
+						name = L["Icon Text"],
 						type = "header",
 						order = 200.1,
 					},
@@ -6251,15 +7099,15 @@ private.GetReadySet = function(i)
 						order = 400,
 					},
 					highlightStyle = {
-						name = "Highlight Style",
-						desc = "How to highlight icons",
+						name = L["Highlight Style"],
+						desc = L["How to highlight icons"],
 						order = 401,
 						type = "select",
 						values = {
-								["BORDER"] = "Border",
-								["BORDER_FLASH"] = "Border Flash",
-								["FLASH"] = "Flash Icon",
-								["GLOW"] = "Glow",
+								["BORDER"] = L["Border"],
+								["BORDER_FLASH"] = L["Border Flash"],
+								["FLASH"] = L["Flash Icon"],
+								["GLOW"] = L["Glow"],
 							},
 						get = function(info, index)
 								return ready["icons"]["highlight"]["style"]
@@ -6275,9 +7123,13 @@ private.GetReadySet = function(i)
 	}
 	
 	private.AddBorderArgs(options.args.appearance.args, 400, function() return ready["border"] end, function() CDTL3:RefreshReady(i) end)
+	CDTL3:AddAnchorArgs(options.args.appearance.args, 115, function() return ready end, function() CDTL3:RefreshReady(i) end, L["ready frame"])
 	private.AddBorderArgs(options.args.icons.args, 300, function() return ready["icons"]["border"] end, function() CDTL3:RefreshAllIcons() end)
 
-	private.AddCopyArgs(options.args.general.args, "ready", i, "Ready Frame")
+	private.AddCopyArgs(options.args.general.args, "ready", i, L["Ready Frame"])
+	private.AddReadyTestArgs(options.args.general.args, ready)
+	CDTL3:AddReadyBoardArgs(options.args.general.args, ready, i)	-- ReadyBoard.lua
+	private.AddShowArgs(options.args.general.args, function() return ready end, function() CDTL3:RefreshReady(i) end)
 
 	return options
 end
@@ -6326,8 +7178,8 @@ end
 
 private.GetTextEnabled = function(s, o, i, r)
 	local options = {
-		name = "Enabled",
-		desc = "Show this text",
+		name = L["Enabled"],
+		desc = L["Show this text"],
 		order = o + 2,
 		type = "toggle",
 		width = 0.5,
@@ -6354,8 +7206,8 @@ end
 
 private.GetTextEdit = function(s, o, i, r)
 	local options = {
-		name = "Edit",
-		desc = "Edit this text",
+		name = L["Edit"],
+		desc = L["Edit this text"],
 		order = o + 3,
 		type = "toggle",
 		width = 0.5,
@@ -6382,8 +7234,8 @@ end
 
 private.GetTextFont = function(s, o, i, r)
 	local options = {
-		name = "Font",
-		desc = "Selects the font for text on the bars",
+		name = L["Font"],
+		desc = L["Selects the font for text on the bars"],
 		order = o + 4.1,
 		hidden = function(info)
 				return not s["edit"]
@@ -6409,18 +7261,18 @@ end
 
 private.GetTextOutline = function(s, o, i, r)
 	local options = {
-		name = "Outline",
-		desc = "Sets the text outline",
+		name = L["Outline"],
+		desc = L["Sets the text outline"],
 		order = o + 4.2,
 		hidden = function(info)
 				return not s["edit"]
 			end,
 		type = "select",
 		values = {
-				["NONE"] = "None",
-				["OUTLINE"] = "Outline",
-				["THICKOUTLINE"] = "Thick Outline",
-				["MONOCHROME"] = "Monochrome"
+				["NONE"] = L["None"],
+				["OUTLINE"] = L["Outline"],
+				["THICKOUTLINE"] = L["Thick Outline"],
+				["MONOCHROME"] = L["Monochrome"]
 			},
 		get = function(info) return s["outline"] end,
 		set = function(info, val)
@@ -6440,8 +7292,8 @@ end
 
 private.GetTextSize = function(s, o, i, r)
 	local options = {
-		name = "Font Size",
-		desc = "Sets the size of the font",
+		name = L["Font Size"],
+		desc = L["Sets the size of the font"],
 		order = o + 4.4,
 		hidden = function(info)
 				return not s["edit"]
@@ -6468,8 +7320,8 @@ end
 
 private.GetTextColor = function(s, o, i, r)
 	local options = {
-		name = "Color",
-		desc = "Selects the font color",
+		name = L["Color"],
+		desc = L["Selects the font color"],
 		order = o + 4.5,
 		hidden = function(info)
 				return not s["edit"]
@@ -6502,8 +7354,8 @@ end
 
 private.GetTextShadowColor = function(s, o, i, r)
 	local options = {
-		name = "Shadow Color",
-		desc = "Selects the shadow color",
+		name = L["Shadow Color"],
+		desc = L["Selects the shadow color"],
 		order = o + 4.6,
 		hidden = function(info)
 				return not s["edit"]
@@ -6536,8 +7388,8 @@ end
 
 private.GetTextShadowXOffset = function(s, o, i, r)
 	local options = {
-		name = "Shadow x Offset",
-		desc = "Sets the text shadow x offset",
+		name = L["Shadow x Offset"],
+		desc = L["Sets the text shadow x offset"],
 		order = o + 4.8,
 		hidden = function(info)
 				return not s["edit"]
@@ -6564,8 +7416,8 @@ end
 
 private.GetTextShadowYOffset = function(s, o, i, r)
 	local options = {
-		name = "Shadow y Offset",
-		desc = "Sets the text shadow y offset",
+		name = L["Shadow y Offset"],
+		desc = L["Sets the text shadow y offset"],
 		order = o + 4.9,
 		hidden = function(info)
 				return not s["edit"]
@@ -6592,8 +7444,8 @@ end
 
 private.GetTextAnchor = function(s, o, i, r)
 	local options = {
-		name = "Anchor",
-		desc = "Sets the text anchor point",
+		name = L["Anchor"],
+		desc = L["Sets the text anchor point"],
 		order = o + 5.2,
 		hidden = function(info)
 				return not s["edit"]
@@ -6628,8 +7480,8 @@ end
 
 private.GetTextAlign = function(s, o, i, r)
 	local options = {
-		name = "Align",
-		desc = "Sets the text alignment",
+		name = L["Align"],
+		desc = L["Sets the text alignment"],
 		order = o + 5.3,
 		hidden = function(info)
 				return not s["edit"]
@@ -6658,8 +7510,8 @@ end
 
 private.GetTextXOffset = function(s, o, i, r)
 	local options = {
-		name = "x Offset",
-		desc = "Sets text x offset",
+		name = L["x Offset"],
+		desc = L["Sets text x offset"],
 		order = o + 5.5,
 		hidden = function(info)
 				return not s["edit"]
@@ -6686,8 +7538,8 @@ end
 
 private.GetTextYOffset = function(s, o, i, r)
 	local options = {
-		name = "y Offset",
-		desc = "Sets text y offset",
+		name = L["y Offset"],
+		desc = L["Sets text y offset"],
 		order = o + 5.6,
 		hidden = function(info)
 				return not s["edit"]
@@ -6735,8 +7587,307 @@ function CDTL3:GetFullOptions()
 
 	if CDTL3.profile then
 		CDTL3.profile.order = 2005
+		private.ConfirmProfileWipes(CDTL3.profile)
 		options.args.profiles = CDTL3.profile
 	end
 
+	-- the Fight Timeline tab (FightTimeline.lua)
+	local fightTimeline = CDTL3:GetFightTimelineOptions()
+	fightTimeline.order = 2006
+	options.args.fightTimeline = fightTimeline
+
+	private.AddMediaNotes(options)
+
 	return options
+end
+
+-- Reset Profile and Copy From replace the whole profile, Filters lists included, for every
+-- character on it, so they ask first (stock Ace3 asks only before Delete). AceDBOptions hands
+-- every addon the same args table, so CDTL3 changes only its own copy of it.
+private.ConfirmProfileWipes = function(profile)
+	if profile.args == private.profileArgs then
+		return
+	end
+
+	local args = {}
+	for k, v in pairs(profile.args) do
+		args[k] = v
+	end
+
+	local texts = {
+		reset = L["Reset this profile to the default settings?\n\nEvery character on this profile loses its Filters lists: saved spells, items and auras, Customs and Custom CD Times."],
+		copyfrom = L["Copy the chosen profile over this one?\n\nEvery character on this profile loses its Filters lists (saved spells, items and auras, Customs and Custom CD Times) and gets the chosen profile's instead."],
+	}
+	-- while sharing (Profiles.lua) the lists every character uses aren't touched
+	local sharedTexts = {
+		reset = L["Reset this profile to the default settings?\n\nSharing is on: the Filters lists all your characters share stay as they are. Only this profile's settings are reset."],
+		copyfrom = L["Copy the chosen profile's settings over this one?\n\nSharing is on: the Filters lists all your characters share stay as they are. Only this profile's settings change."],
+	}
+	for key, text in pairs(texts) do
+		if args[key] then
+			local copy = {}
+			for k, v in pairs(args[key]) do
+				copy[k] = v
+			end
+			copy.confirm = function()
+					return CDTL3:SharingEntries() and sharedTexts[key] or text
+				end
+			copy.confirmText = text
+			args[key] = copy
+		end
+	end
+
+	profile.args = args
+	private.profileArgs = args
+end
+
+-- Plays a picked sound once for a Play sound button (even while Mute ready sounds is on)
+private.PlayTestSound = function(sound)
+	if sound and sound ~= "None" then
+		PlaySoundFile(CDTL3.LSM:Fetch("sound", sound), "SFX")
+	end
+end
+
+-- Per-entry ready alerts (Filters): its own Ready sound, Flash when ready and Say its name when
+-- ready (where the client has text to speech). Off by default: the Ready frame's sounds as before.
+-- Read when the cooldown reaches its Ready frame (private.ReadyAlert, Cooldown.lua).
+private.AddEntryReadyArgs = function(args, t)
+	local function hidden()
+		return CDTL3.currentFilterHidden[t]
+	end
+	local function entry()
+		return private.FilterEntry(t)
+	end
+	local function get(key)
+		local s = entry()
+		return s and s[key] or false
+	end
+	local function set(key, val)
+		local s = entry()
+		if s then
+			s[key] = val
+		end
+	end
+	-- the Ready frame this entry goes to (its Normal Sound is where an own sound starts)
+	local function readyFrame(s)
+		local n = s and tonumber(s["readyFrame"])
+		return CDTL3.db.profile.ready["ready" .. ((n and n >= 1 and n <= 3) and n or 1)]
+	end
+
+	args["spacer750"] = {
+		name = "\n",
+		type = "description",
+		order = 750,
+		hidden = hidden,
+	}
+	args["ownSound"] = {
+		name = L["Own ready sound"],
+		desc = L["Play this sound when it's ready, instead of its Ready frame's Normal or Highlight Sound"],
+		order = 751,
+		type = "toggle",
+		hidden = hidden,
+		get = function(info) return get("ownSound") end,
+		set = function(info, val)
+				local s = entry()
+				if s and val and not s["sound"] then
+					s["sound"] = readyFrame(s)["nSound"]
+				end
+				set("ownSound", val)
+			end,
+	}
+	args["sound"] = {
+		name = L["Ready Sound"],
+		desc = L["The sound this plays when it's ready"],
+		order = 752,
+		type = "select",
+		width = "double",
+		dialogControl = 'LSM30_Sound',
+		values = AceGUIWidgetLSMlists.sound,
+		hidden = function(info)
+				return hidden() or not get("ownSound")
+			end,
+		get = function(info)
+				local s = entry()
+				return s and s["sound"] or "None"
+			end,
+		set = function(info, val)
+			set("sound", val)
+			CDTL3:PlayPicked(val)
+		end,
+	}
+	args["soundTest"] = {
+		name = L["Play sound"],
+		desc = L["Plays the Ready Sound once, so you can hear it"],
+		order = 752.1,
+		type = "execute",
+		width = "normal",
+		hidden = function(info)
+				return hidden() or not get("ownSound")
+			end,
+		func = function(info)
+				local s = entry()
+				private.PlayTestSound(s and s["sound"])
+			end,
+	}
+	args["spacer753"] = {
+		name = "",
+		type = "description",
+		order = 753,
+		hidden = hidden,
+	}
+	args["readyFlash"] = {
+		name = L["Flash when ready"],
+		desc = L["Its icon flashes (the Flash Icon highlight) while it waits in the Ready frame"],
+		order = 754,
+		type = "toggle",
+		hidden = hidden,
+		get = function(info) return get("readyFlash") end,
+		set = function(info, val)
+				set("readyFlash", val)
+				-- an icon waiting in its Ready frame right now flashes, or stops, at once
+				local s = entry()
+				if s and s ~= CDTL3.custom then
+					local name = CDTL3.currentFilter[t]
+					for _, cd in pairs(CDTL3.cooldowns) do
+						if cd.data["type"] == t and (cd.data["name"] == name or cd.data["itemName"] == name) then
+							local p = cd.icon:GetParent()
+							local n = p and p:GetName()
+							if n == "CDTL3_Ready_1_MF" or n == "CDTL3_Ready_2_MF" or n == "CDTL3_Ready_3_MF" then
+								cd.data["readyLit"] = val and true or nil
+								CDTL3:RefreshIcon(cd)
+							end
+						end
+					end
+				end
+			end,
+	}
+	args["sayName"] = {
+		name = L["Say its name when ready"],
+		desc = L["The game's text to speech says its name when it's ready (voice, speed and volume from the game's Text to Speech options)"],
+		order = 755,
+		type = "toggle",
+		width = 1.3,
+		hidden = function(info)
+				return hidden() or not CDTL3:CanSpeak()
+			end,
+		get = function(info) return get("sayName") end,
+		set = function(info, val) set("sayName", val) end,
+	}
+end
+
+-- Ready tab, above the Ready frames' tabs: one switch for every ready sound
+private.AddReadySoundArgs = function(args)
+	args["muteReadySounds"] = {
+		name = L["Mute ready sounds"],
+		desc = L["No sound when something is ready: the Ready frames' sounds, the spells' own Ready sounds and spoken names are all silenced"],
+		order = 10,
+		type = "toggle",
+		width = "full",
+		get = function(info) return CDTL3.db.profile.global["muteReadySounds"] end,
+		set = function(info, val) CDTL3.db.profile.global["muteReadySounds"] = val end,
+	}
+end
+
+-- Ready frame > General: a Play sound button beside each sound picker (it plays even while
+-- Mute ready sounds is on, so a sound can still be picked)
+private.AddReadyTestArgs = function(args, ready)
+	local function play(key)
+		local sound = ready[key]
+		if sound and sound ~= "None" then
+			PlaySoundFile(CDTL3.LSM:Fetch("sound", sound), "SFX")
+		end
+	end
+
+	args["nSoundTest"] = {
+		name = L["Play sound"],
+		desc = L["Plays the Normal Sound once, so you can hear it"],
+		order = 303,
+		type = "execute",
+		width = "normal",
+		func = function(info) play("nSound") end,
+	}
+	args["hSoundTest"] = {
+		name = L["Play sound"],
+		desc = L["Plays the Highlight Sound once, so you can hear it"],
+		order = 403,
+		type = "execute",
+		width = "normal",
+		func = function(info) play("hSound") end,
+	}
+end
+
+-- Show (each lane, bar frame and ready frame > General): when the frame shows, and Dim instead
+-- of hide. Defaults follow Global > Hide out of combat, as before (CDTL3:ShowRuleHides, Helpers.lua).
+private.SHOW_MODES = {
+	["GLOBAL"] = L["Use the global setting"],
+	["ALWAYS"] = L["Always"],
+	["COMBAT"] = L["Only in combat"],
+	["BOSS"] = L["Boss fights only"],
+}
+
+private.AddShowArgs = function(args, settings, refresh)
+	args["showHeader"] = {
+		name = "",
+		type = "header",
+		order = 850,
+	}
+	args["showMode"] = {
+		name = L["Show"],
+		desc = L["When this frame shows. Use the global setting follows Hide out of combat on the Global tab"],
+		order = 851,
+		type = "select",
+		values = private.SHOW_MODES,
+		sorting = { "GLOBAL", "ALWAYS", "COMBAT", "BOSS" },
+		get = function(info) return settings()["showMode"] or "GLOBAL" end,
+		set = function(info, val)
+				settings()["showMode"] = val
+				refresh()
+			end,
+	}
+	args["dimInsteadOfHide"] = {
+		name = L["Dim instead of hide"],
+		desc = L["When Show would hide this frame, it stays faintly visible instead"],
+		order = 852,
+		type = "toggle",
+		-- LOCAL PATCH (Zippy, 2026-11-15): with Hide while casting on, an Always frame can dim too
+		disabled = function(info)
+				return settings()["showMode"] == "ALWAYS" and not CDTL3.db.profile.global["hideWhileCasting"]
+			end,
+		get = function(info) return settings()["dimInsteadOfHide"] end,
+		set = function(info, val)
+				settings()["dimInsteadOfHide"] = val
+				refresh()
+			end,
+	}
+	args["dimAlpha"] = {
+		name = L["Dimmed alpha"],
+		desc = L["How visible the frame is while dimmed (0 is invisible, 1 is fully shown)"],
+		order = 853,
+		type = "range",
+		min = 0,
+		max = 1,
+		step = 0.05,
+		isPercent = true,
+		hidden = function(info) return not settings()["dimInsteadOfHide"] end,
+		get = function(info) return settings()["dimAlpha"] end,
+		set = function(info, val)
+				settings()["dimAlpha"] = val
+				refresh()
+			end,
+	}
+end
+
+-- Global tab, first thing: Preview with sample icons, Stop preview while it runs (the test mode;
+-- CDTL3:TogglePreview, CDTL3.lua)
+private.AddPreviewArgs = function(args)
+	args["preview"] = {
+		name = function(info)
+				return CDTL3.testing and L["Stop preview"] or L["Preview with sample icons"]
+			end,
+		desc = L["Fills the lanes, bar frames and ready frames with sample icons, so you can see them and move them while frames are unlocked. The Test Panel that opens changes the samples. Click again to stop."],
+		order = 1,
+		type = "execute",
+		width = 1.4,
+		func = function(info) CDTL3:TogglePreview() end,
+	}
 end

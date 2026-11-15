@@ -8,6 +8,7 @@ private.dynamicTextPollRate = 10
 private.timeTextPollRate = 2
 -- seconds after an item's use in which a readable 0 cooldown read means "no cooldown"
 private.itemNoCooldownWindow = 2
+private.laneKeys = { "lane1", "lane2", "lane3" }
 
 function CDTL3:CreateCooldown(UID, cdType, cdData)
 	local fName = "CDTL3_CD_"..UID
@@ -56,13 +57,21 @@ function CDTL3:CreateCooldown(UID, cdType, cdData)
 		baseCD = cdData["bCD"] / 1000,
 		currentCD = cdData["bCD"] / 1000,
 		endTime = cdData["endTime"],
+		-- a timer from another addon (CDTL3:StartTimer, API.lua)
+		owner = cdData["owner"],
+		class = cdData["class"],
+		timerEnd = cdData["timerEnd"],
+		pendingCD = cdData["pendingCD"],
 		overrideCD = false,
 	}
 
 	if cdData["charges"] then
 		f.data["charges"] = cdData["charges"]
 	end
-	
+
+	-- warnings and buff alerts (IconFx.lua)
+	CDTL3.IconFx:CopyEntry(f.data, cdData)
+
 	if cdData["school"] then
 		f.data["school"] = cdData["school"]
 	end
@@ -246,14 +255,8 @@ function CDTL3:RefreshBar(cd)
 		local br = 1 - (zoom - 1)
 		f.icon.tx:SetTexCoord(tl, br, tl, br)
 		
-		if CDTL3.Masque then
-			-- Kill masque for this icon(button)
-			CDTL3.masqueGroup = CDTL3.Masque:Group("CDTL3")
-			CDTL3.masqueGroup:RemoveButton(f.icon)
-			
-			-- Reapply masque
-			CDTL3.masqueGroup:AddButton(f.icon, { Icon = f.icon.tx })
-		end
+		-- Masque: the timer type's own group (Media.lua)
+		CDTL3:MasqueSkin(f.icon, f.icon.tx, cd.data["type"])
 		
 		f.icon:Show()
 	else
@@ -576,6 +579,7 @@ function CDTL3:RefreshIcon(cd)
 	
 	f:ClearAllPoints()
 	f:SetPoint("CENTER", 0, 0)
+	f.placeNow = true	-- slid back into place on its next update, whatever the Update rate
 	f:SetSize(s["icons"]["size"], s["icons"]["size"])
 	
 	-- Set the icon texture
@@ -595,14 +599,8 @@ function CDTL3:RefreshIcon(cd)
 	local br = 1 - (zoom - 1)
 	f.tx:SetTexCoord(tl, br, tl, br)
 	
-	if CDTL3.Masque then
-		-- Kill masque for this icon(button)
-		CDTL3.masqueGroup = CDTL3.Masque:Group("CDTL3")
-		CDTL3.masqueGroup:RemoveButton(f)
-		
-		-- Reapply masque
-		CDTL3.masqueGroup:AddButton(f, { Icon = f.tx })	
-	end
+	-- Masque: the timer type's own group (Media.lua)
+	CDTL3:MasqueSkin(f, f.tx, cd.data["type"])
 	
 	-- TEXT
 	if s["icons"]["text1"]["enabled"] or s["icons"]["text2"]["enabled"] or s["icons"]["text3"]["enabled"] then
@@ -667,7 +665,7 @@ function CDTL3:RefreshIcon(cd)
 					f,
 					ts["anchor"],
 					ts["offX"],
-					ts["offY"]
+					ts["offY"] + (f.fxNudge and 4 or 0)	-- charge pips stand under it (IconFx.lua)
 				)
 			local _ol = ts["outline"]
 			if type(_ol) ~= "string" or _ol == "NONE" or _ol == "" then _ol = nil end
@@ -768,8 +766,12 @@ function CDTL3:RefreshIcon(cd)
 	end
 		
 	-- HIGHLIGHT BORDER
-	if cd.data["highlight"] then
-		if s["icons"]["highlight"]["border"]["style"] ~= "None" then
+	-- Flash when ready (Filters): while it waits in a Ready frame the icon flashes with the Flash
+	-- Icon highlight, whatever that frame's own highlight settings are
+	local readyFlash = cd.data["readyLit"] and not cd.data["highlight"]
+		and (p == "CDTL3_Ready_1_MF" or p == "CDTL3_Ready_2_MF" or p == "CDTL3_Ready_3_MF")
+	if cd.data["highlight"] or readyFlash then
+		if readyFlash or s["icons"]["highlight"]["border"]["style"] ~= "None" then
 			if not f.hl then
 				f.hl = CreateFrame("Frame", f:GetName().."_BD", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 				f.hl:SetParent(f)
@@ -786,8 +788,8 @@ function CDTL3:RefreshIcon(cd)
 			f.hl:SetFrameLevel(f:GetFrameLevel() + 2)
 
 			CDTL3:RemoveHighlights(f, s)
-			
-			local style = s["icons"]["highlight"]["style"]
+
+			local style = readyFlash and "FLASH" or s["icons"]["highlight"]["style"]
 			-- The action-button glow isn't available on every client (e.g. Forever):
 			-- fall back to the plain border highlight there.
 			if style == "GLOW" and ActionButton_ShowOverlayGlow then
@@ -875,6 +877,9 @@ function CDTL3:RefreshIcon(cd)
 	else
 		CDTL3:DebugOff(f)
 	end
+
+	-- Caster lane names (Group.lua)
+	CDTL3:CasterRefreshIcon(cd)
 end
 
 -- Spell schools only come from the combat log. Where it isn't available (CDTL3:NoCombatLog,
@@ -895,9 +900,11 @@ private.GetBarFGColor = function(s, d)
 		end
 
 		fgColor = schoolColor
-	elseif CDTL3.player["class"] then
-		if s["bar"]["fgClassColor"] then
-			fgColor = CDTL3.db.profile.global["classColors"][CDTL3.player["class"]]
+	else
+		-- a timer from another addon can name the class it belongs to
+		local class = (d and d["class"]) or CDTL3.player["class"]
+		if class and s["bar"]["fgClassColor"] then
+			fgColor = CDTL3.db.profile.global["classColors"][class] or fgColor
 		end
 	end
 
@@ -938,6 +945,85 @@ private.UpdateBarDynamicColor = function(ba, s, d)
 	end
 end
 
+-- UPDATE RATE (Global > Update rate): which frames move icons, fill bars and redo texts. Timers, Ready
+-- and sounds run every frame whatever it is set to. At Full (0) every frame is a visual frame; at 30 or
+-- 15 a second only frames at least that far apart are. Decided once per frame (GetTime() doesn't change
+-- within one), so every icon and bar moves on the same frames.
+private.visualAt = nil
+private.visualDue = true
+private.lastVisual = nil
+private.throttled = false
+private.VisualDue = function()
+	local rate = CDTL3.db.profile.global["updateRate"]
+	if not rate or rate <= 0 then
+		private.throttled = false
+		return true
+	end
+	private.throttled = true
+	local now = GetTime()
+	if now ~= private.visualAt then
+		private.visualAt = now
+		local last = private.lastVisual
+		-- a little slack so 30 a second at 60 fps is every other frame, not every third
+		if not last or now - last >= 1 / rate - 0.002 or now < last then
+			private.lastVisual = now
+			private.visualDue = true
+		else
+			private.visualDue = false
+		end
+	end
+	return private.visualDue
+end
+
+-- a lane faded to nothing: alpha 0 and not fading in
+private.LaneFaded = function(lane)
+	if lane:GetAlpha() ~= 0 then
+		return false
+	end
+	local fadeIn = lane.animateIn
+	return not (fadeIn and fadeIn:IsPlaying())
+end
+
+-- An icon on a lane: whether to slide it and redo its texts this frame, and whether its texts must be
+-- redone now. Forced on the first frame after it (re)starts on a lane (SendToLane resets updateCount)
+-- and after RefreshIcon re-centred it, so it never shows out of place. Pause while hidden: while its
+-- lane is faded to nothing it skips them, and catches up, texts too, on the first frame the lane shows.
+private.IconVisual = function(f, ic, s)
+	local due = private.VisualDue()
+	if s["pauseHidden"] and private.LaneFaded(ic:GetParent()) then
+		ic.visualPaused = true
+		return false, false
+	end
+	local force = (ic.visualPaused or f.updateCount == 0) and true or false
+	local place = ic.placeNow
+	ic.visualPaused = nil
+	ic.placeNow = nil
+	return (due or force or place) and true or false, force
+end
+
+-- Below Full a text's poll counts in time, not frames (the frames it would skip are skipped): it is due
+-- once as long has passed as its poll takes at 60 frames a second.
+private.TextDueByTime = function(f, tf, s)
+	local interval = nil
+	if s["dtags"] then
+		interval = private.dynamicTextPollRate / 60
+	end
+	if s["ttags"] then
+		local timeRate = private.timeTextPollRate
+		if f.data["currentCD"] > 10 then
+			timeRate = timeRate * 3
+		end
+		if not interval or timeRate / 60 < interval then
+			interval = timeRate / 60
+		end
+	end
+	if not interval then
+		return false
+	end
+	local last = tf.cdtlTextAt
+	return not last or GetTime() - last >= interval - 0.002
+end
+
 private.BarUpdate = function(f, elapsed)
 	local d = f.data
 	local ba = f.bar
@@ -957,8 +1043,32 @@ private.BarUpdate = function(f, elapsed)
 			
 			local pBase = d["baseCD"]
 			local pCurrent = d["currentCD"]
-			
-			if d["lane"] == 0 then
+			-- a riding cooldown's bar drains from the game's timer (CombatTimers.lua)
+			local CT = CDTL3.CombatTimers
+			local riding = CT and CT:Riding(f)
+
+			-- an item whose cooldown hasn't been read yet shows no bar (see the ITEMS poll)
+			if d["itemUnread"] then
+				if ba.valid then
+					ba.valid = false
+					ba:GetParent().triggerUpdate = true
+				end
+				return
+			end
+
+			-- "Transition bars" hides a bar once its cooldown is under the lane's Max Time. With the
+			-- option off (or no lane), a bar it hid earlier comes back: it used to stay hidden until
+			-- a /reload, so unticking the option looked like it did nothing. A lane that's switched
+			-- off counts as no lane: its icons have nowhere to show, so its bars stay.
+			local laneKey = private.laneKeys[d["lane"]]
+			local laneOn = laneKey and CDTL3.db.profile.lanes[laneKey]["enabled"]
+			if (not laneOn or not s["transition"]["hideTransitioned"]) and not ba.valid
+				and d["enabled"] and not d["ignored"] then
+				ba.valid = true
+				ba:GetParent().triggerUpdate = true
+			end
+
+			if not laneOn then
 				-- For now, do nothing
 			else
 				if s["transition"]["hideTransitioned"] then
@@ -969,7 +1079,7 @@ private.BarUpdate = function(f, elapsed)
 							ba:GetParent().triggerUpdate = true
 						end
 						
-						if s["transition"]["style"] == "SHORTEN" then
+						if s["transition"]["style"] == "SHORTEN" and not riding then
 							pBase = pBase - ba.transitionThreshold
 							pCurrent = pCurrent - ba.transitionThreshold
 						end
@@ -982,15 +1092,20 @@ private.BarUpdate = function(f, elapsed)
 				end
 			end
 			
-			local iconPercent = private.CalcLinearPosition(pCurrent, pBase)
-			ba.bar:SetValue(iconPercent)
+			-- the fill, its colour and the texts follow the Update rate (and the first frame after a restart)
+			if private.VisualDue() or f.updateCount == 0 then
+				if not (riding and CT:DriveBar(f)) then
+					local iconPercent = private.CalcLinearPosition(pCurrent, pBase)
+					ba.bar:SetValue(iconPercent)
+				end
 
-			private.UpdateBarDynamicColor(ba, s, d)
+				private.UpdateBarDynamicColor(ba, s, d)
 
-			if ba:GetAlpha() ~= 0 and ba.txt then
-				private.UpdateText(f, ba.txt.text1, s["bar"]["text1"], s["bar"]["text1"]["text"])
-				private.UpdateText(f, ba.txt.text2, s["bar"]["text2"], s["bar"]["text2"]["text"])
-				private.UpdateText(f, ba.txt.text3, s["bar"]["text3"], s["bar"]["text3"]["text"])
+				if ba:GetAlpha() ~= 0 and ba.txt then
+					private.UpdateText(f, ba.txt.text1, s["bar"]["text1"], s["bar"]["text1"]["text"])
+					private.UpdateText(f, ba.txt.text2, s["bar"]["text2"], s["bar"]["text2"]["text"])
+					private.UpdateText(f, ba.txt.text3, s["bar"]["text3"], s["bar"]["text3"]["text"])
+				end
 			end
 		else
 			CDTL3:SendToBarHolding(f)
@@ -1014,22 +1129,32 @@ private.CalcSplitPosition = function(current, total, s)
 	local value = (current / total) * 100
 	
 	local ss = nil
+	local abs = s["mode"]["type"] == "SPLIT_ABS"
 	if s["mode"]["type"] == "SPLIT" then
 		ss = s["mode"]["split"]
 		if total > ss["max"] then
 			total = ss["max"]
 		end
-	elseif s["mode"]["type"] == "SPLIT_ABS" then
+	elseif abs then
 		ss = s["mode"]["splitAbs"]
 		max = ss["max"]
 		value = current
 		total = ss["max"]
 	end
 	
-	local splits = ss["count"]
+	-- Split (Time): only the marks inside Max Time split the lane (a 10m mark on a 3:00 lane does not)
+	local splits = nil
+	if abs then
+		splits = CDTL3:SplitAbsCount(ss)
+	else
+		splits = CDTL3:SplitCount(ss)
+	end
 	
 	if current < total then
-		if splits == 1 then
+		if abs and splits == 0 then
+			-- Split (Time) with no mark inside Max Time: a straight line to it
+			p = current / total
+		elseif splits == 1 then
 			local s1v = ss["s1v"]
 			local s1p = ss["s1p"]
 			
@@ -1109,6 +1234,8 @@ private.CalcSplitPosition = function(current, total, s)
 	
 	return p
 end
+-- shared with CombatTimers.lua, whose split-lane curves sample it
+CDTL3.CalcSplitPosition = private.CalcSplitPosition
 
 private.CalcTransitionIndicator = function(f, s)
 	local ls = nil
@@ -1136,10 +1263,15 @@ private.CalcTransitionIndicator = function(f, s)
 		
 		f.bar.transitionThreshold = ms["max"]
 		
-		-- INDICATIOR
+		-- INDICATOR: only on a bar that will hand off to its lane (the lane is on, Transition bars is
+		-- on and the cooldown is longer than the lane's Max Time), and never past the bar's end. A
+		-- 1 minute spell on a 5 minute lane put its line five bar widths out to the right, over
+		-- other frames; a bar whose lane is off never hands off at all.
 		local position = 0
 		local width = s["transition"]["width"]
-		if s["transition"]["showTI"] then
+		local baseCD = f.data["baseCD"] or 0
+		local handsOff = ls["enabled"] and s["transition"]["hideTransitioned"] and (baseCD <= 0 or baseCD > ms["max"])
+		if s["transition"]["showTI"] and handsOff then
 			local style = s["transition"]["style"]
 			
 			if style == "SHORTEN" then
@@ -1152,10 +1284,10 @@ private.CalcTransitionIndicator = function(f, s)
 					end
 					
 					--position = (ms["max"] / f.data["baseCD"]) * bWidth
-					position = f.data["baseCD"] > 0 and (ms["max"] / f.data["baseCD"]) * bWidth or bWidth
+					position = baseCD > 0 and math.min(ms["max"] / baseCD, 1) * bWidth or bWidth
 				elseif style == "REGION" then
 					-- same zero guard as LINE: a not-yet-learned cooldown (baseCD 0) spans the bar
-					local percent = f.data["baseCD"] > 0 and ms["max"] / f.data["baseCD"] or 1
+					local percent = baseCD > 0 and math.min(ms["max"] / baseCD, 1) or 1
 					
 					local bWidth = s["width"] - width
 					if s["bar"]["iconEnabled"] then
@@ -1198,6 +1330,19 @@ private.CalcTransitionIndicator = function(f, s)
 	end
 end
 
+-- Start of a spell running on its Custom CD Time. A spell the game gives no cooldown (a
+-- seal) reports a start of 0, so count from the last cast. A real start from the game wins.
+private.CustomCDStart = function(d, start)
+	if not start or start == 0 then
+		local castTime = CDTL3.spellCastTimes and CDTL3.spellCastTimes[d["id"]]
+		if castTime then
+			return castTime
+		end
+	end
+
+	return start
+end
+
 private.CooldownUpdate = function(f, elapsed)
 	local d = f.data
 	local ic = f.icon
@@ -1209,7 +1354,8 @@ private.CooldownUpdate = function(f, elapsed)
 
 	local icVisible = ic:IsVisible()
 	local baVisible = ba:IsVisible()
-	
+	local CT = CDTL3.CombatTimers
+
 	if icVisible or baVisible then
 		-- SPELLS
 		if d["type"] == "spells" or d["type"] == "petspells" then
@@ -1264,6 +1410,7 @@ private.CooldownUpdate = function(f, elapsed)
 								if d["setCustomCD"] and d["customCDTime"] then
 									d["baseCD"] = d["customCDTime"] / 1000
 									duration = d["baseCD"]
+									start = private.CustomCDStart(d, start)
 								end
 								d["currentCD"] = start + duration - GetTime()
 							end
@@ -1302,14 +1449,11 @@ private.CooldownUpdate = function(f, elapsed)
 								if d["setCustomCD"] and d["customCDTime"] then
 									d["baseCD"] = d["customCDTime"] / 1000
 									duration = d["baseCD"]
-									-- LOCAL PATCH (Zippy, 2026-11-09): a spell without a cooldown of its own
-									-- (a Paladin seal) reports start 0 once the GCD is over, and at once in
-									-- combat; count the custom time from the player's own cast instead.
-									if start == 0 and CDTL3.spellCastTimes and CDTL3.spellCastTimes[d["id"]] then
-										start = CDTL3.spellCastTimes[d["id"]]
-									end
+									start = private.CustomCDStart(d, start)
 								end
 								d["currentCD"] = start + duration - GetTime()
+
+								CDTL3.IconFx:PollCharges(f)	-- charge pips: the icon rides the recharge (IconFx.lua)
 
 								--if d["name"] == "Primal Rage" or d["name"] == "Implosive Trap" then
 									--CDTL3:Print(d["name"].." - "..d["currentCD"].." : "..tostring(duration))
@@ -1336,17 +1480,25 @@ private.CooldownUpdate = function(f, elapsed)
 					
 					-- nil while the item cooldown is secret: decide nothing yet, retry next poll
 					local duration = nil
+					local read = false
 					local tinker, slot = CDTL3:CheckEngTinkerCases(d["name"])
 					if tinker then
 						local _, spellID = CDTL3.Compat.GetItemSpell(d["itemID"])
 						if spellID == d["id"] then
 							local _
 							_, duration = CDTL3:GetInventoryItemCooldown(slot)
+							read = true
 						end
 					else
 						local _
 						_, duration = CDTL3:GetItemCooldown(d["itemID"])
+						read = true
 					end
+
+					-- While it's secret the item shows nothing (IconUpdate, BarUpdate): the 1000 above
+					-- only keeps this poll going, it isn't a timer. It used to show as a full bar
+					-- reading 16:40 until combat ended.
+					d["itemUnread"] = read and duration == nil
 					
 					-- A 0 read means "no cooldown" (food, drink: saved as ignored) only when it's
 					-- taken within a moment of the use, which the use handler records as the
@@ -1364,6 +1516,9 @@ private.CooldownUpdate = function(f, elapsed)
 							d["ignored"] = false
 							CDTL3:SetItemData(d["itemID"], "ignored", false)
 						else
+							if not d["ignored"] then
+								CDTL3:NoteAutoIgnore({ name = d["name"], itemName = d["itemName"], bCD = duration * 1000 }, "items")
+							end
 							d["ignored"] = true
 							CDTL3:SetItemData(d["itemID"], "ignored", true)
 							
@@ -1446,6 +1601,9 @@ private.CooldownUpdate = function(f, elapsed)
 							d["ignored"] = false
 							CDTL3:SetSpellData(d["name"], "offensives", "ignored", false)
 						else
+							if not d["ignored"] then
+								CDTL3:NoteAutoIgnore({ name = d["name"], bCD = s["bCD"] }, "offensives")
+							end
 							d["ignored"] = true
 							CDTL3:SetSpellData(d["name"], "offensives", "ignored", true)
 							
@@ -1465,6 +1623,17 @@ private.CooldownUpdate = function(f, elapsed)
 		elseif d["type"] == "customs" then
 			d["currentCD"] = d["currentCD"] - elapsed
 
+		-- FLIGHTS (Flights.lua): counts down, and waits at the end until the flight lands
+		elseif d["type"] == "flights" then
+			d["currentCD"] = d["currentCD"] - elapsed
+			if CDTL3.Flights then
+				CDTL3.Flights:Hold(f)
+			end
+
+		-- TIMERS FROM OTHER ADDONS (API.lua): counted against their end time
+		elseif d["timerEnd"] then
+			d["currentCD"] = d["timerEnd"] - GetTime()
+
 		-- RUNES
 		elseif d["type"] == "runes" then
 			d["currentCD"] = d["currentCD"] - elapsed
@@ -1473,14 +1642,25 @@ private.CooldownUpdate = function(f, elapsed)
 		elseif d["type"] == "testing" or d["type"] == "spacer" then
 			d["currentCD"] = d["currentCD"] - elapsed
 		end
-		
+
+		-- combat timers (CombatTimers.lua): starts/ends riding, may end or hold the estimate
+		if CT then
+			CT:Update(f, elapsed)
+		end
+
 		if icVisible then
 			private.IconUpdate(f, elapsed)
 		end
-		
+
 		if baVisible then
 			private.BarUpdate(f, elapsed)
 		end
+
+		-- an icon parked in holding (lane set to Hide, bar only) has no Ready frame to end in
+		CDTL3:FireTimerIfHeldOver(f)
+	elseif CT and f.ct and f.ct.riding then
+		-- moved off its lane and bar frame: stop riding
+		CT:Update(f, elapsed)
 	end
 	
 	f.updateCount = f.updateCount + 1
@@ -1492,12 +1672,29 @@ private.CooldownUpdate = function(f, elapsed)
 	private.ShowHide(f)
 end
 
+-- A riding icon's position is hidden from addons (it hangs off a fill fed a hidden value), so
+-- its mouse-over test may error or come back hidden: treat that as "not over".
+private.IsMouseOver = function(ic)
+	if not ic.ctRiding then
+		return ic:IsMouseOver()
+	end
+	local ok, over = pcall(ic.IsMouseOver, ic)
+	if not ok or (issecretvalue and issecretvalue(over)) then
+		return false
+	end
+	return over
+end
+
 private.IconUpdate = function(f, elapsed)
 	local d = f.data
 	local ic = f.icon
 	ic.currentCD = d["currentCD"]
 	ic.pinned = d["pinned"]
-	
+	-- an effect on a target (Group.lua) draws its strip on the spell's icon while one is live
+	if CDTL3.effectsLive then
+		CDTL3:EffectStripTick(f)
+	end
+
 	local p = ic:GetParent():GetName()
 	if p == "CDTL3_Lane_1" or p == "CDTL3_Lane_2" or p == "CDTL3_Lane_3" then
 		if d["currentCD"] > 0 then
@@ -1546,8 +1743,15 @@ private.IconUpdate = function(f, elapsed)
 				iconPercent = private.CalcSplitPosition(d["currentCD"], d["baseCD"], s)
 			end
 			
-			if d["currentCD"] > max then
-				if hideTimeSurplus == true then
+			if d["itemUnread"] then
+				-- an item whose cooldown hasn't been read yet shows nothing (see the ITEMS poll)
+				if ic.valid then
+					ic.valid = false
+					ic:GetParent().triggerUpdate = true
+				end
+			elseif d["currentCD"] > max then
+				-- a flight always shows: it often runs past a lane's Max Time
+				if hideTimeSurplus == true and d["type"] ~= "flights" then
 					if ic.valid then
 						ic.valid = false
 						ic:GetParent().triggerUpdate = true
@@ -1565,55 +1769,68 @@ private.IconUpdate = function(f, elapsed)
 				end
 			end
 			
-			local iconPosition = (s["width"] - s["icons"]["size"]) * iconPercent
-			
-			local anchor = "LEFT"
-			if s["vertical"] then
-				if s["reversed"] then
-					anchor = "TOP"
-					iconPosition = -iconPosition
+			-- charge pips, the ready-soon pulse, buff alerts, GCD waits (IconFx.lua)
+			if CDTL3.IconFx:LaneIcon(f, ic, s, d) then
+				return	-- it went to its Ready frame to wait out the GCD
+			end
+
+			-- the slide and the texts follow the Update rate and Pause while hidden (IconVisual)
+			local visual, force = private.IconVisual(f, ic, s)
+
+			-- a riding icon follows its rider's fill edge instead (CombatTimers.lua)
+			local CT = CDTL3.CombatTimers
+			if visual and not (ic.ctRiding and CT and CT:PlaceIcon(f, s, mode, max)) then
+				local iconPosition = (s["width"] - s["icons"]["size"]) * iconPercent
+
+				local anchor = "LEFT"
+				if s["vertical"] then
+					if s["reversed"] then
+						anchor = "TOP"
+						iconPosition = -iconPosition
+					else
+						anchor = "BOTTOM"
+					end
+
+					ic:ClearAllPoints()
+					ic:SetPoint(anchor, ic.yOffset + ic.sOffset, iconPosition)
 				else
-					anchor = "BOTTOM"
+					if s["reversed"] then
+						anchor = "RIGHT"
+						iconPosition = -iconPosition
+					end
+
+					ic:ClearAllPoints()
+					ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
+					ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
 				end
-				
-				ic:ClearAllPoints()
-				ic:SetPoint(anchor, ic.yOffset + ic.sOffset, iconPosition)
-			else
-				if s["reversed"] then
-					anchor = "RIGHT"
-					iconPosition = -iconPosition
-				end
-				
-				ic:ClearAllPoints()
-				ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
-				ic:SetPoint(anchor, iconPosition, ic.yOffset + ic.sOffset)
 			end
-			
-			if ic:GetAlpha() ~= 0 then
+
+			if visual and ic:GetAlpha() ~= 0 then
 				if ic.txt then
-					private.UpdateText(f, ic.txt.text1, s["icons"]["text1"], s["icons"]["text1"]["text"])
-					private.UpdateText(f, ic.txt.text2, s["icons"]["text2"], s["icons"]["text2"]["text"])
-					private.UpdateText(f, ic.txt.text3, s["icons"]["text3"], s["icons"]["text3"]["text"])
+					private.UpdateText(f, ic.txt.text1, s["icons"]["text1"], s["icons"]["text1"]["text"], force)
+					private.UpdateText(f, ic.txt.text2, s["icons"]["text2"], s["icons"]["text2"]["text"], force)
+					private.UpdateText(f, ic.txt.text3, s["icons"]["text3"], s["icons"]["text3"]["text"], force)
 				end
 			end
 			
-			if CDTL3.db.profile.global["enableTooltip"] then	
-				if ic:IsMouseOver() then
+			if CDTL3.db.profile.global["enableTooltip"] then
+				if private.IsMouseOver(ic) then
 					-- build the tooltip once per hover, not every frame
 					if d.link and not (GameTooltip:IsOwned(ic) and GameTooltip:IsShown()) then
 						GameTooltip_SetDefaultAnchor(GameTooltip, ic)
 						GameTooltip:SetHyperlink(d.link)
+						CDTL3:EstimateTooltip(f)
 						GameTooltip:Show()
-					end	
-				else	
-					if GameTooltip:IsOwned(ic) then	
-						GameTooltip:Hide()	
-					end	
-				end	
-			end	
-			
-			if s["stacking"]["raiseOnMouseOver"] then	
-				if ic:IsMouseOver() then	
+					end
+				else
+					if GameTooltip:IsOwned(ic) then
+						GameTooltip:Hide()
+					end
+				end
+			end
+
+			if s["stacking"]["raiseOnMouseOver"] then
+				if private.IsMouseOver(ic) then
 					ic:SetFrameStrata("HIGH")	
 				else
 					ic:SetFrameStrata("MEDIUM")	
@@ -1625,12 +1842,24 @@ private.IconUpdate = function(f, elapsed)
 			elseif d["type"] == "test" then
 				
 			else
+				CDTL3.IconFx:Ended(f)	-- a buff that was up: the lane flash (IconFx.lua)
+				CDTL3:FireTimer("CDTL3_TimerReady", f)
 				CDTL3:SendToReady(f)
+				CDTL3:FireTimerIfHeld(f)
+				-- a setup preview's sample (Start.lua) with no Ready frame to wait in starts again at once
+				if d["sampleLoop"] and ic:GetParent():GetName() == "CDTL3_Active_Icon_Holding" then
+					CDTL3:SendToLane(f)
+					CDTL3:SendToBarFrame(f)
+				end
 			end
 		end
 	elseif p == "CDTL3_Ready_1_MF" or p == "CDTL3_Ready_2_MF" or p == "CDTL3_Ready_3_MF" then
+		-- a GCD wait ends here, and the lane's pips and pulse go (IconFx.lua)
+		CDTL3.IconFx:ReadyFrame(f, ic)
+
 		if ic.readyTime > 0 then
-			if not f.data["pinned"] then
+			-- an icon waiting out the GCD holds its time until the wait is over
+			if not f.data["pinned"] and not ic.fxGCD then
 				ic.readyTime = ic.readyTime - elapsed
 			end
 			
@@ -1640,17 +1869,20 @@ private.IconUpdate = function(f, elapsed)
 					if d.link and not (GameTooltip:IsOwned(ic) and GameTooltip:IsShown()) then
 						GameTooltip_SetDefaultAnchor(GameTooltip, ic)
 						GameTooltip:SetHyperlink(d.link)
+						CDTL3:EstimateTooltip(f)
 						GameTooltip:Show()
-					end	
-				else	
+					end
+				else
 					if GameTooltip:IsOwned(ic) then	
 						GameTooltip:Hide()	
 					end	
 				end
 			end
 		else
+			CDTL3:FireTimer("CDTL3_TimerEnded", f)
 			if d["type"] == "testing" then
-				if CDTL3.db.profile.global["testingLoop"] then
+				-- Test Panel's Loop, or a setup preview's sample (Start.lua): starts again
+				if CDTL3.db.profile.global["testingLoop"] or d["sampleLoop"] then
 					CDTL3:SendToLane(f)
 					CDTL3:SendToBarFrame(f)
 				else
@@ -1791,7 +2023,11 @@ function CDTL3:SendToLane(f)
 	
 	-- restart the poll counter so the next update re-syncs with the game immediately
 	f.updateCount = 0
-	f.data["currentCD"] = f.data["baseCD"]
+	-- (a timer from another addon starts partway through: pendingCD is what is left)
+	f.data["currentCD"] = f.data["pendingCD"] or f.data["baseCD"]
+	f.data["pendingCD"] = nil
+	CDTL3:FireTimer("CDTL3_TimerStarted", f)
+	CDTL3.IconFx:Started(f)
 end
 
 -- Move a cooldown to its (newly set) lane without restarting it. SendToLane restarts the
@@ -1802,31 +2038,121 @@ end
 function CDTL3:MoveToLane(f)
 	local remaining = f.data["currentCD"]
 	if remaining and remaining > 0 then
+		CDTL3.movingLane = true
 		CDTL3:SendToLane(f)
+		CDTL3.movingLane = nil
 		f.data["currentCD"] = remaining
 	end
 end
 
+-- Say a spell's name (Filters: Say its name when ready). Every client CDTL3 runs on documents
+-- C_VoiceChat.SpeakText(voiceID, text, rate, volume, overlap) (destination was dropped in 12.0.0),
+-- with the voice, rate and volume from the game's own text to speech settings, as Blizzard's
+-- TextToSpeech_Speak does. The option hides where the call is missing.
+function CDTL3:CanSpeak()
+	return (C_VoiceChat and C_VoiceChat.SpeakText and C_TTSSettings and C_TTSSettings.GetVoiceOptionID) and true or false
+end
+
+function CDTL3:SpeakText(text)
+	if not CDTL3:CanSpeak() or type(text) ~= "string" or text == "" then
+		return false
+	end
+
+	local ok, err = pcall(function()
+		-- the voice as Blizzard's TextToSpeech_GetSelectedVoice picks it: the option's ID only when
+		-- an installed voice has it, else the first installed voice
+		local voices = C_VoiceChat.GetTtsVoices and C_VoiceChat.GetTtsVoices()
+		local optionID = C_TTSSettings.GetVoiceOptionID((Enum and Enum.TtsVoiceType and Enum.TtsVoiceType.Standard) or 0)
+		local voiceID
+		if type(voices) == "table" then
+			for _, voice in ipairs(voices) do
+				if voice.voiceID == optionID then
+					voiceID = voice.voiceID
+					break
+				end
+			end
+			if voiceID == nil and voices[1] then
+				voiceID = voices[1].voiceID
+			end
+		end
+		if voiceID == nil then
+			error("no text to speech voice installed")
+		end
+
+		local rate = C_TTSSettings.GetSpeechRate and C_TTSSettings.GetSpeechRate() or 0
+		local volume = C_TTSSettings.GetSpeechVolume and C_TTSSettings.GetSpeechVolume() or 100
+		C_VoiceChat.SpeakText(voiceID, text, rate, volume, false)
+	end)
+	if not ok then
+		CDTL3:LogFailure("Say its name", err)
+	end
+
+	return ok
+end
+
+-- The saved Filters entry of a live cooldown (nil for test icons, flights and anything unsaved)
+private.SavedEntry = function(d)
+	local t = d["type"]
+	if not (t and CDTL3.db.profile.tables[t]) then
+		return nil
+	end
+
+	if t == "items" then
+		return CDTL3:GetSpellSettings(d["itemName"] or d["name"], t, true)
+	end
+	return CDTL3:GetSpellSettings(d["name"], t)
+end
+
+-- Arriving in a Ready frame (s): the entry's own Ready sound if it has one (Filters: Own ready
+-- sound), else the frame's Highlight or Normal Sound as before; its spoken name; and Flash when
+-- ready for RefreshIcon. Mute ready sounds (Ready tab) silences the sounds and the name.
+private.ReadyAlert = function(f, s)
+	-- an icon waiting out the GCD in its Ready frame arrives silent (IconFx.lua)
+	if CDTL3.IconFx.silent then
+		return
+	end
+
+	local e = private.SavedEntry(f.data)
+	f.data["readyLit"] = (e and e["readyFlash"]) and true or nil
+
+	if CDTL3.db.profile.global["muteReadySounds"] then
+		return
+	end
+
+	local sound
+	if e and e["ownSound"] then
+		sound = e["sound"] or "None"
+	elseif f.data["highlight"] then
+		sound = s["hSound"]
+	else
+		sound = s["nSound"]
+	end
+	if sound and sound ~= "None" then
+		PlaySoundFile(CDTL3.LSM:Fetch("sound", sound), "SFX")
+	end
+
+	if e and e["sayName"] then
+		CDTL3:SpeakText(f.data["type"] == "items" and f.data["itemName"] or f.data["name"])
+	end
+end
+
+-- A switched-off Ready frame takes nothing (no sound, no icon waiting in the hidden frame). An icon
+-- arriving is shown: one hidden on its lane for being over Max Time (Hide time surplus) used to stay
+-- hidden in the Ready frame after an early reset (Cold Snap, Preparation, Readiness). A highlighted
+-- icon stays the Highlight Duration.
 function CDTL3:SendToReady(f)
 	local ic = f.icon
 	local s = nil
 	
 	if f.data["readyFrame"] == 1 then
-		if CDTL3_Ready_1_MF then
+		if CDTL3_Ready_1_MF and CDTL3.db.profile.ready["ready1"]["enabled"] then
 			ic:GetParent().triggerUpdate = true
 			ic:SetParent(CDTL3_Ready_1_MF)
+			ic.valid = true
 			s = CDTL3.db.profile.ready["ready1"]
-			ic.readyTime = s["nTime"]
+			ic.readyTime = f.data["highlight"] and s["hTime"] or s["nTime"]
 			
-			if f.data["highlight"] then
-				if s["hSound"] ~= "None" then
-					PlaySoundFile(CDTL3.LSM:Fetch("sound", s["hSound"]), "SFX")
-				end
-			else
-				if s["nSound"] ~= "None" then
-					PlaySoundFile(CDTL3.LSM:Fetch("sound", s["nSound"]), "SFX")
-				end
-			end
+			private.ReadyAlert(f, s)
 			
 			CDTL3_Ready_1.combatTimer = 0
 			CDTL3_Ready_1_MF.triggerUpdate = true
@@ -1835,21 +2161,14 @@ function CDTL3:SendToReady(f)
 			CDTL3:SendToHolding(f)
 		end		
 	elseif f.data["readyFrame"] == 2 then
-		if CDTL3_Ready_2_MF then
+		if CDTL3_Ready_2_MF and CDTL3.db.profile.ready["ready2"]["enabled"] then
 			ic:GetParent().triggerUpdate = true
 			ic:SetParent(CDTL3_Ready_2_MF)
+			ic.valid = true
 			s = CDTL3.db.profile.ready["ready2"]
-			ic.readyTime = s["nTime"]
+			ic.readyTime = f.data["highlight"] and s["hTime"] or s["nTime"]
 			
-			if f.data["highlight"] then
-				if s["hSound"] ~= "None" then
-					PlaySoundFile(CDTL3.LSM:Fetch("sound", s["hSound"]), "SFX")
-				end
-			else
-				if s["nSound"] ~= "None" then
-					PlaySoundFile(CDTL3.LSM:Fetch("sound", s["nSound"]), "SFX")
-				end
-			end
+			private.ReadyAlert(f, s)
 			
 			CDTL3_Ready_2.combatTimer = 0
 			CDTL3_Ready_2_MF.triggerUpdate = true
@@ -1858,21 +2177,14 @@ function CDTL3:SendToReady(f)
 			CDTL3:SendToHolding(f)
 		end
 	elseif f.data["readyFrame"] == 3 then
-		if CDTL3_Ready_3_MF then
+		if CDTL3_Ready_3_MF and CDTL3.db.profile.ready["ready3"]["enabled"] then
 			ic:GetParent().triggerUpdate = true
 			ic:SetParent(CDTL3_Ready_3_MF)
+			ic.valid = true
 			s = CDTL3.db.profile.ready["ready3"]
-			ic.readyTime = s["nTime"]
+			ic.readyTime = f.data["highlight"] and s["hTime"] or s["nTime"]
 			
-			if f.data["highlight"] then
-				if s["hSound"] ~= "None" then
-					PlaySoundFile(CDTL3.LSM:Fetch("sound", s["hSound"]), "SFX")
-				end
-			else
-				if s["nSound"] ~= "None" then
-					PlaySoundFile(CDTL3.LSM:Fetch("sound", s["nSound"]), "SFX")
-				end
-			end
+			private.ReadyAlert(f, s)
 			
 			CDTL3_Ready_3.combatTimer = 0
 			CDTL3_Ready_3_MF.triggerUpdate = true
@@ -1936,26 +2248,51 @@ private.ShowHide = function(f)
 	end
 end
 
-private.UpdateText = function(f, tf, s, iString)
+-- force: redo a text with tags now (an icon back from Pause while hidden, or just restarted)
+private.UpdateText = function(f, tf, s, iString, force)
+	-- combat timers (CombatTimers.lua): an estimated buff's text is dimmed, and a riding
+	-- cooldown's [cd.time]-only text follows the game's timer
+	local CT = CDTL3.CombatTimers
+	if CT then
+		CT:DimText(f, tf)
+		if f.ct and f.ct.riding and CT:OwnsText(f, tf, s) then
+			return
+		end
+	end
+	-- an estimated flight time is dimmed too (Flights.lua)
+	if CDTL3.Flights then
+		CDTL3.Flights:DimText(f, tf)
+	end
+
 	if s["enabled"] then
 		-- dynamic tags poll at their rate, time tags faster in the last 10s; whenever
 		-- either is due the whole text is converted (all tag families in one pass)
 		local due = false
-		if s["dtags"] and f.updateCount % private.dynamicTextPollRate == 0 then
+		if private.throttled then
+			due = private.TextDueByTime(f, tf, s)
+		else
+			if s["dtags"] and f.updateCount % private.dynamicTextPollRate == 0 then
+				due = true
+			end
+			
+			if s["ttags"] then
+				local timeRate = private.timeTextPollRate
+				if f.data["currentCD"] > 10 then
+					timeRate = timeRate * 3
+				end
+				if f.updateCount % timeRate == 0 then
+					due = true
+				end
+			end
+		end
+		if force and (s["dtags"] or s["ttags"]) then
 			due = true
 		end
 		
-		if s["ttags"] then
-			local timeRate = private.timeTextPollRate
-			if f.data["currentCD"] > 10 then
-				timeRate = timeRate * 3
-			end
-			if f.updateCount % timeRate == 0 then
-				due = true
-			end
-		end
-		
 		if due then
+			if private.throttled then
+				tf.cdtlTextAt = GetTime()
+			end
 			tf:SetText(CDTL3:ConvertAllTextTags(s["text"], f))
 		end
 	end

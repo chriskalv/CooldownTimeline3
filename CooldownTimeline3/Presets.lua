@@ -2,6 +2,7 @@
 	Cooldown Timeline 3 - appearance presets and "copy settings from"
 ]]--
 
+local L = LibStub("AceLocale-3.0"):GetLocale("CDTL3")
 local private = {}
 
 -- One-pixel border for the Minimal preset (a plain white edge file tinted by the border colour)
@@ -73,7 +74,7 @@ end
 
 -- COPY SETTINGS
 -- Everything except what identifies the target: its name, whether it's shown, and where it is
-private.KEEP_ON_COPY = { name = true, enabled = true, posX = true, posY = true, relativeTo = true, editMode = true }
+private.KEEP_ON_COPY = { name = true, enabled = true, posX = true, posY = true, relativeTo = true, editMode = true, anchor = true }
 
 function CDTL3:CopyFrameSettings(group, from, to)
 	local p = CDTL3.db.profile[group]
@@ -85,6 +86,31 @@ function CDTL3:CopyFrameSettings(group, from, to)
 
 	WriteInto(dst, Effective(src, private.Defaults(group, prefix..from)), private.KEEP_ON_COPY)
 	CDTL3:RefreshConfig()
+end
+
+-- Every value of one lane / bar frame / ready frame, defaults included (a lane's share string,
+-- Helpers.lua ExportString), as a fresh table
+function CDTL3:GetFrameSettings(group, n)
+	local g = private.GROUPS[group]
+	local live = g and CDTL3.db.profile[group][g.prefix..n]
+	if not live then
+		return nil
+	end
+
+	return DeepCopy(Effective(live, private.Defaults(group, g.prefix..n)))
+end
+
+-- Write such values into one of them, keeping what Copy From keeps (its name, whether it's on
+-- and where it sits). No refresh: the caller (an import) refreshes once.
+function CDTL3:WriteFrameSettings(group, n, values)
+	local g = private.GROUPS[group]
+	local dst = g and CDTL3.db.profile[group][g.prefix..n]
+	if not dst or type(values) ~= "table" then
+		return false
+	end
+
+	WriteInto(dst, values, private.KEEP_ON_COPY)
+	return true
 end
 
 -- PRESETS
@@ -101,14 +127,14 @@ end
 CDTL3.presets = {
 	{
 		key = "classic",
-		name = "CDTL3 Classic",
-		desc = "The look CDTL3 ships with",
+		name = L["CDTL3 Classic"],
+		desc = L["The look CDTL3 ships with"],
 		classic = true,
 	},
 	{
 		key = "minimal",
-		name = "Minimal",
-		desc = "Flat bars, dark backgrounds, one-pixel borders, class colours",
+		name = L["Minimal"],
+		desc = L["Flat bars, dark backgrounds, one-pixel borders, class colours"],
 		fg = "Solid",
 		bg = "Solid",
 		bgColor = { r = 0.05, g = 0.05, b = 0.05, a = 0.75 },
@@ -121,8 +147,8 @@ CDTL3.presets = {
 	},
 	{
 		key = "modern",
-		name = "Blizzard Modern",
-		desc = "Blizzard's current unit-frame and cast bar art, tooltip borders, the game font",
+		name = L["Blizzard Modern"],
+		desc = L["Blizzard's current unit-frame and cast bar art, tooltip borders, the game font"],
 		needsAtlas = "Blizzard Modern: Cast",
 		laneFg = "Blizzard Modern: Health (tintable)",
 		barFg = "Blizzard Modern: Cast",
@@ -137,8 +163,8 @@ CDTL3.presets = {
 	},
 	{
 		key = "class",
-		name = "Class Colours",
-		desc = "Only switches lane and bar fills to your class colour",
+		name = L["Class Colours"],
+		desc = L["Only switches lane and bar fills to your class colour"],
 		classColor = true,
 	},
 }
@@ -234,7 +260,40 @@ private.ApplyToContainer = function(preset, live, kind)
 	end
 end
 
-function CDTL3:ApplyPreset(key)
+-- One lane / bar frame / ready frame takes a look (a preset, CDTL3 Classic or a saved look)
+private.ApplyLookTo = function(preset, group, n)
+	local g = private.GROUPS[group]
+	local live = g and CDTL3.db.profile[group][g.prefix..n]
+	if not live then
+		return
+	end
+
+	if preset.classic then
+		local default = private.Defaults(group, g.prefix..n)
+		if default then
+			private.RestoreLooks(live, default, group)
+		end
+	else
+		private.ApplyToContainer(preset, live, group)
+	end
+end
+
+-- target: "all" (or nil), or "lanes:2" / "barFrames:1" / "ready:3": one frame only
+function CDTL3:ApplyStyle(preset, target)
+	local group, n = tostring(target or ""):match("^(%a+):(%d)$")
+	if group and private.GROUPS[group] then
+		private.ApplyLookTo(preset, group, tonumber(n))
+		return group, tonumber(n)
+	end
+
+	for gname, g in pairs(private.GROUPS) do
+		for i = 1, g.count do
+			private.ApplyLookTo(preset, gname, i)
+		end
+	end
+end
+
+function CDTL3:ApplyPreset(key, target)
 	local preset
 	for _, p in ipairs(CDTL3.presets) do
 		if p.key == key then
@@ -245,22 +304,186 @@ function CDTL3:ApplyPreset(key)
 		return
 	end
 
-	for group, g in pairs(private.GROUPS) do
-		for n = 1, g.count do
-			local live = CDTL3.db.profile[group][g.prefix..n]
-			if preset.classic then
-				local default = private.Defaults(group, g.prefix..n)
-				if default then
-					private.RestoreLooks(live, default, group)
-				end
-			else
-				private.ApplyToContainer(preset, live, group)
+	CDTL3:ApplyStyle(preset, target)
+	CDTL3:RefreshConfig()
+	CDTL3:Print(string.format(L["Applied the %s style."], preset.name))
+end
+
+-- LOOKS (card 43): the current look saved under a name, kept account-wide in db.global.looks (up to
+-- MAX_LOOKS), shared as a "!CDTL3:2!" string of kind LOOK (Helpers.lua ExportString). A look has the
+-- same shape as a preset above, so ApplyStyle applies it to everything or to one frame.
+private.MAX_LOOKS = 12
+private.LOOK_TEXT = { "fg", "bg", "laneFg", "barFg", "font", "outline" }
+
+local function Num(v, lo, hi)
+	return type(v) == "number" and v == v and v >= lo and v <= hi
+end
+
+local function CleanColor(c)
+	if type(c) ~= "table" then
+		return nil
+	end
+	local out = {}
+	for _, k in ipairs({ "r", "g", "b", "a" }) do
+		if c[k] ~= nil and not Num(c[k], 0, 1) then
+			return nil
+		end
+		out[k] = c[k]
+	end
+	if not (out.r and out.g and out.b) then
+		return nil
+	end
+	out.a = out.a or 1
+	return out
+end
+
+local function CleanBorder(b)
+	if type(b) ~= "table" or type(b.style) ~= "string" or #b.style > 64 then
+		return nil
+	end
+	local out = { style = b.style }
+	for k, lo in pairs({ size = 0, padding = -64 }) do
+		if b[k] ~= nil then
+			if not Num(b[k], lo, 64) then
+				return nil
+			end
+			out[k] = b[k]
+		end
+	end
+	if b.color ~= nil then
+		out.color = CleanColor(b.color)
+		if not out.color then
+			return nil
+		end
+	end
+	return out
+end
+
+-- A look from outside (a pasted string) reduced to the fields a look has, or nil when it is badly shaped
+function CDTL3:CleanLook(t)
+	if type(t) ~= "table" or type(t.name) ~= "string" or t.name:match("^%s*$") or #t.name > 40 then
+		return nil
+	end
+	-- no colour, link or texture escapes in a name (a colour code and its eight digits go whole)
+	local name = t.name:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|[crHhTt]", "")
+	if name:match("^%s*$") then
+		return nil
+	end
+	local out = { name = name }
+	for _, k in ipairs(private.LOOK_TEXT) do
+		if t[k] ~= nil then
+			if type(t[k]) ~= "string" or #t[k] > 64 then
+				return nil
+			end
+			out[k] = t[k]
+		end
+	end
+	if t.classColor ~= nil then
+		if type(t.classColor) ~= "boolean" then
+			return nil
+		end
+		out.classColor = t.classColor
+	end
+	if t.bgColor ~= nil then
+		out.bgColor = CleanColor(t.bgColor)
+		if not out.bgColor then
+			return nil
+		end
+	end
+	for _, k in ipairs({ "border", "iconBorder", "highlightBorder" }) do
+		if t[k] ~= nil then
+			out[k] = CleanBorder(t[k])
+			if not out[k] then
+				return nil
 			end
 		end
 	end
+	return out
+end
 
-	CDTL3:RefreshConfig()
-	CDTL3:Print("Applied the "..preset.name.." style.")
+function CDTL3:GetLooks()
+	local g = CDTL3.db.global
+	if type(g.looks) ~= "table" then
+		g.looks = {}
+	end
+	return g.looks
+end
+
+-- Lane 1, bar frame 1 and icons as they are now, in the shape of a preset
+function CDTL3:CaptureLook(name)
+	local lane = CDTL3:GetFrameSettings("lanes", 1)
+	local bar = CDTL3:GetFrameSettings("barFrames", 1)
+	if not (lane and bar) then
+		return nil
+	end
+
+	local function border(b, withColor)
+		if type(b) ~= "table" then
+			return nil
+		end
+		return { style = b.style, size = b.size, padding = b.padding, color = withColor and DeepCopy(b.color) or nil }
+	end
+
+	local text = lane.icons and lane.icons.text2 or {}
+	return CDTL3:CleanLook({
+		name = name,
+		fg = lane.fgTexture,
+		laneFg = lane.fgTexture,
+		barFg = bar.bar and bar.bar.fgTexture,
+		bg = lane.bgTexture,
+		bgColor = lane.bgTextureColor,
+		border = border(lane.border, true),
+		iconBorder = border(lane.icons and lane.icons.border, true),
+		highlightBorder = border(lane.icons and lane.icons.highlight and lane.icons.highlight.border),
+		font = text.font,
+		outline = text.outline,
+		classColor = lane.fgClassColor and true or false,
+	})
+end
+
+-- Save the current look as name (the same name is replaced). Returns the look, or nil and why.
+function CDTL3:SaveLook(name)
+	name = tostring(name or ""):gsub("^%s+", ""):gsub("%s+$", "")
+	if name == "" then
+		return nil, L["Type a name for the look first."]
+	end
+	for _, p in ipairs(CDTL3.presets) do
+		if p.name == name then
+			return nil, L["That name belongs to a built-in look. Pick another."]
+		end
+	end
+	local look = CDTL3:CaptureLook(name:sub(1, 40))
+	if not look then
+		return nil, L["Couldn't read the current look."]
+	end
+	return CDTL3:StoreLook(look)
+end
+
+-- Keep a look (saved here or imported); the same name is replaced
+function CDTL3:StoreLook(look)
+	local list = CDTL3:GetLooks()
+	for i, l in ipairs(list) do
+		if l.name == look.name then
+			list[i] = look
+			return look
+		end
+	end
+	if #list >= private.MAX_LOOKS then
+		return nil, string.format(L["You can keep %d looks. Delete one first."], private.MAX_LOOKS)
+	end
+	list[#list + 1] = look
+	return look
+end
+
+function CDTL3:DeleteLook(name)
+	local list = CDTL3:GetLooks()
+	for i, l in ipairs(list) do
+		if l.name == name then
+			table.remove(list, i)
+			return true
+		end
+	end
+	return false
 end
 
 -- CDTL3 Classic: put back each container's shipped value for exactly the fields the other

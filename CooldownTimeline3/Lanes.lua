@@ -58,8 +58,8 @@ function CDTL3:RefreshLane(i)
 	
 	f.name = s["name"]
 	
-	f:ClearAllPoints()
-	f:SetPoint(s["relativeTo"], s["posX"], s["posY"])
+	-- the screen position, or on the frame it is anchored to (Anchors.lua)
+	CDTL3:PlaceFrame(f, s, "lanes")
 	
 	-- FOREGROUND
 	f:SetMinMaxValues(0, 1)
@@ -127,7 +127,12 @@ function CDTL3:RefreshLane(i)
 
 	if s["tracking"]["secondaryTracking"] ~= "NONE" then
 		f.st:ClearAllPoints()
-		f.st:SetSize(s["tracking"]["stWidth"], s["tracking"]["stHeight"])
+		-- a vertical lane swaps its width and height, and its marker does the same
+		if s["vertical"] then
+			f.st:SetSize(s["tracking"]["stHeight"], s["tracking"]["stWidth"])
+		else
+			f.st:SetSize(s["tracking"]["stWidth"], s["tracking"]["stHeight"])
+		end
 		CDTL3:SetBarTexture(f.st.bg, s["tracking"]["stTexture"])
 		f.st.bg:SetAllPoints(true)
 		f.st.bg:SetVertexColor(
@@ -187,6 +192,9 @@ function CDTL3:RefreshLane(i)
 	f.animateOut.fade:SetFromAlpha(s["alpha"])
 	f.animateOut.fade:SetToAlpha(0)
 	
+	-- EFFECTS: burst window, refresh zone, Ready-by list (IconFx.lua)
+	CDTL3.IconFx:RefreshLane(f, s)
+
 	-- DEBUG/UNLOCK
 	f.db:ClearAllPoints()
 	f.db:SetPoint("CENTER", 0, 0)
@@ -462,8 +470,19 @@ private.CalcStacking = function(f, s, count)
 			local height = s["stacking"]["height"]
 			local grow = s["stacking"]["grow"]
 			local iconSize = s["icons"]["size"]
-			
-			table.sort(f.validChildren, function(a, b)
+
+			-- combat timers (CombatTimers.lua): riding icons sit out (stack 1, no offset), and a
+			-- pass is skipped (empty list) while any other position reads back hidden
+			local kids, n = f.validChildren, count
+			local CT = CDTL3.CombatTimers
+			if CT and CT.GroupedChildren then
+				kids, n = CT:GroupedChildren(f.validChildren, count)
+				if not kids then
+					kids, n = {}, 0
+				end
+			end
+
+			table.sort(kids, function(a, b)
 				local aX, aY = a:GetCenter()
 				local bX, bY = b:GetCenter()
 				
@@ -485,13 +504,13 @@ private.CalcStacking = function(f, s, count)
 			local indicies = {}
 			local currentIndex = 1
 			
-			for k, iconA in pairs(f.validChildren) do
+			for k, iconA in pairs(kids) do
 				if k == 1 then
 					table.insert(indicies, currentIndex)
 				end
 				
-				if k + 1 <= count then
-					local iconB = f.validChildren[k + 1]
+				if k + 1 <= n then
+					local iconB = kids[k + 1]
 					local aX, aY = iconA:GetCenter()
 					local bX, bY = iconB:GetCenter()
 					
@@ -509,63 +528,66 @@ private.CalcStacking = function(f, s, count)
 						table.insert(indicies, currentIndex)
 					end
 				end
+			end
+
+			-- once every icon has its stack: place and layer each stack (this ran once per icon
+			-- before, redoing every stack each time for the same end result)
+			for i = 1, currentIndex, 1 do
+				local currentStack = {}
+				local stackCount = 0
+				-- Count how many we have in the i'nth stack
+				for k, v in pairs(indicies) do
+					if v == i then
+						stackCount = stackCount + 1
+						table.insert(currentStack, kids[k])
+					end
+				end
 				
-				for i = 1, currentIndex, 1 do
-					local currentStack = {}
-					local stackCount = 0
-					-- Count how many we have in the i'nth stack
-					for k, v in pairs(indicies) do
-						if v == i then
-							stackCount = stackCount + 1
-							table.insert(currentStack, f.validChildren[k])
+				table.sort(currentStack, function(a, b)
+						if a.currentCD == b.currentCD then
+							return a.uid < b.uid
+						end
+				
+						return a.currentCD > b.currentCD
+					end)
+				
+				-- Then set the correct data for the i'nth stack
+				for k, icon in pairs(currentStack) do
+					icon.stack = i
+					local iconOffset = 0
+					local stackOffset = 0
+					-- a lone icon stays in the lane (in a stack shorter than one icon it got a NaN offset)
+					if stackCount > 1 and iconSize * stackCount > height then
+						local maxHeight = height - iconSize
+						iconOffset = (maxHeight / (stackCount - 1)) * (k - 1)
+						
+						stackOffset = maxHeight / 2
+					else
+						iconOffset = iconSize * (k - 1)
+						stackOffset = (iconSize * (stackCount - 1)) / 2
+					end
+					
+					if grow == "DOWN" then
+						iconOffset = -iconOffset
+					elseif grow == "CENTER" then
+						if stackCount == 1 then
+							iconOffset = 0
+						else
+							iconOffset = iconOffset - stackOffset
 						end
 					end
 					
-					table.sort(currentStack, function(a, b)
-							if a.currentCD == b.currentCD then
-								return a.uid < b.uid
-							end
+					icon.sOffset = iconOffset
 					
-							return a.currentCD > b.currentCD
-						end)
+					local levelMultiplier = 5
+					local baseLevel = k * levelMultiplier
 					
-					-- Then set the correct data for the i'nth stack
-					for k, icon in pairs(currentStack) do
-						icon.stack = i
-						local iconOffset = 0
-						local stackOffset = 0
-						if iconSize * stackCount > height then
-							local maxHeight = height - iconSize
-							iconOffset = (maxHeight / (stackCount - 1)) * (k - 1)
-							
-							stackOffset = maxHeight / 2
-						else
-							iconOffset = iconSize * (k - 1)
-							stackOffset = (iconSize * (stackCount - 1)) / 2
-						end
-						
-						if grow == "DOWN" then
-							iconOffset = -iconOffset
-						elseif grow == "CENTER" then
-							if stackCount == 1 then
-								iconOffset = 0
-							else
-								iconOffset = iconOffset - stackOffset
-							end
-						end
-						
-						icon.sOffset = iconOffset
-						
-						local levelMultiplier = 5
-						local baseLevel = k * levelMultiplier
-						
-						icon:SetFrameLevel(baseLevel)
-						if icon.bd then
-							icon.bd:SetFrameLevel(baseLevel + 1)
-						end
-						if icon.hl then
-							icon.hl:SetFrameLevel(baseLevel + 2)
-						end
+					icon:SetFrameLevel(baseLevel)
+					if icon.bd then
+						icon.bd:SetFrameLevel(baseLevel + 1)
+					end
+					if icon.hl then
+						icon.hl:SetFrameLevel(baseLevel + 2)
 					end
 				end
 			end
@@ -663,6 +685,11 @@ private.SetAutohideOverride = function(f, differs)
 end
 
 -- current/max as a 0-1 fraction (0 when current is 0); nil if either is secret
+-- for pcall: does UnitStagger give a value at all (a hidden one makes the test fail, which counts as yes)
+private.StaggerHas = function(stagger)
+	return stagger ~= nil
+end
+
 private.Fraction = function(current, max)
 	local ok, fraction = pcall(function()
 		if current ~= 0 then
@@ -689,16 +716,132 @@ private.FrameElapsed = function(key, elapsed)
 	return elapsed
 end
 
+-- GCD tracking while its timing is hidden (in combat on Retail and WoW: Forever). Whether a spell is
+-- cooling down and whether that is only the GCD are never hidden, and the spell's timer object's
+-- remaining time can be handed to a StatusBar (as CombatTimers.lua does). The source is the game's
+-- GCD spell (61304) where it exists, else the player's last successful cast while it is on the GCD:
+-- WoW: Forever has no 61304. CalcTracking runs this every frame, so it makes no closure or table.
+private.GCD_SPELL = 61304
+private.GCD_READ_SPELL = 8921	-- the spell CalcTracking reads the GCD from (Moonfire; any spell without a cooldown)
+
+-- for pcall: is spell id's cooldown hidden from addons right now?
+private.CooldownHidden = function(id)
+	if C_Secrets.ShouldSpellCooldownBeSecret then
+		return C_Secrets.ShouldSpellCooldownBeSecret(id) == true
+	end
+	return C_Secrets.ShouldCooldownsBeSecret() == true
+end
+
+-- for pcall: true and the remaining time (only ever given to a widget) while spell id is cooling down
+-- for the GCD (gcdSpell: id is the GCD spell itself, whose own cooldown is the GCD)
+private.GCDRemaining = function(id, gcdSpell)
+	local info = C_Spell.GetSpellCooldown(id)
+	if not (info and info["isActive"] == true and (gcdSpell or info["isOnGCD"] == true)) then
+		return false
+	end
+	local dur = C_Spell.GetSpellCooldownDuration(id, false)	-- false: the GCD counts
+	local kind = type(dur)
+	if kind ~= "table" and kind ~= "userdata" then
+		return false
+	end
+	return true, dur:GetRemainingDuration()
+end
+
+-- Returns true and the GCD's remaining time while the GCD runs with its timing hidden; false when
+-- the timing can be read (CalcTracking's own read then works) or no GCD is running.
+private.HiddenGCD = function()
+	if not (CDTL3.retailAPI and C_Spell and C_Spell.GetSpellCooldownDuration and C_Secrets) then
+		return false
+	end
+
+	local ok, hidden = pcall(private.CooldownHidden, private.GCD_READ_SPELL)
+	if not (ok and hidden == true) then
+		return false
+	end
+
+	local running, remaining
+	ok, running, remaining = pcall(private.GCDRemaining, private.GCD_SPELL, true)
+	if ok and running == true then
+		return true, remaining
+	end
+
+	local last = CDTL3.lastPlayerCast
+	if last then
+		ok, running, remaining = pcall(private.GCDRemaining, last, false)
+		if ok and running == true then
+			return true, remaining
+		end
+	end
+
+	return false
+end
+
+-- where the secondary marker starts: the lane's start along its long side
+private.OPPOSITE = { LEFT = "RIGHT", RIGHT = "LEFT", BOTTOM = "TOP", TOP = "BOTTOM" }
+private.MarkerAnchor = function(s)
+	if s["vertical"] then
+		return s["tracking"]["secondaryReversed"] and "TOP" or "BOTTOM"
+	end
+	return s["tracking"]["secondaryReversed"] and "RIGHT" or "LEFT"
+end
+
+-- the secondary marker on a value it can't read: a transparent StatusBar along the marker's travel
+-- takes the value, and the marker sits on the edge of its fill
+private.RideMarker = function(f, s, value, max)
+	local rider = f.stRider
+	if not rider then
+		rider = CreateFrame("StatusBar", nil, f)
+		rider:SetStatusBarTexture([[Interface\Buttons\WHITE8X8]])
+		rider:SetStatusBarColor(0, 0, 0, 0)
+		local tex = rider:GetStatusBarTexture()
+		if tex then
+			tex:SetAlpha(0)
+		end
+		rider:EnableMouse(false)
+		f.stRider = rider
+	end
+
+	local anchor = private.MarkerAnchor(s)
+	local len = math.max(s["width"] - s["tracking"]["stWidth"], 1)
+	rider:ClearAllPoints()
+	rider:SetPoint(anchor, f, anchor, 0, 0)
+	if s["vertical"] then
+		rider:SetOrientation("VERTICAL")
+		rider:SetSize(1, len)
+	else
+		rider:SetOrientation("HORIZONTAL")
+		rider:SetSize(len, 1)
+	end
+	rider:SetReverseFill(s["tracking"]["secondaryReversed"] and true or false)
+	rider:SetMinMaxValues(0, max)
+	rider:SetValue(value)
+	rider:Show()
+
+	f.st:ClearAllPoints()
+	f.st:SetPoint(anchor, rider:GetStatusBarTexture(), private.OPPOSITE[anchor], 0, 0)
+	f.st:Show()
+end
+
 private.CalcTracking = function(f, s, t, elapsed)	
 	local position = 0
 
 	if t == "GCD" then
-		local start, duration, enabled = CDTL3:GetSpellCooldown(8921)	-- Spell ID for Moonfire, but any spell without a cooldown can be used
-		local cooldownMS, gcdMS = GetSpellBaseCooldown(8921)			-- Spell ID for Moonfire, but any spell without a cooldown can be used
+		local start, duration, enabled = CDTL3:GetSpellCooldown(private.GCD_READ_SPELL)
+		local cooldownMS, gcdMS = GetSpellBaseCooldown(private.GCD_READ_SPELL)
 		
 		local timeLeft = (start + duration) - GetTime()
 		position = ( timeLeft / (gcdMS / 1000))
-		
+
+		-- the read above comes back empty while the GCD's timing is hidden (in combat on Retail and
+		-- WoW: Forever): hand a GCD timer on, for a StatusBar to take (HiddenGCD returns at once
+		-- while the timing can be read)
+		if position <= 0 then
+			local running, remaining = private.HiddenGCD()
+			if running then
+				return 0, remaining, gcdMS / 1000, true
+			end
+		end
+
 	elseif t == "HEALTH" then
 		local hpMax = UnitHealthMax("player")
 		local hpCurrent = UnitHealth("player")
@@ -744,6 +887,24 @@ private.CalcTracking = function(f, s, t, elapsed)
 			return 0, pCurrent, pMax
 		end
 	
+	elseif t == "STAGGER" then
+		-- a Brewmaster's stagger against their max health. Where the client has no UnitStagger there is
+		-- nothing to show. The values can be hidden: the bar is fed them, never a comparison (like health).
+		if UnitStagger then
+			-- the value is handed on as it is (it can be hidden); the "is there one" test runs in a pcall
+			local sCurrent = UnitStagger("player")
+			local okHas, has = pcall(private.StaggerHas, sCurrent)
+			if okHas and not has then
+				sCurrent = 0
+			end
+			local sMax = UnitHealthMax("player")
+			position = private.Fraction(sCurrent, sMax)
+
+			if not position then
+				return 0, sCurrent, sMax
+			end
+		end
+
 	elseif t == "COMBO_POINTS" then
 		local cpMax = UnitPowerMax("player", Enum.PowerType.ComboPoints)
 		local cpCurrent = UnitPower("player", Enum.PowerType.ComboPoints)
@@ -831,7 +992,8 @@ private.CreateLane = function(laneNumber)
 	f.childCount = 0
 	f.validChildren = {}
 	f.overrideAutohide = false
-	
+	f.overrideApplied = false
+
 	f.currentCount = 0
 	f.previousCount = 0
 	f.triggerUpdate = false
@@ -871,7 +1033,7 @@ private.CreateLane = function(laneNumber)
 	-- DRAG AND DROP MOVEMENT
 	f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
-	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	f:SetScript("OnDragStop", function(self) CDTL3:FrameDragStop(self, "lanes") end)
 	
 	CDTL3:RefreshLane(laneNumber)
 	table.insert(CDTL3.lanes, f)
@@ -888,6 +1050,9 @@ private.LaneUpdate = function(f, elapsed)
 	end
 	
 	f.forceShow = false
+
+	-- lane flash, ghost and the Ready-by list (IconFx.lua)
+	CDTL3.IconFx:LaneUpdate(f, s)
 	
 	-- UPDATE
 	if f.triggerUpdate then
@@ -915,13 +1080,13 @@ private.LaneUpdate = function(f, elapsed)
 		f.triggerUpdate = false
 	end
 	
-	-- TEXT UPDATE
-	--private.UpdateText(f, s)
-	
-	if f:GetAlpha() ~= 0 then
-		-- TEXT UPDATE
-		--private.UpdateText(f, s)
-	
+	-- Override Autohide: a faded-out lane keeps tracking what brings it back (health, power, stealth)
+	local watching = s["enabled"] and s["tracking"]["overrideAutohide"]
+
+	if f:GetAlpha() ~= 0 or watching then
+		-- TEXT UPDATE (live tags; each tag family converts at its own poll rate)
+		private.UpdateText(f, s)
+
 		-- STACKING CALC
 		if f.updateCount % private.stackingPollRate == 0 then
 			private.CalcStacking(f, s, f.childCount)
@@ -929,8 +1094,8 @@ private.LaneUpdate = function(f, elapsed)
 	
 		-- PRIMARY TRACKING
 		if s["tracking"]["primaryTracking"] ~= "NONE" then
-			local tValue, secretCurrent, secretMax = private.CalcTracking(f, s, s["tracking"]["primaryTracking"], elapsed)
-			if secretCurrent then
+			local tValue, secretCurrent, secretMax, rides = private.CalcTracking(f, s, s["tracking"]["primaryTracking"], elapsed)
+			if rides or secretCurrent then
 				f:SetMinMaxValues(0, secretMax)
 				f:SetValue(secretCurrent)
 				f.secretRange = true
@@ -952,21 +1117,28 @@ private.LaneUpdate = function(f, elapsed)
 		
 		-- SECONDARY TRACKING
 		if s["tracking"]["secondaryTracking"] ~= "NONE" then
-			local tValue, secretCurrent = private.CalcTracking(f, s, s["tracking"]["secondaryTracking"], elapsed)
-			
-			-- the marker is positioned by arithmetic, so it can't follow a secret value
-			if not secretCurrent and tValue < 1 and tValue > 0 then
+			local tValue, secretCurrent, secretMax, rides = private.CalcTracking(f, s, s["tracking"]["secondaryTracking"], elapsed)
+
+			-- the marker is positioned by arithmetic, so it can't follow a secret value, except the
+			-- GCD's, which it rides on a StatusBar
+			if rides then
+				private.RideMarker(f, s, secretCurrent, secretMax)
+			elseif not secretCurrent and tValue < 1 and tValue > 0 then
 				local tPosition = (s["width"] - s["tracking"]["stWidth"]) * tValue
-				
+
 				f.st:ClearAllPoints()
 
-				local anchor = "LEFT"
-				if s["tracking"]["secondaryReversed"] then
-					anchor = "RIGHT"
+				-- along the lane's long side: across on a horizontal lane, up on a vertical one
+				local anchor = private.MarkerAnchor(s)
+				if anchor == "RIGHT" or anchor == "TOP" then
 					tPosition = -tPosition
 				end
-				
-				f.st:SetPoint(anchor, tPosition, 0)
+
+				if s["vertical"] then
+					f.st:SetPoint(anchor, 0, tPosition)
+				else
+					f.st:SetPoint(anchor, tPosition, 0)
+				end
 				f.st:Show()
 			else
 				f.st:Hide()
@@ -975,8 +1147,8 @@ private.LaneUpdate = function(f, elapsed)
 			f.st:Hide()
 		end
 		
-		-- FRAME (UN)LOCKING
-		if CDTL3.db.profile.global["unlockFrames"] then
+		-- FRAME (UN)LOCKING (a lane on another frame keeps its screen position; a drag sets its offset)
+		if CDTL3.db.profile.global["unlockFrames"] and not f.cdtl3AnchoredTo then
 			local _, _, relativeTo, xOfs, yOfs = f:GetPoint()
 			
 			s["relativeTo"] = relativeTo
@@ -984,7 +1156,15 @@ private.LaneUpdate = function(f, elapsed)
 			s["posY"] = yOfs
 		end
 	end
-	
+
+	-- Override Autohide: show or fade the lane as soon as what it watches changes
+	if f.overrideAutohide ~= f.overrideApplied then
+		f.overrideApplied = f.overrideAutohide
+		if s["enabled"] then
+			CDTL3:Autohide(f, s)
+		end
+	end
+
 	-- UPDATE COUNT
 	f.updateCount = f.updateCount + 1
 	if f.updateCount > 12000 then
@@ -1055,15 +1235,16 @@ private.SetModeText = function(f, s)
 		st["text4"]["pos"] = s["mode"]["split"]["s3p"]
 		st["text5"]["text"] = "100%"
 		
-		if s["mode"]["split"]["count"] == 1 then
+		local count = CDTL3:SplitCount(s["mode"]["split"])
+		if count == 1 then
 			st["text2"]["used"] = true
 			st["text3"]["used"] = false
 			st["text4"]["used"] = false
-		elseif s["mode"]["split"]["count"] == 2 then
+		elseif count == 2 then
 			st["text2"]["used"] = true
 			st["text3"]["used"] = true
 			st["text4"]["used"] = false
-		elseif s["mode"]["split"]["count"] == 3 then
+		elseif count == 3 then
 			st["text2"]["used"] = true
 			st["text3"]["used"] = true
 			st["text4"]["used"] = true
@@ -1081,15 +1262,21 @@ private.SetModeText = function(f, s)
 		st["text4"]["pos"] = s["mode"]["splitAbs"]["s3p"]
 		st["text5"]["text"] = CDTL3:ConvertTime(max, tFormat)
 		
-		if s["mode"]["splitAbs"]["count"] == 1 then
+		-- a mark at or past Max Time isn't drawn (a 3:00 lane doesn't show a 10m mark inside it)
+		local count = CDTL3:SplitAbsCount(s["mode"]["splitAbs"])
+		if count == 0 then
+			st["text2"]["used"] = false
+			st["text3"]["used"] = false
+			st["text4"]["used"] = false
+		elseif count == 1 then
 			st["text2"]["used"] = true
 			st["text3"]["used"] = false
 			st["text4"]["used"] = false
-		elseif s["mode"]["splitAbs"]["count"] == 2 then
+		elseif count == 2 then
 			st["text2"]["used"] = true
 			st["text3"]["used"] = true
 			st["text4"]["used"] = false
-		elseif s["mode"]["splitAbs"]["count"] == 3 then
+		elseif count == 3 then
 			st["text2"]["used"] = true
 			st["text3"]["used"] = true
 			st["text4"]["used"] = true

@@ -10,6 +10,7 @@ CDTL3 = LibStub("AceAddon-3.0"):NewAddon("CDTL3", "AceConsole-3.0", "AceEvent-3.
 CDTL3.Masque = LibStub("Masque", true)
 CDTL3.LSM = LibStub("LibSharedMedia-3.0")
 CDTL3.GUI = LibStub("AceGUI-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale("CDTL3")
 
 local _, _, _, tocversion = GetBuildInfo()
 CDTL3.tocversion = tocversion
@@ -30,10 +31,14 @@ if CDTL3.retailAPI then
 	CDTL3.combatLogRegistered = false
 end
 
+-- The Classic clients now call it C_CombatLog.GetCurrentEventInfo; the old global is a deprecated
+-- alias there (and a stub on retail). Prefer the new name, fall back to the old one.
+local GetCombatLogEventInfo = (C_CombatLog and C_CombatLog.GetCurrentEventInfo) or CombatLogGetCurrentEventInfo
+
 -- True where nothing fed only by the combat log can fire. Options.lua hides those options,
 -- Cooldown.lua ignores Spell School Color.
 function CDTL3:NoCombatLog()
-	return CDTL3.combatLogRegistered == false or not CombatLogGetCurrentEventInfo
+	return CDTL3.combatLogRegistered == false or not GetCombatLogEventInfo
 end
 
 -- Globals that no longer exist on Forever (or on retail from 12.1.5): GetItemSpell and
@@ -69,8 +74,9 @@ CDTL3.Compat = {
 	end,
 }
 
-CDTL3.version = "3.0.12"
-CDTL3.noticeVersion = "2.6"
+CDTL3.version = "3.2.1"
+-- the welcome window (GetSpecialMessage + changelog) opens once for anyone whose last seen version is older
+CDTL3.noticeVersion = "3.2"
 CDTL3.cdUID = 999
 -- where to report issues / make suggestions (first-run window, Changelog tab)
 CDTL3.supportlink = "https://github.com/Nelnamara/cdtl3-dev/issues"
@@ -120,8 +126,13 @@ local function WithOverrides(base, overrides)
 	return copy
 end
 
+-- Show (each lane, bar frame and ready frame): "GLOBAL" follows Global > Hide out of combat, or
+-- "ALWAYS", "COMBAT" (only in combat), "BOSS" (boss fights only). Dim instead of hide keeps the
+-- frame at dimAlpha while its Show rule would hide it (CDTL3:Autohide, Helpers.lua). The same
+-- three settings are in barFrameDefaults and readyDefaults.
 local laneDefaults = {
 	enabled = true,
+	showMode = "GLOBAL", dimInsteadOfHide = false, dimAlpha = 0.3,
 	name = "Lane 1",
 	reversed = false,
 	vertical = false,
@@ -131,7 +142,22 @@ local laneDefaults = {
 	width = 400,
 	height = 44,
 	relativeTo = "CENTER",
+	-- Anchor to (Anchors.lua): SCREEN keeps the x/y position above; PLAYER, COOLDOWNS or NAMED (frame) place it on another frame's side
+	anchor = { to = "SCREEN", frame = "", side = "ABOVE", x = 0, y = 0 },
 	alpha = 1,
+	-- Pause while hidden: icons skip their visual updates while the lane is faded to nothing (Cooldown.lua)
+	pauseHidden = false,
+	-- Caster lane (Group.lua): each owned timer's icon gets its caster's name under it
+	casterLane = false,
+
+	-- Effects (IconFx.lua), all off until turned on: charge pips on spell icons, GCD waits sent to the
+	-- Ready frame, the burst window (shaded on a Time lane, and/or a Ready-by list) and the refresh zone
+	fx = {
+		chargePips = false,
+		gcdWait = false,
+		burst = { enabled = false, secs = 25, shaded = true, list = false },
+		refresh = { enabled = false, pct = 30 },
+	},
 
 	iconOffset = 0,
 
@@ -149,7 +175,13 @@ local laneDefaults = {
 
 		stWidth = 5,
 		stHeight = 44,
+
+		-- Change color at (ResourceBars.lua, Primary Tracking on Class Power): the whole fill takes this color at or above value
+		threshold = { enabled = false, value = 40, color = { r = 0.949, g = 0.761, b = 0.188, a = 1 } },
 	},
+
+	-- Mana gauge (ResourceBars.lua): an upright gauge at the lane's Ready end
+	gauge = { enabled = false, showPercent = true, width = 16, height = 44, gap = 6, color = { r = 0.165, g = 0.373, b = 0.839, a = 1 } },
 
 	stacking = {
 		enabled = false,
@@ -494,6 +526,7 @@ local laneDefaults = {
 
 local barFrameDefaults = {
 	enabled = true,
+	showMode = "GLOBAL", dimInsteadOfHide = false, dimAlpha = 0.3,
 	name = "Bar Frame 1",
 	grow = "UP",
 	horizontal = false,
@@ -504,6 +537,7 @@ local barFrameDefaults = {
 	width = 180,
 	height = 25,
 	relativeTo = "CENTER",
+	anchor = { to = "SCREEN", frame = "", side = "ABOVE", x = 0, y = 0 },
 	alpha = 1,
 
 	transition = {
@@ -624,6 +658,7 @@ local barFrameDefaults = {
 
 local readyDefaults = {
 	enabled = true,
+	showMode = "GLOBAL", dimInsteadOfHide = false, dimAlpha = 0.3,
 	name = "Ready 1",
 	grow = "DOWN",
 	padding = 0,
@@ -633,10 +668,13 @@ local readyDefaults = {
 	hTime = 10,
 	hSound = "None",
 	pTime = 10,
+	-- NORMAL: icons wait their Normal Duration. STAY: a board of the pinned cooldowns that stays up (ReadyBoard.lua)
+	mode = "NORMAL",
 
 	posX = -300,
 	posY = -75,
 	relativeTo = "CENTER",
+	anchor = { to = "SCREEN", frame = "", side = "ABOVE", x = 0, y = 0 },
 	alpha = 1,
 
 	bgTexture = "CDTL3 Smooth",
@@ -757,6 +795,8 @@ local defaults = {
 			autohide = false,
 			enableTooltip = false,
 			zoom = 1,
+			-- Ready tab: silences every ready sound (the frames', the spells' own, spoken names)
+			muteReadySounds = false,
 			
 			detectSharedCD = false,
 			hideIgnored = true,
@@ -773,7 +813,26 @@ local defaults = {
 			hideWhileCasting = false,
 
 			dynamicSpellDetection = false,
-			
+
+			-- Update rate (Cooldown.lua): 0 = every frame, else visual updates per second
+			updateRate = 0,
+
+			-- CombatTimers.lua: on for everyone since 3.1.0 (the owner's call), with a notice on the
+			-- first login after the update. Blizzard's Tracked Bars stay visible unless the player hides them.
+			combatTimers = { enabled = true, hideBlizzardBars = false },
+
+			-- FightTimeline.lua: off until switched on. flag1..3 are seconds into the fight (0 = no flag).
+			fightTimeline = {
+				enabled = false, hideOutOfCombat = false,
+				width = 340, span = 360, iconSize = 22,
+				flag1 = 120, flag2 = 180, flag3 = 300,
+				point = "CENTER", x = 0, y = -150,
+			},
+			-- Start.lua: a ~ before a time CDTL3 counts itself (off: nothing changes), and the starter
+			-- setup the player kept in Quick Style ("" = none)
+			estimateTilde = false,
+			setupKey = "",
+
 			exportMode = "SETTINGS",
 			importMode = "SETTINGS",
 
@@ -817,6 +876,7 @@ local defaults = {
 				defaultLane = 1,
 				defaultReady = 1,
 				defaultBar = 1,
+				hideUnknown = false,	-- Filters > Spells > Hide spells I don't know
 			},
 			
 			items = {
@@ -879,6 +939,14 @@ local defaults = {
 				enabled = true,
 				showByDefault = true,
 				ignoreThreshold = 3600,
+				defaultLane = 1,
+				defaultReady = 1,
+				defaultBar = 1,
+			},
+
+			-- flight timers (Flights.lua); learned times are account-wide in db.global.flightTimes
+			flights = {
+				enabled = true,
 				defaultLane = 1,
 				defaultReady = 1,
 				defaultBar = 1,
@@ -993,6 +1061,7 @@ local defaults = {
 			runes = {},
 			customs = {},
 			detected = {},
+			flights = {},	-- always empty: lets lookups by type find nothing for a flight
 		},
 	}
 }
@@ -1047,14 +1116,14 @@ function CDTL3:OnInitialize()
 		type = "group",
 		args = {
 			about = {
-				name = "CDTL3 is configured in its own movable window.\n\n",
+				name = L["CDTL3 is configured in its own movable window."] .. "\n\n",
 				type = "description",
 				fontSize = "medium",
 				order = 1,
 			},
 			open = {
-				name = "Open CDTL3 Settings",
-				desc = "Opens the CDTL3 configuration window (same as /cdtl3)",
+				name = L["Open CDTL3 Settings"],
+				desc = L["Opens the CDTL3 configuration window (same as /cdtl3)"],
 				type = "execute",
 				width = 1.5,
 				order = 2,
@@ -1112,9 +1181,19 @@ function CDTL3:BuildMinimapButton()
 	btn:SetScript("OnEnter", function(s)
 		GameTooltip:SetOwner(s, "ANCHOR_LEFT")
 		GameTooltip:AddLine("|cFF54a3ffCDTL3|r |cffffffff(CooldownTimeline)|r")
-		GameTooltip:AddLine("Left-click: Open settings", 1, 1, 1)
-		GameTooltip:AddLine("Right-click: Lock/unlock", 1, 1, 1)
-		GameTooltip:AddLine("Drag: Reposition", 0.7, 0.7, 0.7)
+		-- where things stand: frames locked or not, combat timers (Retail and Forever only)
+		local unlocked = CDTL3.db.profile.global["unlockFrames"]
+		GameTooltip:AddLine(string.format(L["Frames: %s"], "|cffffd100" .. (unlocked and L["unlocked"] or L["locked"]) .. "|r"), 1, 1, 1)
+		local CT = CDTL3.CombatTimers
+		if CT and CT:Available() then
+			GameTooltip:AddLine(string.format(L["Combat timers: %s"], CT:Enabled() and L["on"] or L["off"]), 1, 1, 1)
+		end
+		GameTooltip:AddLine(" ")
+		GameTooltip:AddLine(L["Left-click: Open settings"], 1, 1, 1)
+		GameTooltip:AddLine(L["Right-click: Lock/unlock"], 1, 1, 1)
+		GameTooltip:AddLine(CDTL3.testing and L["Shift-click: Stop preview"] or L["Shift-click: Preview with sample icons"], 1, 1, 1)
+		GameTooltip:AddLine(L["Alt-click: Help"], 1, 1, 1)
+		GameTooltip:AddLine(L["Drag: Reposition"], 0.7, 0.7, 0.7)
 		GameTooltip:Show()
 	end)
 	btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1122,6 +1201,10 @@ function CDTL3:BuildMinimapButton()
 	btn:SetScript("OnClick", function(_, button)
 		if button == "RightButton" then
 			CDTL3:ToggleFrameLock()
+		elseif IsShiftKeyDown and IsShiftKeyDown() then
+			CDTL3:TogglePreview()
+		elseif IsAltKeyDown and IsAltKeyDown() then	-- not Ctrl: on a Mac, Ctrl-click arrives as a right-click
+			CDTL3:ChatCommand("help window")
 		else
 			CDTL3:ChatCommand("")
 		end
@@ -1163,8 +1246,8 @@ function CDTL3:OnEnable()
 	private.CreateUnlockFrame()
 	private.CreateDebugFrame()
 	
-	CDTL3:Print("Loaded version: "..CDTL3.version)
-	CDTL3:Print("Type /cdtl3 or /cooldowntimeline3 for options")
+	CDTL3:Print(string.format(L["Loaded version: %s"], CDTL3.version))
+	CDTL3:Print(L["Type /cdtl3 or /cooldowntimeline3 for options"])
 	
 	CDTL3.tracking["manaTime"] = GetTime()
 	CDTL3.tracking["manaPrevious"] = 0
@@ -1206,10 +1289,51 @@ function CDTL3:OnEnable()
 		CDTL3:RefreshLane(3)
 	end)
 	
-	if CDTL3.db.profile.global["firstRun"] or CDTL3:IsNewerVersion() then
+	-- After an update from anything older than noticeVersion the welcome window opens once, on
+	-- every client (its text says what's new; the 3.1 combat timers block adds itself only where
+	-- they run); a first run opens it everywhere, as before.
+	local notice = CDTL3:IsNewerVersion()
+	if CDTL3.Start and CDTL3.Start:TourDue() then
+		-- a first install gets the three-step tour (Start.lua); what's new is for existing players
+		C_Timer.After(10, function()
+			CDTL3.Start:StartTour()
+		end)
+	elseif CDTL3.db.profile.global["firstRun"] or notice then
 		C_Timer.After(10, function()
 			private.CreateFirstRunFrame()
 		end)
+	end
+end
+
+-- /cdtl3 help: every subcommand, one line each (kept next to ChatCommand: add a line here with each new one)
+private.helpLines = {
+	{ "", L["open the settings window"] },
+	{ "lanes", L["open the Lanes tab"] },
+	{ "ready", L["open the Ready tab"] },
+	{ "bars", L["open the Bar Frames tab"] },
+	{ "filters", L["open the Filters tab"] },
+	{ "profiles", L["open the Profiles tab"] },
+	{ "lock / unlock", L["lock or unlock the frames for moving"] },
+	{ "test", L["show test timers"] },
+	{ "debug", L["toggle the debug window"] },
+	{ "auras", L["report the player's auras as CDTL3 sees them (readable or hidden)"] },
+	{ "oaf", L["report the spells whose cooldown starts when the effect is used"] },
+	{ "combattimers [on|off]", L["show or switch the combat timers (Retail and Forever)"] },
+	{ "minimap", L["show or hide the minimap button"] },
+	{ "report", L["open a copyable bug-report box"] },
+	{ "log", L["show the error log"] },
+	{ "perf", L["show CPU, memory and frame counts"] },
+	{ "tour", L["take the three-step tour again"] },
+	{ "whatsnew", L["open the What's new window with the changelog"] },
+	{ "help", L["show this list"] },
+}
+
+CDTL3.helpLines = private.helpLines	-- the Help tab lists the same commands (Start.lua)
+
+function CDTL3:PrintHelp()
+	CDTL3:Print(L["commands (/cdtl3 <command>):"])
+	for _, l in ipairs(private.helpLines) do
+		CDTL3:Print(string.format("  /cdtl3 %s - %s", l[1], l[2]))
 	end
 end
 
@@ -1236,26 +1360,45 @@ function CDTL3:ChatCommand(input)
 		if CDTL3.db.profile.global["unlockFrames"] then
 			CDTL3:ToggleFrameLock()
 		else
-			CDTL3:Print("Frames are already locked")
+			CDTL3:Print(L["Frames are already locked"])
 		end
 	elseif input:trim() == "unlock" then
 		if not CDTL3.db.profile.global["unlockFrames"] then
 			CDTL3:ToggleFrameLock()
 		else
-			CDTL3:Print("Frames are already unlocked")
+			CDTL3:Print(L["Frames are already unlocked"])
 		end
 	elseif input:trim() == "test" then
 		CDTL3:EnableTesting()
 	elseif input:trim() == "debug" then
 		CDTL3:ToggleDebug()
+	elseif input:trim() == "help" or input:trim() == "?" then
+		CDTL3:PrintHelp()
+	elseif input:trim() == "help window" then
+		LibStub("AceConfigDialog-3.0"):Open("CDTL3")
+		LibStub("AceConfigDialog-3.0"):SelectGroup("CDTL3", "help")
 	elseif input:trim() == "auras" then
 		CDTL3:DiagnoseAuras()
+	elseif input:trim() == "report" then
+		CDTL3:ShowReport()	-- Diagnostics.lua
+	elseif input:trim() == "log" then
+		CDTL3:ShowLog()
+	elseif input:trim() == "perf" then
+		CDTL3:PrintPerf()
+	elseif input:trim() == "tour" then
+		-- the settings window would sit over the frames the tour points at
+		LibStub("AceConfigDialog-3.0"):Close("CDTL3")
+		if CDTL3.Start then
+			CDTL3.Start:StartTour(true)
+		end
+	elseif input:trim() == "whatsnew" then
+		CDTL3:ShowWhatsNew()
 	elseif input:trim() == "minimap" then
 		CDTL3.db.global.minimapHide = not CDTL3.db.global.minimapHide
 		if CDTL3.minimapBtn then
 			CDTL3.minimapBtn:SetShown(not CDTL3.db.global.minimapHide)
 		end
-		CDTL3:Print("Minimap button " .. (CDTL3.db.global.minimapHide and "hidden" or "shown"))
+		CDTL3:Print(CDTL3.db.global.minimapHide and L["Minimap button hidden"] or L["Minimap button shown"])
 	elseif input:trim() == "oaf" then
 		-- Diagnostic for "cooldown starts when the effect is used" spells (Nature's Swiftness etc.):
 		-- prints every link of the chain so one paste shows which one is wrong on a live client.
@@ -1283,6 +1426,20 @@ function CDTL3:ChatCommand(input)
 			end
 		end
 		CDTL3:Print("  live oaf frames: " .. frames .. " | run once with the buff up and once after using it, paste both")
+	elseif input:trim():match("^combattimers") then
+		-- combat timers (CombatTimers.lua): status, or "on" / "off"
+		local arg = input:trim():sub(13):trim():lower()
+		local CT = CDTL3.CombatTimers
+		if not (CT and CT:Available()) then
+			CDTL3:Print(L["Combat timers: not available on this client"])
+		else
+			if arg == "on" then
+				CT:SetEnabled(true)
+			elseif arg == "off" then
+				CT:SetEnabled(false)
+			end
+			CDTL3:Print(CT:StatusLine())
+		end
     end
 end
 
@@ -1392,9 +1549,21 @@ private.CreateDebugFrame = function()
 	CDTL3.debugFrame = f
 end
 
+-- /cdtl3 whatsnew: the welcome window on demand. Opening it changes nothing; only its No and
+-- Take the tour buttons mark it seen, as when it opens by itself.
+function CDTL3:ShowWhatsNew()
+	return private.CreateFirstRunFrame()
+end
+
 private.CreateFirstRunFrame = function()
+	-- made once per session; opening it again shows the same window
+	if private.firstRunFrame then
+		private.firstRunFrame:Show()
+		return private.firstRunFrame
+	end
 	local name = "CDTL3_Firstrun"
 	local f = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	private.firstRunFrame = f
 	f:SetPoint("TOP", 0, -150)
 	f:SetSize(550, 300)
 	
@@ -1505,8 +1674,41 @@ private.CreateFirstRunFrame = function()
 		f:Hide()
 	end)
 
+	-- Take the tour: closes the window the way No does (seen), then runs the three-step tour
+	local b3 = CreateFrame("Button", name.."_Tour", f, "UIPanelButtonTemplate", BackdropTemplateMixin and "BackdropTemplate" or nil)
+	b3:SetSize(110 ,25)
+	b3:SetText(L["Take the tour"])
+	b3:SetPoint("BOTTOM", 150, 8)
+	b3:SetScript("OnClick", function()
+		CDTL3.db.profile.global["firstRun"] = false
+		CDTL3.db.profile.global["previousVersion"] = CDTL3.version
+		f:Hide()
+		if CDTL3.Start then
+			CDTL3.Start:StartTour(true)
+		end
+	end)
+
 	f:SetFrameStrata("DIALOG")
 	f:Show()
+	return f
+end
+
+-- The "Frames currently unlocked" box. Until frames have been locked once (db.global.lockedOnce,
+-- set by ToggleFrameLock, account-wide) it says what to do: drag the frames, then click Lock, and,
+-- where CDTL3's frames are in Edit Mode (LibEditMode loaded), that Edit Mode can place them too.
+-- After that first lock it keeps its plain wording. Set when the box is made and each time it shows.
+private.UnlockBoxText = function(f)
+	local lockedOnce = CDTL3.db and CDTL3.db.global and CDTL3.db.global.lockedOnce
+	if lockedOnce then
+		f.text:SetText("CDTL3\nFrames currently unlocked\nDrag and drop to move")
+		f:SetSize(180, 70)
+	elseif LibStub("LibEditMode", true) then
+		f.text:SetText("CDTL3\nFrames currently unlocked\nDrag the frames where you want them,\nthen click Lock.\nEdit Mode can place them too.")
+		f:SetSize(230, 110)
+	else
+		f.text:SetText("CDTL3\nFrames currently unlocked\nDrag the frames where you want them,\nthen click Lock.")
+		f:SetSize(230, 96)
+	end
 end
 
 private.CreateUnlockFrame = function()
@@ -1543,15 +1745,19 @@ private.CreateUnlockFrame = function()
 	f.text:SetFont(CDTL3.LSM:Fetch("font", "Fira Sans Condensed"), 12)
 	f.text:SetShadowColor( 0, 0, 0, 1 )
 	f.text:SetShadowOffset(1.5, -1)
-	f.text:SetText("CDTL3\nFrames currently unlocked\nDrag and drop to move")
 	f.text:SetPoint("TOP", 0, -5)
-	
+	private.UnlockBoxText(f)
+	f:SetScript("OnShow", private.UnlockBoxText)
+
 	local b = CreateFrame("Button", "CDTL3_Unlock_Frame_Button", f, "UIPanelButtonTemplate", BackdropTemplateMixin and "BackdropTemplate" or nil)
 	b:SetSize(80 ,25) -- width, height
 	b:SetText("Lock")
 	b:SetPoint("BOTTOM", 0, 4)
 	b:SetScript("OnClick", function()
-		CDTL3:ToggleFrameLock()
+		-- always locks: a toggle here unlocked frames that were already locked
+		if CDTL3.db.profile.global["unlockFrames"] then
+			CDTL3:ToggleFrameLock()
+		end
 		f:Hide()
 	end)
 	
@@ -1576,6 +1782,46 @@ function CDTL3:EnableTesting()
 	end
 end
 
+-- Preview with sample icons (Global tab button, minimap Shift-click): test mode plus one set of
+-- sample icons from the Test Panel's settings. Stop preview clears them (the panel's Clear) and
+-- closes the panel. Test mode shows the frames whatever Hide out of combat or Show say.
+function CDTL3:StartPreview()
+	if not CDTL3.testing then
+		CDTL3:EnableTesting()
+	end
+	CDTL3:GenerateTestCooldowns()
+	CDTL3:ApplyCombatVisibility()
+end
+
+function CDTL3:StopPreview()
+	local f = CDTL3.testingFrame
+	CDTL3.testingFrame = nil
+	if f then
+		f:Hide()	-- AceGUI's frame closes on hide: OnClose releases it and ends test mode
+		if CDTL3.testing then
+			CDTL3.GUI:Release(f)
+		end
+	end
+	CDTL3.testing = false
+
+	for _, cd in ipairs(CDTL3.cooldowns) do
+		if cd.data["type"] == "testing" and cd.icon:GetParent():GetName() ~= "CDTL3_Active_Icon_Holding" then
+			CDTL3:SendToHolding(cd)
+			CDTL3:SendToBarHolding(cd)
+		end
+	end
+	CDTL3:ApplyCombatVisibility()
+end
+
+function CDTL3:TogglePreview()
+	if CDTL3.testing then
+		CDTL3:StopPreview()
+	else
+		CDTL3:StartPreview()
+	end
+	LibStub("AceConfigRegistry-3.0"):NotifyChange("CDTL3")
+end
+
 function CDTL3:CreateTestingFrame()
 	if CDTL3.testing then
 		--local name = "CDTL3_Testing_Frame"
@@ -1595,7 +1841,10 @@ function CDTL3:CreateTestingFrame()
 		f:SetCallback("OnClose", function(widget)
 				CDTL3.GUI:Release(widget)
 				CDTL3.testing = false
+				CDTL3.testingFrame = nil
+				LibStub("AceConfigRegistry-3.0"):NotifyChange("CDTL3")	-- the Preview button's label
 			end)
+		CDTL3.testingFrame = f
 		
 		local lblMain = CDTL3.GUI:Create("Label")
 		lblMain:SetText("Here you can create a series of test Cooldowns to assist with configuration\n\n")
@@ -1789,6 +2038,14 @@ function CDTL3:OnPlayerAuraApplied(spellID, spellName, auraType, sourceIsPlayer,
 				CDTL3:AddUsedBy(auraType, s["id"], CDTL3.player["guid"])
 			end
 
+			-- a buff pulled from the Cooldown Manager before it was ever seen learns its length now
+			if s["cdmPulled"] and (s["bCD"] or 0) <= 0 then
+				local seen = CDTL3:AuraExists("player", spellName)
+				if seen and (seen["bCD"] or 0) > 0 then
+					s["bCD"] = seen["bCD"]
+				end
+			end
+
 			if not s["ignored"] then
 				local ef = CDTL3:GetExistingCooldown(s["name"], auraType)
 				if ef then
@@ -1943,12 +2200,16 @@ end
 -- /cdtl3 auras: read-only report of what CDTL3 can see of the player's auras and what it
 -- has saved for each, to pin down why a buff isn't detected (detection off, no UNIT_AURA
 -- events, secret aura data, or a saved entry that is ignored / not marked as yours).
-function CDTL3:DiagnoseAuras()
+-- out(line) gets each line (/cdtl3 report collects them); without it they go to chat.
+function CDTL3:DiagnoseAuras(out)
+	out = out or function(line)
+		CDTL3:Print(line)
+	end
 	local g = CDTL3.db.profile.global
-	CDTL3:Print("AURA CHECK v"..CDTL3.version.." | detection on: "..tostring(CDTL3.enabled)
+	out("AURA CHECK v"..CDTL3.version.." | detection on: "..tostring(CDTL3.enabled)
 		.." | UNIT_AURA events: "..tostring(CDTL3.unitAuraEvents or 0)
 		.." | combat log: "..tostring(CDTL3.combatLogRegistered))
-	CDTL3:Print("guid: "..tostring(CDTL3.player["guid"])
+	out("guid: "..tostring(CDTL3.player["guid"])
 		.." | buffs enabled: "..tostring(g["buffs"]["enabled"])
 		.." | only mine: "..tostring(g["buffs"]["onlyPlayer"])
 		.." | ignore over: "..tostring(g["buffs"]["ignoreThreshold"]).."s"
@@ -1959,7 +2220,7 @@ function CDTL3:DiagnoseAuras()
 		for i = 1, 40 do
 			local readOK, aura = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, filter)
 			if not readOK then
-				CDTL3:Print(t.." #"..i..": can't read auras right now (secret)")
+				out(t.." #"..i..": can't read auras right now (secret)")
 				break
 			end
 			if not aura then
@@ -1990,10 +2251,11 @@ function CDTL3:DiagnoseAuras()
 				return text
 			end)
 
-			if ok and line then
-				CDTL3:Print(line)
+			-- a line built from a hidden field is hidden too: it's left out
+			if ok and line and not (issecretvalue and issecretvalue(line)) then
+				out(line)
 			else
-				CDTL3:Print(t.." #"..i..": details hidden (secret)")
+				out(t.." #"..i..": details hidden (secret)")
 			end
 		end
 	end
@@ -2033,16 +2295,16 @@ function CDTL3:RecordSpellSchool(spellName, schoolMask)
 end
 
 function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
-	local _, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName, _, _ = CombatLogGetCurrentEventInfo()
+	local _, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName, _, _ = GetCombatLogEventInfo()
 
 	if sourceGUID == CDTL3.player["guid"] and (subevent == "SPELL_CAST_SUCCESS" or subevent == "SPELL_AURA_APPLIED") then
-		local _, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo())
+		local _, spellName, spellSchool = select(12, GetCombatLogEventInfo())
 		CDTL3:RecordSpellSchool(spellName, spellSchool)
 	end
 
 	if subevent == "SPELL_AURA_APPLIED" then
 		if sourceGUID == CDTL3.player["guid"] or destGUID == CDTL3.player["guid"] then
-			local spellID, spellName, _, auraType, _, _, _, _, _, _, _, _, _ = select(12, CombatLogGetCurrentEventInfo())
+			local spellID, spellName, _, auraType, _, _, _, _, _, _, _, _, _ = select(12, GetCombatLogEventInfo())
 			auraType = auraType:lower().."s"
 			
 			--CDTL3:Print(destGUID)
@@ -2144,7 +2406,7 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 		end
 	elseif subevent == "SPELL_AURA_REFRESH" then
 		if sourceGUID == CDTL3.player["guid"] then
-			local spellID, spellName, _, auraType, _, _, _, _, _, _, _, _, _ = select(12, CombatLogGetCurrentEventInfo())
+			local spellID, spellName, _, auraType, _, _, _, _, _, _, _, _, _ = select(12, GetCombatLogEventInfo())
 			auraType = auraType:lower().."s"
 			
 			if CDTL3.db.profile.global["debugMode"] then
@@ -2158,7 +2420,7 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 		end		
 	elseif subevent == "SPELL_AURA_REMOVED" then
 		if sourceGUID == CDTL3.player["guid"] then
-			local spellID, spellName, _, auraType, _, _, _, _, _, _, _, _, _ = select(12, CombatLogGetCurrentEventInfo())
+			local spellID, spellName, _, auraType, _, _, _, _, _, _, _, _, _ = select(12, GetCombatLogEventInfo())
 			auraType = auraType:lower().."s"
 			
 			if CDTL3.db.profile.global["debugMode"] then
@@ -2174,7 +2436,7 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 	-- SWING DAMAGE
 	elseif subevent == "SWING_DAMAGE" then
 		if sourceGUID == CDTL3.player["guid"] then
-			local amount, _, _, _, _, _, _, _, _, isOffHand = select(12, CombatLogGetCurrentEventInfo())
+			local amount, _, _, _, _, _, _, _, _, isOffHand = select(12, GetCombatLogEventInfo())
 			local mhSpeed, ohSpeed = UnitAttackSpeed("player")
 			
 			if isOffHand then
@@ -2187,7 +2449,7 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 	-- SWING MISSED
 	elseif subevent == "SWING_MISSED" then
 		if sourceGUID == CDTL3.player["guid"] then
-			local _, isOffHand, _, _ = select(12, CombatLogGetCurrentEventInfo())
+			local _, isOffHand, _, _ = select(12, GetCombatLogEventInfo())
 			local mhSpeed, ohSpeed = UnitAttackSpeed("player")
 			
 			if isOffHand then
@@ -2196,6 +2458,73 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 				CDTL3.tracking["mhSwingTime"] = mhSpeed
 			end
 		end
+	end
+end
+
+-- Custom timers with trigger type "Spell": start or restart them on any player cast.
+-- Returns true when the cast matches one, even an ignored one.
+local function CheckCustomSpellTrigger(spellName, castGUID)
+	local s = CDTL3:GetCustomSpellSettings(spellName, "spell")
+	if not s then
+		return false
+	end
+
+	if CDTL3.db.profile.global["debugMode"] then
+		CDTL3:Print("CUSTOM_FOUND: spell - "..spellName.."-"..castGUID)
+	end
+
+	if not s["ignored"] then
+		local ef = CDTL3:GetExistingCooldown(s["name"], "customs")
+		if ef then
+			CDTL3:SendToLane(ef)
+			CDTL3:SendToBarFrame(ef)
+		elseif CDTL3.db.profile.global["customs"]["enabled"] then
+			CDTL3:CreateCooldown(CDTL3:GetUID(), "customs", s)
+			CDTL3:CheckEdgeCases(spellName)
+
+			if not CDTL3:IsUsedBy("customs", s["id"]) then
+				CDTL3:AddUsedBy("customs", s["id"], CDTL3.player["guid"])
+			end
+		end
+	end
+
+	return true
+end
+
+-- While aura data is secret UNIT_AURA can't see a recast of a buff you already have, but
+-- the cast itself shows. Restart the buff's timer at its saved length as an estimate;
+-- the buff poll re-syncs from the real expiry once auras are readable.
+local function RestartBuffFromCast(spellName)
+	if not CDTL3:AurasAreSecret() then
+		return
+	end
+
+	-- The cast event doesn't say who the spell landed on. With another friendly player
+	-- targeted it most likely went to them (a Blessing, a shield), so leave yours alone.
+	-- If the check can't be read, assume the cast was yours.
+	local otherOK, onOther = pcall(function()
+		if UnitExists("target") and not UnitIsUnit("target", "player") and UnitIsFriend("player", "target") then
+			return true
+		end
+		return false
+	end)
+	if otherOK and onOther then
+		return
+	end
+
+	local s = CDTL3:GetSpellSettings(spellName, "buffs")
+	if not s or s["ignored"] or (s["bCD"] or 0) <= 0 or not CDTL3.db.profile.global["buffs"]["enabled"] then
+		return
+	end
+
+	local ef = CDTL3:GetExistingCooldown(s["name"], "buffs")
+	if ef then
+		if (ef.data["baseCD"] or 0) > 0 then
+			CDTL3:SendToLane(ef)
+			CDTL3:SendToBarFrame(ef)
+		end
+	else
+		CDTL3:CreateCooldown(CDTL3:GetUID(), "buffs", s)
 	end
 end
 
@@ -2242,20 +2571,28 @@ function CDTL3:IsSealName(name)
 	return sealPrefix ~= nil and name:sub(1, #sealPrefix) == sealPrefix
 end
 
--- Casting a seal ends the running timers of the other seals: straight to the holding area, so
--- no ready frame or ready sound. Casting the old seal again restarts its timer (SendToLane).
+-- LOCAL PATCH (Zippy, 2026-11-15): casting a seal ends the running timers of the other seals,
+-- their spell timers (a Custom CD Time) and their buff timers (while aura data is hidden in
+-- combat nothing else would end them): straight to the holding area, as CDTL3:StopTimer does,
+-- so no Ready frame and no ready sound. A held timer is not counted down or re-read (the poll
+-- only runs for a timer at 0 or above, Cooldown.lua), and a frame riding the game's timer
+-- leaves it once it is off its lane and bar frame (CombatTimers.lua). Casting the old seal
+-- again restarts its timer (SendToLane).
 function CDTL3:EndOtherSealTimers(castName)
 	if not CDTL3.cooldowns or not CDTL3:IsSealName(castName) then
 		return
 	end
 	for _, f in pairs(CDTL3.cooldowns) do
 		local d = f.data
-		if d and d["type"] == "spells" and d["name"] ~= castName and d["currentCD"] and d["currentCD"] >= 0
+		local t = d and d["type"]
+		if (t == "spells" or t == "buffs") and d["name"] ~= castName and d["currentCD"] and d["currentCD"] >= 0
 				and CDTL3:IsSealName(d["name"]) then
 			d["currentCD"] = -1
 			CDTL3:SendToHolding(f)
-			if CDTL3.SendToBarHolding then
-				CDTL3:SendToBarHolding(f)
+			CDTL3:SendToBarHolding(f)
+			if f.pubLive then
+				CDTL3:FireTimer("CDTL3_TimerEnded", f)
+				f.pubLive = nil
 			end
 		end
 	end
@@ -2276,6 +2613,8 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 		if not CDTL3.spellCastTimes then CDTL3.spellCastTimes = {} end
 		if not CDTL3.spellBaseCDs   then CDTL3.spellBaseCDs   = {} end
 		CDTL3.spellCastTimes[spellID] = GetTime()
+		-- the lanes' GCD tracking reads the GCD from it while the GCD's timing is hidden (Lanes.lua HiddenGCD)
+		CDTL3.lastPlayerCast = spellID
 
 		-- Ranged swing timer: Auto Shot (75) and wand Shoot (5019) fire this event on
 		-- every shot, so it works without the combat log. The ranged speed can be
@@ -2299,6 +2638,14 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 			CDTL3:Print("SPELLCAST: "..spellName.."-"..castGUID)
 		end
 
+		local customFound = CheckCustomSpellTrigger(spellName, castGUID)
+		-- LOCAL PATCH (Zippy, 2026-11-15): seal switch. A seal cast that is not from the spellbook
+		-- is a proc (its own spell ID, e.g. a late proc of the old seal while seal twisting), not a
+		-- recast: it restarts no seal's buff timer, so an ended seal doesn't come back.
+		if isKnown or isKnownOrOverridesKnown or not CDTL3:IsSealName(spellName) then
+			RestartBuffFromCast(spellName)
+		end
+
 		if isKnown or isKnownOrOverridesKnown then
 			-- LOCAL PATCH (Zippy, 2026-11-09): a seal from the spellbook ends the other seals' timers.
 			-- Only known spells count, so a late proc of the old seal (its own spell ID) while seal
@@ -2312,7 +2659,8 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 					CDTL3.spellCastTimes[s["id"]] = CDTL3.spellCastTimes[spellID]
 				end
 
-				if not s["ignored"] then
+				-- the Ignored box, or a Filters > Spells rule (Show only the ticked spells, Only for this spec)
+				if not CDTL3:IsIgnored(s, "spells") then
 					local ef = CDTL3:GetExistingCooldown(s["name"], "spells")
 					if ef then
 						CDTL3:SendToLane(ef)
@@ -2376,37 +2724,9 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 				else
 					--CDTL3:Print("NOTFOUND: "..spellID)
 
-					-- CHECK FOR 'OTHER' SPELLS
-					local spellName, icon, originalIcon = CDTL3:GetSpellInfo(spellID)
-					--local s = CDTL3:GetSpellSettings(spellName, "customs")
-					local s = CDTL3:GetCustomSpellSettings(spellName, "spell")
-					if s then
-						--if s["triggerType"] and s["triggerType"] == "spell" then
-							if CDTL3.db.profile.global["debugMode"] then
-								CDTL3:Print("CUSTOM_FOUND: spell - "..spellName.."-"..castGUID)
-							end
-
-							if not s["ignored"] then
-								local ef = CDTL3:GetExistingCooldown(s["name"], "customs")
-								if ef then
-									CDTL3:SendToLane(ef)
-									CDTL3:SendToBarFrame(ef)
-									--+CDTL3:CheckEdgeCases(spellName)
-								else
-									if CDTL3.db.profile.global["customs"]["enabled"] then
-										CDTL3:CreateCooldown(CDTL3:GetUID(),"customs" , s)
-										CDTL3:CheckEdgeCases(spellName)
-										
-										if CDTL3:IsUsedBy("customs", s["id"]) then
-											--CDTL3:Print("USEDBY MATCH: "..s["id"])
-										else
-											CDTL3:AddUsedBy("customs", s["id"], CDTL3.player["guid"])
-										end
-									end
-								end
-							end
-						--end
-					else
+					-- 'OTHER' SPELLS: a custom spell trigger (checked above) takes the cast,
+					-- otherwise record it
+					if not customFound then
 						if CDTL3.db.profile.global["customDetection"] then
 							-- RECORD 'OTHER' SPELL
 							s = CDTL3:GetSpellSettings(spellName, "detected")
@@ -2887,6 +3207,21 @@ function CDTL3:RUNE_UPDATED()
 	end)
 end
 
+-- The spellbook changed (talents, a new spell, a spec switch): Filters > Spells' Hide spells I don't
+-- know and Only for this spec follow it. Bursts of the event are folded into one pass.
+function CDTL3:SPELLS_CHANGED()
+	CDTL3:ForgetSpellbook()
+	if CDTL3.spellsChangedPending then
+		return
+	end
+	CDTL3.spellsChangedPending = true
+	C_Timer.After(1, function()
+		CDTL3.spellsChangedPending = nil
+		CDTL3:ForgetSpellbook()
+		CDTL3:ApplyEntryRules()
+	end)
+end
+
 function CDTL3:PLAYER_ENTERING_WORLD()	
 	local turnOn = CDTL3:DetermineOnOff()
 	
@@ -2980,7 +3315,7 @@ function CDTL3:TurnOn()
 		-- nothing). Only register it on the other clients, where its accessor exists, and never
 		-- let a refusal abort the rest of TurnOn.
 		CDTL3.combatLogRegistered = false
-		if not CDTL3.retailAPI and CombatLogGetCurrentEventInfo then
+		if not CDTL3.retailAPI and GetCombatLogEventInfo then
 			CDTL3.combatLogRegistered = pcall(CDTL3.RegisterEvent, CDTL3, "COMBAT_LOG_EVENT_UNFILTERED")
 		end
 		CDTL3:RegisterUnitEvents("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
@@ -2995,6 +3330,7 @@ function CDTL3:TurnOn()
 		CDTL3:RegisterCastEvents()
 
 		CDTL3:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+		CDTL3:RegisterEvent("SPELLS_CHANGED")
 		
 		if CDTL3.retailAPI then
 			CDTL3:RegisterUnitEvents("UNIT_AURA", "player")
@@ -3026,6 +3362,7 @@ function CDTL3:TurnOff()
 		CDTL3:UnregisterCastEvents()
 
 		CDTL3:UnregisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+		CDTL3:UnregisterEvent("SPELLS_CHANGED")
 		
 		if CDTL3.retailAPI then
 			CDTL3.unitEventFrame:UnregisterEvent("UNIT_AURA")
@@ -3040,27 +3377,31 @@ function CDTL3:TurnOff()
 	end
 end
 
-function CDTL3:IsNewerVersion()
-	local nv = tostring(CDTL3.noticeVersion)
-	local pv = tostring(CDTL3.db.profile.global["previousVersion"])
+-- true when the version this profile last saw is older than `version`. Compared part by part
+-- (major.minor.patch), so 3.0.13 is older than 3.1 and 3.0.9 older than 3.0.13; a missing or
+-- non-numeric part counts as 0 rather than erroring at login.
+function CDTL3:LastSeenOlderThan(version)
+	local function parts(v)
+		local out = {}
+		for piece in (tostring(v or "") .. "."):gmatch("([^%.]*)%.") do
+			out[#out + 1] = tonumber(piece:match("^%d+")) or 0
+		end
+		return out
+	end
 
-	local nv1, nv2 = nv:match("([^%.]*)%.?(.*)")
-	nv1 = tonumber(nv1)
-	nv2 = tonumber(nv2)
-
-	local pv1, pv2 = pv:match("([^%.]*)%.?(.*)")
-	pv1 = tonumber(pv1)
-	pv2 = tonumber(pv2)
-
-	if pv1 < nv1 then
-		return true
-	else
-		if pv1 == nv1 then
-			if pv2 < nv2 then
-				return true
-			end
+	local nv = parts(version)
+	local pv = parts(CDTL3.db.profile.global["previousVersion"])
+	for i = 1, math.max(#nv, #pv) do
+		local n, p = nv[i] or 0, pv[i] or 0
+		if p ~= n then
+			return p < n
 		end
 	end
 
 	return false
+end
+
+-- true when the version this profile last saw is older than noticeVersion (the welcome window's rule)
+function CDTL3:IsNewerVersion()
+	return CDTL3:LastSeenOlderThan(CDTL3.noticeVersion)
 end

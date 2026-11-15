@@ -3081,19 +3081,19 @@ private.foreverChanges = {
 	[6346] = { bCD = 180000 },	-- Fear Ward
 	[15286] = { bCD = 30000 },	-- Vampiric Embrace
 	-- Shaman
-	[16166] = { oaf = false },	-- Elemental Mastery
+	[16166] = { name = "Lightning Mastery", oaf = false },	-- Elemental Mastery
 	[1535] = DROP,	-- Fire Nova Totem (1)
 	[8498] = DROP,	-- Fire Nova Totem (2)
 	[8499] = DROP,	-- Fire Nova Totem (3)
 	[11314] = DROP,	-- Fire Nova Totem (4)
 	[11315] = DROP,	-- Fire Nova Totem (5)
-	[408490] = { bCD = 10000 },	-- Lava Burst
+	[408490] = DROP,	-- Lava Burst (Forever removed it from Shaman in November 2026)
 	[425336] = { name = "Rage of the Farseer", bCD = 180000 },	-- Shamanistic Rage
-	[437009] = { bCD = 60000 },	-- Totemic Projection
+	[437009] = { name = "Totemic Call", bCD = 30000 },	-- Totemic Projection
 	-- Warlock
 	[603] = { name = "Bane of Doom" },	-- Curse of Doom
 	[18708] = { bCD = 300000 },	-- Fel Domination
-	[403501] = { bCD = 15000 },	-- Haunt
+	[403501] = DROP,	-- Haunt (no longer in Forever's Warlock game data, build 1.60.1.70888)
 	[437169] = { bCD = 3600000 },	-- Portal of Summoning
 	-- Warrior
 	[403338] = DROP,	-- Intervene
@@ -3115,7 +3115,7 @@ private.GetForeverData = function(class)
 	local d = {}
 	
 	if class == "PALADIN" then
-		table.insert(d, { id = 1310994, name = "Swift Judgement", rank = "", bCD = 60000, oaf = true } )
+		table.insert(d, { id = 1310994, name = "Swift Judgement", rank = "", bCD = 60000 } )
 	end
 	
 	return d
@@ -3191,6 +3191,7 @@ function CDTL3:GetCustomIconTagDescription()
 	text = text.."    'cd.name.s' - Cooldown name in a short format\n"
 	text = text.."    'cd.time' - Time remaining for the icon class\n"
 	text = text.."    'cd.type' - Icon type (SPELL, ITEM, etc.)\n"
+	text = text.."    'cd.owner' - Whose timer it is (the short name of a group member, for timers other addons start)\n"
 	text = text.."    'cd.stacks' - Stack count\n"
 	
 	--CDTL3:Print(text)
@@ -3347,7 +3348,21 @@ private.customTextTags = {
 				end,
 	},
 	
-	-- TESTING --
+	-- OWNER (timers another addon starts) --
+		{	name = "Cooldown Owner",
+			cat = "CD",
+			desc = "Show whose timer this is (a timer another addon started, such as a group cooldown); empty for your own",
+			tag = "%[cd.owner%]",
+			func = function(frame)
+						if frame then
+							return frame.data["owner"] and (tostring(frame.data["owner"]):match("^[^-]+") or "") or ""
+						end
+
+						return "Error"
+					end,
+		},
+
+		-- TESTING --
 	--[[{	name = "Icon Stack",
 		cat = "CD",
 		desc = "Show the stack number of this icon",
@@ -3846,7 +3861,8 @@ private.customTextTimeTags = {
 		tag = "%[cd.time%]",
 		func = function(frame)
 					if frame then
-						return tostring(CDTL3:GetReadableTime(frame.data["currentCD"]))
+						-- a ~ in front of a time CDTL3 counts itself, when the player switched that on (Start.lua)
+						return CDTL3:EstimateMark(frame) .. tostring(CDTL3:GetReadableTime(frame.data["currentCD"]))
 					end
 					
 					return "Error"
