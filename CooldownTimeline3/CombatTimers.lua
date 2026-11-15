@@ -73,9 +73,11 @@ private.OnBarFrame = function(f)
 	return private.BAR_FRAMES[ParentName(f.bar) or ""] and true or false
 end
 
-private.Error = function(err)
+-- also kept in CDTL3's log (/cdtl3 log): the place and the error text only
+private.Error = function(err, place)
 	private.errors = private.errors + 1
 	private.lastError = type(err) == "string" and err or "error"
+	CDTL3:LogFailure(place or "CombatTimers", err)
 end
 
 private.SpellName = function(id)
@@ -111,11 +113,17 @@ private.SpellSecret = function(id)
 		if ok and not IsSecret(v) and type(v) == "boolean" then
 			return v
 		end
+		if not ok then
+			CDTL3:LogFailure("CombatTimers.SpellSecret", v)
+		end
 	end
 	if C_Secrets.ShouldCooldownsBeSecret then
 		local ok, v = pcall(C_Secrets.ShouldCooldownsBeSecret)
 		if ok and not IsSecret(v) and type(v) == "boolean" then
 			return v
+		end
+		if not ok then
+			CDTL3:LogFailure("CombatTimers.SpellSecret", v)
 		end
 	end
 	return false
@@ -130,6 +138,9 @@ private.FetchDuration = function(ct, id)
 			return info and info.maxCharges and info.maxCharges > 1
 		end)
 		charges = ok and multi == true
+		if not ok then
+			CDTL3:LogFailure("CombatTimers.FetchDuration charges", multi)
+		end
 	end
 	ct.charges = charges
 
@@ -138,6 +149,9 @@ private.FetchDuration = function(ct, id)
 		ok, dur = pcall(C_Spell.GetSpellChargeDuration, id)
 	else
 		ok, dur = pcall(C_Spell.GetSpellCooldownDuration, id, true)
+	end
+	if not ok then
+		CDTL3:LogFailure("CombatTimers.FetchDuration", dur)
 	end
 	local t = ok and type(dur)
 	ct.dur = (ok and not IsSecret(dur) and (t == "table" or t == "userdata")) and dur or nil
@@ -157,6 +171,7 @@ private.ReadActive = function(ct, id, withGCD)
 		end
 	end)
 	if not ok then
+		CDTL3:LogFailure("CombatTimers.ReadActive", active)
 		return
 	end
 	if IsSecret(active) or type(active) ~= "boolean" then
@@ -262,10 +277,30 @@ private.BuffWants = function(f, ct)
 	end
 	if rec then
 		ct.feed = rec
+		ct.lostAt = nil
+		return true
+	end
+	-- Riding with no feed. Blizzard's pool re-deals its bars (on show, on a full aura update), so the
+	-- buff can move to another bar, where its feed must run MIN_FEED again; and its bars don't update
+	-- while the UI is hidden (Alt+Z), so they read stale for a moment after it comes back. Either way
+	-- the ride holds still (no feed: the widgets keep their last values) for up to STALE. It used to
+	-- go to Ready, ready sound and all, then restart at the buff's full length.
+	local now = GetTime()
+	ct.lostAt = ct.lostAt or now
+	if now - ct.lostAt < private.STALE and (private.Moving(d["name"], now)
+			or now - (private.uiHiddenAt or -math.huge) < private.STALE) then
+		ct.feed = nil
 		return true
 	end
 	d["currentCD"] = 0	-- riding, and Blizzard stopped feeding the bar: the buff ended
 	return false
+end
+
+-- a fresh feed under the buff's name that isn't usable yet: its bar is new to it (still short of
+-- MIN_FEED), or the bar it had now shows another buff and its own bar hasn't been fed yet
+private.Moving = function(name, now)
+	local rec = name and private.mirror.byName[name]
+	return rec and private.Fresh(rec, now) or false
 end
 
 private.BuffTick = function(f, ct)
@@ -282,6 +317,7 @@ private.Enter = function(f, ct, kind)
 	ct.since = GetTime()
 	ct.seenActive = false
 	ct.onGCD = nil	-- a read left over from an earlier ride would send a fresh cast straight to Ready
+	ct.lostAt = nil
 	f.icon.ctRiding = true
 end
 
@@ -323,8 +359,8 @@ private.Leave = function(f, resync)
 	end
 end
 
-private.Fail = function(f, err)
-	private.Error(err)
+private.Fail = function(f, err, place)
+	private.Error(err, place)
 	if f.ct then
 		f.ct.broken = true	-- back to the estimate until combat ends
 	end
@@ -382,7 +418,7 @@ function CT:Update(f, elapsed)
 	end
 	local ok, err = pcall(private.Update, f, elapsed)
 	if not ok then
-		private.Fail(f, err)
+		private.Fail(f, err, "CombatTimers.Update")
 	end
 end
 
@@ -444,7 +480,7 @@ function CT:DimText(f, tf)
 	end
 	local ok, err = pcall(private.DimText, f, tf)
 	if not ok then
-		private.Error(err)
+		private.Error(err, "CombatTimers.DimText")
 	end
 end
 
@@ -468,9 +504,10 @@ end
 -- variant "pct": SPLIT, x = remaining fraction 0-1 (EvaluateRemainingPercent's range)
 private.SplitCurve = function(s, variant, total)
 	local ss = variant == "abs" and s["mode"]["splitAbs"] or s["mode"]["split"]
-	local key = table.concat({ variant, tostring(s["mode"]["type"]), tostring(total), tostring(ss["max"]),
-		tostring(ss["count"]), tostring(ss["s1v"]), tostring(ss["s1p"]), tostring(ss["s2v"]), tostring(ss["s2p"]),
-		tostring(ss["s3v"]), tostring(ss["s3p"]) }, ":")
+	-- one concatenation, no table: a riding spell on a split lane looks its curve up every frame
+	local key = variant .. ":" .. tostring(s["mode"]["type"]) .. ":" .. tostring(total) .. ":" .. tostring(ss["max"])
+		.. ":" .. tostring(ss["count"]) .. ":" .. tostring(ss["s1v"]) .. ":" .. tostring(ss["s1p"]) .. ":" .. tostring(ss["s2v"])
+		.. ":" .. tostring(ss["s2p"]) .. ":" .. tostring(ss["s3v"]) .. ":" .. tostring(ss["s3p"])
 	local curve = private.curves[key]
 	if curve then
 		return curve
@@ -485,7 +522,7 @@ private.SplitCurve = function(s, variant, total)
 	end
 
 	local xs = { 0, span, span * (1 - 1e-6) }
-	local count = math.min(tonumber(ss["count"]) or 0, 3)
+	local count = math.min(CDTL3:SplitCount(ss) or 0, 3)
 	for i = 1, count do
 		local v = ss["s" .. i .. "v"]
 		if type(v) == "number" then
@@ -535,8 +572,9 @@ private.Prewarm = function()
 end
 
 -- LANE ICONS
--- the lane's travel: the same anchor and length IconUpdate uses
-private.Geometry = function(s)
+-- the lane's travel: the same anchor and length IconUpdate uses. Filled into geo when given (a
+-- riding icon passes its own, every frame), else a new table.
+private.Geometry = function(s, geo)
 	local vertical = s["vertical"] and true or false
 	local reversed = s["reversed"] and true or false
 	local anchor = "LEFT"
@@ -545,7 +583,9 @@ private.Geometry = function(s)
 	elseif reversed then
 		anchor = "RIGHT"
 	end
-	return { anchor = anchor, len = math.max(s["width"] - s["icons"]["size"], 1), vertical = vertical, reversed = reversed }
+	geo = geo or {}
+	geo.anchor, geo.len, geo.vertical, geo.reversed = anchor, math.max(s["width"] - s["icons"]["size"], 1), vertical, reversed
+	return geo
 end
 
 -- a transparent, 1 px StatusBar: only its fill edge is used
@@ -599,10 +639,11 @@ end
 -- previous one's fill edge. The icon sits on the last fill edge, so the fills add up to the split
 -- position with no arithmetic on the value.
 
--- (0, 0), each active split point, (max, 1); nil unless values and positions strictly increase
+-- (0, 0), each active split point, (max, 1); nil unless values and positions strictly increase.
+-- Active = the marks inside Max Time (CDTL3:SplitAbsCount), as CalcSplitPosition splits the lane.
 private.SplitKnots = function(s)
 	local ss = s["mode"]["splitAbs"]
-	local count, max = tonumber(ss["count"]), tonumber(ss["max"])
+	local count, max = CDTL3:SplitAbsCount(ss), tonumber(ss["max"])
 	if not (count and max) or count < 1 or count > 3 or count ~= math.floor(count) then
 		return nil
 	end
@@ -632,22 +673,26 @@ private.HideSegments = function(ct)
 end
 
 -- lays the segments out (again when the lane or its settings change); returns the last one, or nil
--- for a straight line
+-- for a straight line. The key is one concatenation of the settings it's built from, so a frame
+-- with nothing changed builds no tables (the knots are only worked out on a change).
 private.Segments = function(ct, lane, s, geo)
-	local knots = private.SplitKnots(s)
-	if not knots then
+	local ss = s["mode"]["splitAbs"]
+	local key = geo.anchor .. ":" .. geo.len .. ":" .. tostring(geo.vertical) .. ":" .. tostring(geo.reversed)
+		.. ":" .. tostring(ss["count"]) .. ":" .. tostring(ss["max"]) .. ":" .. tostring(ss["s1v"]) .. ":" .. tostring(ss["s1p"])
+		.. ":" .. tostring(ss["s2v"]) .. ":" .. tostring(ss["s2p"]) .. ":" .. tostring(ss["s3v"]) .. ":" .. tostring(ss["s3p"])
+	if ct.segBadKey == key then
 		return nil
 	end
-	local parts = { geo.anchor, geo.len, tostring(geo.vertical), tostring(geo.reversed) }
-	for _, k in ipairs(knots) do
-		parts[#parts + 1] = k[1] .. "/" .. k[2]
-	end
-	local key = table.concat(parts, ":")
 
-	local segs = ct.segs or {}
-	ct.segs = segs
-	local n = #knots - 1
 	if ct.segKey ~= key or ct.segLane ~= lane then
+		local knots = private.SplitKnots(s)
+		if not knots then
+			ct.segBadKey = key
+			return nil
+		end
+		local segs = ct.segs or {}
+		ct.segs = segs
+		local n = #knots - 1
 		for k = 1, n do
 			local seg = segs[k]
 			if not seg then
@@ -669,6 +714,7 @@ private.Segments = function(ct, lane, s, geo)
 		end
 		ct.segKey, ct.segLane, ct.segCount = key, lane, n
 	end
+	local segs, n = ct.segs, ct.segCount
 	for k = 1, n do
 		if not segs[k]:IsShown() then
 			segs[k]:Show()
@@ -679,6 +725,9 @@ end
 
 private.SetRiderValue = function(f, ct, rider, s, mode, max)
 	if ct.kind == "buff" then
+		if not ct.feed then
+			return	-- held while its feed moves (BuffWants): keep the last values
+		end
 		-- curves can't take a hidden value from addon code: Split (%) lanes, and Split (Time) lanes
 		-- whose split points don't increase, show buffs on a straight line
 		local top = ct.feed.max
@@ -722,7 +771,8 @@ end
 private.PlaceIcon = function(f, ct, s, mode, max)
 	local ic = f.icon
 	local lane = ic:GetParent()
-	local geo = private.Geometry(s)
+	local geo = private.Geometry(s, ct.geo)
+	ct.geo = geo
 
 	local bar = nil
 	if ct.kind == "buff" and mode == "SPLIT_ABS" then
@@ -732,8 +782,10 @@ private.PlaceIcon = function(f, ct, s, mode, max)
 		if ct.rider then
 			ct.rider:Hide()
 		end
-		for k = 1, ct.segCount do
-			ct.segs[k]:SetValue(ct.feed.value)
+		if ct.feed then	-- no feed: held while it moves (BuffWants), keep the last values
+			for k = 1, ct.segCount do
+				ct.segs[k]:SetValue(ct.feed.value)
+			end
 		end
 	else
 		private.HideSegments(ct)
@@ -760,31 +812,36 @@ function CT:PlaceIcon(f, s, mode, max)
 	if ok then
 		return true
 	end
-	private.Fail(f, err)
+	private.Fail(f, err, "CombatTimers.PlaceIcon")
 	return false
 end
 
 -- BAR FRAMES: from BarUpdate in place of SetValue(iconPercent); false = set it the normal way
+private.DriveBar = function(f, ct)
+	local bar = f.bar.bar
+	ct.barDriven = true
+	if ct.kind == "buff" then
+		if ct.feed then	-- no feed: held while it moves (BuffWants), keep the last values
+			bar:SetMinMaxValues(0, ct.feed.max)
+			bar:SetValue(ct.feed.value)
+		end
+	else
+		bar:SetMinMaxValues(0, ct.dur:GetTotalDuration())
+		bar:SetValue(ct.dur:GetRemainingDuration())
+	end
+end
+
 function CT:DriveBar(f)
 	local ct = f.ct
 	if not (ct and ct.riding) then
 		return false
 	end
-	local ok, err = pcall(function()
-		local bar = f.bar.bar
-		ct.barDriven = true
-		if ct.kind == "buff" then
-			bar:SetMinMaxValues(0, ct.feed.max)
-			bar:SetValue(ct.feed.value)
-		else
-			bar:SetMinMaxValues(0, ct.dur:GetTotalDuration())
-			bar:SetValue(ct.dur:GetRemainingDuration())
-		end
-	end)
+	-- a named function, not a closure: this runs every frame for every riding bar
+	local ok, err = pcall(private.DriveBar, f, ct)
 	if ok then
 		return true
 	end
-	private.Fail(f, err)
+	private.Fail(f, err, "CombatTimers.DriveBar")
 	return false
 end
 
@@ -939,7 +996,7 @@ function CT:OwnsText(f, tf, s)
 		return true
 	end
 	-- only the text falls back to the estimate; the icon and bar keep riding
-	private.Error(err)
+	private.Error(err, "CombatTimers.BindText")
 	ct.noText = true
 	if ct.bindings then
 		for _, b in pairs(ct.bindings) do
@@ -950,6 +1007,21 @@ function CT:OwnsText(f, tf, s)
 			b.dur = nil
 		end
 	end
+	return false
+end
+
+-- From IconFx.lua: a FontString of the caller's own follows a riding spell's timer (the Ready-by list's
+-- timers in combat). Spells only. False = not riding or no timer text: the caller shows its estimate.
+function CT:BindText(f, tf)
+	local ct = f.ct
+	if not (ct and ct.riding and ct.kind ~= "buff" and not ct.noText and tf) then
+		return false
+	end
+	local ok, err = pcall(private.BindText, f, ct, tf)
+	if ok then
+		return true
+	end
+	private.Error(err, "CombatTimers.BindText")
 	return false
 end
 
@@ -1291,6 +1363,74 @@ function CT:BuffInTrackedBars(name)
 	return all[name] and true or false
 end
 
+-- For Filters > Buffs > Pull from Cooldown Manager: one { name, spellID, names } per Tracked Bars
+-- buff (its display spell first, then the linked spells), plus whether the Cooldown Manager is on.
+-- Static info only (never hidden); nil where there's no Cooldown Manager.
+function CT:TrackedBarBuffs()
+	if not (CT:Available() and C_CooldownViewer and C_CooldownViewer.GetCooldownViewerCooldownInfo) then
+		return nil
+	end
+
+	local ok, list = pcall(function()
+		local out, seen = {}, {}
+		local function add(cooldownID)
+			if not cooldownID or seen[cooldownID] then
+				return
+			end
+			seen[cooldownID] = true
+			local okI, info = pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo, cooldownID)
+			if not (okI and type(info) == "table") then
+				return
+			end
+			local bar = { names = {} }
+			local function take(spellID)
+				if not IsSecret(spellID) and type(spellID) == "number" then
+					local name = private.SpellName(spellID)
+					if name then
+						if not bar.name then
+							bar.name, bar.spellID = name, spellID
+						end
+						bar.names[#bar.names + 1] = name
+					end
+				end
+			end
+			take(info.spellID)
+			if type(info.linkedSpellIDs) == "table" then
+				for _, id in ipairs(info.linkedSpellIDs) do
+					take(id)
+				end
+			end
+			if bar.name then
+				out[#out + 1] = bar
+			end
+		end
+
+		local viewer = _G["BuffBarCooldownViewer"]
+		if viewer then
+			for _, item in ipairs(private.Items(viewer)) do
+				add(private.ItemCooldownID(item))
+			end
+		end
+		if C_CooldownViewer.GetCooldownViewerCategorySet then
+			local cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar or 3
+			local okS, ids = pcall(C_CooldownViewer.GetCooldownViewerCategorySet, cat)
+			if okS and type(ids) == "table" then
+				for _, id in ipairs(ids) do
+					if not IsSecret(id) and type(id) == "number" then
+						add(id)
+					end
+				end
+			end
+		end
+		return out
+	end)
+	if not ok then
+		return nil
+	end
+
+	return list, private.ViewerOn()
+end
+
 -- SETTINGS
 function CT:SetEnabled(on)
 	local cs = Settings()
@@ -1308,7 +1448,7 @@ function CT:SetEnabled(on)
 	if CT:Available() then
 		local ok, err = pcall(private.RecheckMirror)
 		if not ok then
-			private.Error(err)
+			private.Error(err, "CombatTimers.RecheckMirror")
 		end
 	end
 end
@@ -1322,7 +1462,7 @@ function CT:SetHideBlizzardBars(on)
 	if CT:Available() then
 		local ok, err = pcall(private.ApplyHide)
 		if not ok then
-			private.Error(err)
+			private.Error(err, "CombatTimers.ApplyHide")
 		end
 	end
 end
@@ -1405,6 +1545,10 @@ private.OnUpdate = function(elapsed)
 		private.prevFrame = private.thisFrame
 		private.thisFrame = now
 	end
+	-- the last time the UI was hidden (Alt+Z), for BuffWants; this frame has no parent, so it runs then
+	if not UIParent:IsShown() then
+		private.uiHiddenAt = now
+	end
 
 	private.tick = (private.tick or 0) + elapsed
 	if private.tick < private.TICK then
@@ -1433,13 +1577,13 @@ if CT:Available() then
 		end
 		local ok, err = pcall(private.OnEvent, event)
 		if not ok then
-			private.Error(err)
+			private.Error(err, "CombatTimers.OnEvent")
 		end
 	end)
 	ef:SetScript("OnUpdate", function(_, elapsed)
 		local ok, err = pcall(private.OnUpdate, elapsed)
 		if not ok then
-			private.Error(err)
+			private.Error(err, "CombatTimers.OnUpdate")
 		end
 	end)
 	for _, event in ipairs(private.EVENTS) do

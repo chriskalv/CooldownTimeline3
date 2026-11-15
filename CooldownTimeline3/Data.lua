@@ -3093,7 +3093,7 @@ private.foreverChanges = {
 	-- Warlock
 	[603] = { name = "Bane of Doom" },	-- Curse of Doom
 	[18708] = { bCD = 300000 },	-- Fel Domination
-	[403501] = { bCD = 15000 },	-- Haunt
+	[403501] = DROP,	-- Haunt (no longer in Forever's Warlock game data, build 1.60.1.70888)
 	[437169] = { bCD = 3600000 },	-- Portal of Summoning
 	-- Warrior
 	[403338] = DROP,	-- Intervene
@@ -3191,6 +3191,7 @@ function CDTL3:GetCustomIconTagDescription()
 	text = text.."    'cd.name.s' - Cooldown name in a short format\n"
 	text = text.."    'cd.time' - Time remaining for the icon class\n"
 	text = text.."    'cd.type' - Icon type (SPELL, ITEM, etc.)\n"
+	text = text.."    'cd.owner' - Whose timer it is (the short name of a group member, for timers other addons start)\n"
 	text = text.."    'cd.stacks' - Stack count\n"
 	
 	--CDTL3:Print(text)
@@ -3347,7 +3348,21 @@ private.customTextTags = {
 				end,
 	},
 	
-	-- TESTING --
+	-- OWNER (timers another addon starts) --
+		{	name = "Cooldown Owner",
+			cat = "CD",
+			desc = "Show whose timer this is (a timer another addon started, such as a group cooldown); empty for your own",
+			tag = "%[cd.owner%]",
+			func = function(frame)
+						if frame then
+							return frame.data["owner"] and (tostring(frame.data["owner"]):match("^[^-]+") or "") or ""
+						end
+
+						return "Error"
+					end,
+		},
+
+		-- TESTING --
 	--[[{	name = "Icon Stack",
 		cat = "CD",
 		desc = "Show the stack number of this icon",
@@ -3846,7 +3861,8 @@ private.customTextTimeTags = {
 		tag = "%[cd.time%]",
 		func = function(frame)
 					if frame then
-						return tostring(CDTL3:GetReadableTime(frame.data["currentCD"]))
+						-- a ~ in front of a time CDTL3 counts itself, when the player switched that on (Start.lua)
+						return CDTL3:EstimateMark(frame) .. tostring(CDTL3:GetReadableTime(frame.data["currentCD"]))
 					end
 					
 					return "Error"

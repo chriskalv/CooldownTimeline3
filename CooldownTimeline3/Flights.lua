@@ -17,6 +17,7 @@
 	nothing of Blizzard's is replaced. None of the taxi calls or events are on Midnight's secret list.
 ]]--
 
+local L = LibStub("AceLocale-3.0"):GetLocale("CDTL3")
 local FL = {}
 CDTL3.Flights = FL
 
@@ -459,7 +460,7 @@ private.Unpicked = function(p)
 		flight.len, flight.delay = private.PathLength(key)
 		flight.delay = flight.delay or 0
 		flight.duration, flight.estimated = private.Time(key, flight.len, flight.delay)
-		flight.name = (to and private.NodeName(to)) or "Flight"
+		flight.name = (to and private.NodeName(to)) or L["Flight"]
 	end
 	return flight
 end
@@ -705,6 +706,22 @@ private.Takeoff = function()
 	}
 	if flight.duration then
 		private.ShowCountdown(flight)
+		pcall(private.FirstFlightNote, flight)
+	end
+end
+
+-- The first flight CDTL3 counts down (ever, on this game client: account-wide), one chat line
+-- says whose countdown it is and where to turn it off
+private.FirstFlightNote = function(flight)
+	local g = CDTL3.db.global
+	if g.flightNoteShown then
+		return
+	end
+	g.flightNoteShown = true
+	if type(flight.name) == "string" and flight.name ~= "" then
+		CDTL3:Print(string.format(L["The countdown to %s is CDTL3's flight timer. To turn flight timers off: /cdtl3, Global tab, Flight timers."], flight.name))
+	else
+		CDTL3:Print(L["The countdown is CDTL3's flight timer. To turn flight timers off: /cdtl3, Global tab, Flight timers."])
 	end
 end
 

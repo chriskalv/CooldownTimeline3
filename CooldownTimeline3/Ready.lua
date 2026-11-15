@@ -70,10 +70,20 @@ private.CreateReady = function(frameNumber)
 	-- DRAG AND DROP MOVEMENT
 	f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
-	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	f:SetScript("OnDragStop", function(self) CDTL3:FrameDragStop(self, "ready") end)
 	
 	CDTL3:RefreshReady(frameNumber)
 	table.insert(CDTL3.readyFrames, f)
+end
+
+-- every icon showing in the frame is pinned (IconUpdate keeps each icon's pinned flag current)
+private.OnlyPinned = function(f)
+	for _, child in ipairs(f.validChildren) do
+		if not child.pinned then
+			return false
+		end
+	end
+	return true
 end
 
 private.ReadyUpdate = function(f, elapsed)
@@ -86,7 +96,16 @@ private.ReadyUpdate = function(f, elapsed)
 		s = CDTL3.db.profile.ready["ready3"]
 	end
 	
-	f.forceHide = false
+	-- Pinned Hide Time (with Auto-hide Frames): out of combat, a frame holding only pinned icons hides
+	-- pTime after combat ends or its last icon arrives; an icon with Normal or Highlight Duration left
+	-- keeps it showing. Autohide only runs on an update, so a change asks for one (the flag was set
+	-- after the only Autohide call that reads it: never hid).
+	-- (a Stay until used board, ReadyBoard.lua, keeps its frame up)
+	local forceHide = (not CDTL3.combat and f.combatTimer >= s["pTime"] and not f.boardOn and private.OnlyPinned(f)) and true or false
+	if forceHide ~= f.forceHide then
+		f.forceHide = forceHide
+		f.mf.triggerUpdate = true
+	end
 
 	-- UPDATE
 	if f.mf.triggerUpdate then
@@ -211,7 +230,7 @@ private.ReadyUpdate = function(f, elapsed)
 		f.mf:ClearAllPoints()
 		f.mf:SetPoint(mfAnchor, xOffset, yOffset)
 		
-		f.childCount = count
+		f.childCount = count + (f.boardCount or 0)
 		
 		if s["enabled"] then
 			CDTL3:Autohide(f, s)
@@ -226,13 +245,11 @@ private.ReadyUpdate = function(f, elapsed)
 		if not CDTL3.combat then
 			if f.combatTimer < s["pTime"] then
 				f.combatTimer = f.combatTimer + elapsed
-			else
-				f.forceHide = true
 			end
 		end
 	
-		-- FRAME (UN)LOCKING
-		if CDTL3.db.profile.global["unlockFrames"] then
+		-- FRAME (UN)LOCKING (a frame on another frame keeps its screen position; a drag sets its offset)
+		if CDTL3.db.profile.global["unlockFrames"] and not f.cdtl3AnchoredTo then
 			local _, _, relativeTo, xOfs, yOfs = f:GetPoint()
 			
 			s["relativeTo"] = relativeTo
@@ -262,8 +279,8 @@ function CDTL3:RefreshReady(i)
 	
 	f.name = s["name"]
 
-	f:ClearAllPoints()
-	f:SetPoint(s["relativeTo"], s["posX"], s["posY"])
+	-- the screen position, or on the frame it is anchored to (Anchors.lua)
+	CDTL3:PlaceFrame(f, s, "ready")
 	f:SetSize(s["icons"]["size"], s["icons"]["size"])
 	
 	f.mf:ClearAllPoints()
