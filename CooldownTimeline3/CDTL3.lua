@@ -2574,10 +2574,12 @@ end
 -- LOCAL PATCH (Zippy, 2026-11-15): casting a seal ends the running timers of the other seals,
 -- their spell timers (a Custom CD Time) and their buff timers (while aura data is hidden in
 -- combat nothing else would end them): straight to the holding area, as CDTL3:StopTimer does,
--- so no Ready frame and no ready sound. A held timer is not counted down or re-read (the poll
--- only runs for a timer at 0 or above, Cooldown.lua), and a frame riding the game's timer
--- leaves it once it is off its lane and bar frame (CombatTimers.lua). Casting the old seal
--- again restarts its timer (SendToLane).
+-- so no Ready frame and no ready sound. A held timer is not updated, counted down or re-read
+-- (the poll and the combat timers' update only run for a visible timer at 0 or above,
+-- Cooldown.lua), so a ride on the game's timer simply ends when the timer restarts. Spell
+-- timers count as seals by name or by the seals' common name start; buff timers only by the
+-- six names from the client, so no other buff that starts like a seal ends. Casting the old
+-- seal again restarts its timer (SendToLane).
 function CDTL3:EndOtherSealTimers(castName)
 	if not CDTL3.cooldowns or not CDTL3:IsSealName(castName) then
 		return
@@ -2586,7 +2588,8 @@ function CDTL3:EndOtherSealTimers(castName)
 		local d = f.data
 		local t = d and d["type"]
 		if (t == "spells" or t == "buffs") and d["name"] ~= castName and d["currentCD"] and d["currentCD"] >= 0
-				and CDTL3:IsSealName(d["name"]) then
+				and ((t == "spells" and CDTL3:IsSealName(d["name"]))
+					or (t == "buffs" and sealNames[d["name"]])) then
 			d["currentCD"] = -1
 			CDTL3:SendToHolding(f)
 			CDTL3:SendToBarHolding(f)

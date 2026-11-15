@@ -279,6 +279,21 @@ for _, c in ipairs(CONFIGS) do
 		CAST = nil; fire("UNIT_SPELLCAST_INTERRUPTED", "player"); run(1.0)
 		check(f:Rendered() == 0, c.tag .. " empty frame after early interrupt stays hidden " .. f:Rendered())
 		f.childCount = 1
+		-- the hide rule's mark is cleared once its fade is stopped: a later Auto-hide fade-out
+		-- (the frame turns empty, more updates follow within 0.3 s) runs once and is not restarted
+		reset(o)
+		CAST = "x"; fire("UNIT_SPELLCAST_START", "player"); run(0.1)
+		CAST = nil; fire("UNIT_SPELLCAST_INTERRUPTED", "player"); run(1.0)
+		check(f:Rendered() == 1, c.tag .. " early interrupt: full frame back " .. f:Rendered())
+		local plays0 = f.animateOut.plays
+		f.childCount = 0; f.triggerUpdate = true; step()
+		local t0 = NOW
+		for _ = 1, 3 do run(0.05); f.triggerUpdate = true; step() end
+		check(f.animateOut.plays == plays0 + 1, c.tag .. " early interrupt, then empty: Auto-hide fade-out started once ("
+			.. (f.animateOut.plays - plays0) .. ")")
+		while NOW < t0 + 0.3 + 0.02 do step() end
+		check(f:Rendered() == 0, c.tag .. " early interrupt, then empty: gone 0.3 s after its fade began " .. f:Rendered())
+		f.childCount = 1
 	end)
 	FRAMES[1].childCount = 1
 	if not ok then check(false, c.tag .. " ERROR " .. tostring(err)) end
