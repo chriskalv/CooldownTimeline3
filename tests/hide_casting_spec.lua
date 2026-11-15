@@ -25,35 +25,56 @@ local function reset()
 	CDTL3.combat, CDTL3.casting, CDTL3.testing = false, false, false
 	gl.hideOutOfCombat, gl.hideWhileCasting = false, false
 	gl.unlockFrames, gl.debugMode, gl.autohide = false, false, false
+	CDTL3.inEncounter, FLIGHT = false, false
+	ResetFrameSettings()
 	for _, f in pairs(FR) do f.alpha = 1 end
 	REFRESH_CALLS = 0
 end
 local function visible() return FR.lane.alpha == 1 and FR.bar.alpha == 1 and FR.ready.alpha == 1 end
 local function hidden() return FR.lane.alpha == 0 and FR.bar.alpha == 0 and FR.ready.alpha == 0 end
 
--- (a) Autohide matrix
+-- (a) Autohide matrix: each frame's Show (Use the global setting with Hide out of combat on or
+-- off, Always, Only in combat, Boss fights only) x Dim instead of hide x Hide while casting x
+-- combat x boss fight x casting x the exceptions (test mode, unlocked frames, debug, a flight) x
+-- a frame shown or already hidden. Hide while casting lies over the Show rule, Always included.
+local MODES = { "GLOBAL", "ALWAYS", "COMBAT", "BOSS" }
+local EXCEPTIONS = { "none", "testing", "unlock", "debug", "flight" }
+local function showHides(mode, hoc, combat, boss)
+	if mode == "ALWAYS" then return false end
+	if mode == "COMBAT" then return not combat end
+	if mode == "BOSS" then return not boss end
+	return hoc and not combat
+end
+for _, mode in ipairs(MODES) do
+for _, dim in ipairs({ false, true }) do
 for _, hoc in ipairs({ false, true }) do
 for _, hwc in ipairs({ false, true }) do
 for _, combat in ipairs({ false, true }) do
+for _, boss in ipairs({ false, true }) do
 for _, casting in ipairs({ false, true }) do
-for _, exc in ipairs({ "none", "testing", "unlock", "debug" }) do
+for _, exc in ipairs(EXCEPTIONS) do
 for _, startAlpha in ipairs({ 1, 0 }) do
 	reset()
 	gl.hideOutOfCombat, gl.hideWhileCasting = hoc, hwc
-	CDTL3.combat, CDTL3.casting = combat, casting
+	CDTL3.combat, CDTL3.casting, CDTL3.inEncounter = combat, casting, boss
 	CDTL3.testing = exc == "testing"
 	gl.unlockFrames = exc == "unlock"
 	gl.debugMode = exc == "debug"
-	local expectHidden = ((hoc and not combat) or (hwc and casting)) and exc == "none"
+	FLIGHT = exc == "flight"
+	local s = { alpha = 1, showMode = mode, dimInsteadOfHide = dim, dimAlpha = 0.3 }
+	local expectHidden = (showHides(mode, hoc, combat, boss) or (hwc and casting)) and exc == "none"
 	local plain = newTestFrame(false)
 	plain.alpha = startAlpha
-	CDTL3:Autohide(plain, { alpha = 1 })
+	CDTL3:Autohide(plain, s)
 	local anim = newTestFrame(true)
 	anim.alpha = startAlpha
-	CDTL3:Autohide(anim, { alpha = 1 })
-	local tag = string.format("matrix hoc=%s hwc=%s combat=%s casting=%s exc=%s start=%s",
-		tostring(hoc), tostring(hwc), tostring(combat), tostring(casting), exc, tostring(startAlpha))
-	if expectHidden then
+	CDTL3:Autohide(anim, s)
+	local tag = string.format("matrix show=%s dim=%s hoc=%s hwc=%s combat=%s boss=%s casting=%s exc=%s start=%s",
+		mode, tostring(dim), tostring(hoc), tostring(hwc), tostring(combat), tostring(boss), tostring(casting), exc, tostring(startAlpha))
+	if expectHidden and dim then
+		check(plain.alpha == 0.3 and anim.alpha == 0.3, tag .. ": dimmed to 0.3 (" .. plain.alpha .. "/" .. anim.alpha .. ")")
+		check(anim.outPlays == 0, tag .. ": a dimmed frame plays no fade-out")
+	elseif expectHidden then
 		check(plain.alpha == 0, tag .. ": plain frame should be alpha 0")
 		check(anim.outPlays == (startAlpha ~= 0 and 1 or 0), tag .. ": animateOut should play once when visible")
 		check(anim.alpha == 0, tag .. ": animated frame should end hidden")
@@ -62,15 +83,27 @@ for _, startAlpha in ipairs({ 1, 0 }) do
 		check(anim.outPlays == 0, tag .. ": animateOut must not play")
 		check(anim.alpha == 1, tag .. ": animated frame should be visible")
 	end
-end end end end end end
+	check(CDTL3:CastRuleHides() == (hwc and casting), tag .. ": CastRuleHides")
+end end end end end end end end end
+FLIGHT = false
 
--- ApplyCombatVisibility only skips when both options are off
+-- ApplyCombatVisibility: skips only when no Show rule changes with combat and Hide while casting
+-- is off; with bossOnly only the Boss fights only frames
+local p = CDTL3.db.profile
 reset(); CDTL3:ApplyCombatVisibility()
 check(REFRESH_CALLS == 0, "ApplyCombatVisibility should do nothing with both options off")
 reset(); gl.hideWhileCasting = true; CDTL3:ApplyCombatVisibility()
 check(REFRESH_CALLS == 3, "ApplyCombatVisibility should refresh with hideWhileCasting on (got " .. REFRESH_CALLS .. ")")
 reset(); gl.hideOutOfCombat = true; CDTL3:ApplyCombatVisibility()
 check(REFRESH_CALLS == 3, "ApplyCombatVisibility should refresh with hideOutOfCombat on")
+reset(); p.barFrames.frame1.showMode = "COMBAT"; CDTL3:ApplyCombatVisibility()
+check(REFRESH_CALLS == 3, "ApplyCombatVisibility should refresh with a frame on Only in combat")
+reset(); p.lanes.lane1.showMode = "ALWAYS"; CDTL3:ApplyCombatVisibility()
+check(REFRESH_CALLS == 0, "ApplyCombatVisibility: Always alone changes nothing with combat")
+reset(); gl.hideWhileCasting = true; CDTL3:ApplyCombatVisibility(true)
+check(REFRESH_CALLS == 0, "ApplyCombatVisibility(bossOnly) refreshes only Boss fights only frames")
+reset(); gl.hideWhileCasting = true; p.ready.ready1.showMode = "BOSS"; CDTL3:ApplyCombatVisibility(true)
+check(REFRESH_CALLS == 1, "ApplyCombatVisibility(bossOnly) refreshes the Boss fights only frame (" .. REFRESH_CALLS .. ")")
 
 -- registration
 reset(); CDTL3:TurnOn()
@@ -221,6 +254,59 @@ scenario("combined with hide out of combat", function()
 	check(hidden(), "in combat and casting: hidden")
 	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player"); nextFrame()
 	check(visible(), "in combat, cast over: visible")
+end)
+
+-- (b2) the new Show rules of the release with Hide while casting
+local function allShow(mode, dim)
+	for _, s in ipairs({ p.lanes.lane1, p.barFrames.frame1, p.ready.ready1 }) do s.showMode, s.dimInsteadOfHide = mode, dim end
+end
+local function dimmed() return FR.lane.alpha == 0.3 and FR.bar.alpha == 0.3 and FR.ready.alpha == 0.3 end
+scenario("Show Always", function()
+	allShow("ALWAYS", false)
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	check(hidden(), "Show Always: hidden while casting")
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player"); nextFrame()
+	check(visible(), "Show Always: visible after the cast")
+end)
+scenario("Only in combat, dim", function()
+	allShow("COMBAT", true)
+	CDTL3.combat = true
+	CDTL3:ApplyCombatVisibility()
+	check(visible(), "Only in combat, dim: visible in combat")
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	check(dimmed(), "Only in combat, dim: dimmed while casting in combat")
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player"); nextFrame()
+	check(visible(), "Only in combat, dim: visible after the cast")
+	CDTL3.combat = false; CDTL3:ApplyCombatVisibility()
+	check(dimmed(), "Only in combat, dim: dimmed out of combat")
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player"); nextFrame()
+	check(dimmed(), "Only in combat, dim: still dimmed out of combat after a cast")
+end)
+scenario("Boss fights only", function()
+	allShow("BOSS", false)
+	CDTL3.inEncounter = true; CDTL3:ApplyCombatVisibility(true)
+	check(visible(), "Boss fights only: visible in a boss fight")
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	check(hidden(), "Boss fights only: hidden while casting in a boss fight")
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player"); nextFrame()
+	check(visible(), "Boss fights only: visible after the cast")
+end)
+scenario("flight", function()
+	FLIGHT = true
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	check(CDTL3.casting == true and visible(), "a flight timer keeps its frames showing while casting")
+	FLIGHT = false
+end)
+scenario("debug", function()
+	gl.debugMode = true
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	check(visible(), "debug mode keeps the frames showing while casting")
+end)
+scenario("testing", function()
+	CDTL3.testing = true
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	check(visible(), "test mode keeps the frames showing while casting")
 end)
 
 -- (c) TurnOn during a cast or channel

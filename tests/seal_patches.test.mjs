@@ -1,6 +1,7 @@
-// Tests for local patches 1 and 2 (seal as custom CD, seal switch). Patch 2 runs the real
-// helper code cut from CooldownTimeline3/CDTL3.lua in fengari; patch 1 checks that the patched
-// lines are in Cooldown.lua and runs the same rule as a small replica.
+// Tests for the local patch Seal switch: the real helper code cut from
+// CooldownTimeline3/CDTL3.lua runs in fengari. The dropped patch Seal as custom cooldown is done by
+// the release's private.CustomCDStart since 3.0.13: checked here that Cooldown.lua carries no local
+// patch and uses it in both Custom CD branches; tests/seal_flow.test.mjs runs it.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -15,10 +16,13 @@ const read = (f) => readFileSync(ADDON + f, 'utf8').replace(/\r\n/g, '\n');
 let passed = 0, failed = 0;
 const check = (ok, what) => { if (ok) passed++; else { failed++; console.error('FAIL: ' + what); } };
 
-// Patch 1: the custom CD of a spell without a cooldown counts from the player's own cast
+// Dropped patch Seal as custom cooldown: the release counts a Custom CD Time from the last cast (private.CustomCDStart)
 const cooldown = read('Cooldown.lua');
-check(/if start == 0 and CDTL3\.spellCastTimes and CDTL3\.spellCastTimes\[d\["id"\]\] then\n\s*start = CDTL3\.spellCastTimes\[d\["id"\]\]/.test(cooldown),
-  'Cooldown.lua: patch 1 is in the custom CD branch');
+check(!cooldown.includes('LOCAL PATCH'), 'Cooldown.lua: no local patch left (Seal as custom cooldown dropped)');
+check(/private\.CustomCDStart = function\(d, start\)\n\tif not start or start == 0 then/.test(cooldown),
+  'Cooldown.lua: private.CustomCDStart counts from the cast when the game reports no start');
+check((cooldown.match(/duration = d\["baseCD"\]\n\s*start = private\.CustomCDStart\(d, start\)\n\s*end\n\s*d\["currentCD"\] = start \+ duration - GetTime\(\)/g) || []).length === 2,
+  'Cooldown.lua: both Custom CD branches (on-aura-fade and plain spells) use private.CustomCDStart');
 
 // Patch 2: real code from CDTL3.lua
 const cdtl3 = read('CDTL3.lua');
@@ -26,6 +30,8 @@ const a = cdtl3.indexOf('local SEAL_IDS'), b = cdtl3.indexOf('function CDTL3:UNI
 check(a > 0 && b > a, 'CDTL3.lua: seal helpers found before the cast handler');
 check(/if isKnown or isKnownOrOverridesKnown then\n(\s*--[^\n]*\n)*\s*CDTL3:EndOtherSealTimers\(spellName\)/.test(cdtl3),
   'CDTL3.lua: EndOtherSealTimers runs for known spells only');
+check(/if isKnown or isKnownOrOverridesKnown or not CDTL3:IsSealName\(spellName\) then\n\s*RestartBuffFromCast\(spellName\)\n\s*end/.test(cdtl3),
+  'CDTL3.lua: a seal proc restarts no buff (RestartBuffFromCast guarded)');
 
 const lua_src = `
 local results = {}
@@ -33,13 +39,14 @@ local function rec(k, v) results[#results + 1] = k .. "=" .. tostring(v) end
 local function setup(names)
   NAMES = names
   C_Spell = { GetSpellName = function(id) return NAMES[id] end }
-  CDTL3 = { cooldowns = {}, held = {} }
+  CDTL3 = { cooldowns = {}, held = {}, barHeld = {}, ended = {} }
   function CDTL3:SendToHolding(f) self.held[#self.held + 1] = f.data.name end
-  function CDTL3:SendToBarHolding(f) end
+  function CDTL3:SendToBarHolding(f) self.barHeld[#self.barHeld + 1] = f.data.name end
+  function CDTL3:FireTimer(msg, f) self.ended[#self.ended + 1] = msg .. ":" .. f.data.name end
   assert(load(HELPER))()
 end
-local function frame(name, cd)
-  local f = { data = { type = "spells", name = name, currentCD = cd } }
+local function frame(name, cd, kind)
+  local f = { data = { type = kind or "spells", name = name, currentCD = cd }, pubLive = true }
   table.insert(CDTL3.cooldowns, f)
   return f
 end
@@ -51,13 +58,16 @@ for lang, names in pairs({
 }) do
   setup(names)
   local soc, sotc, judge = frame(names[20375], 12), frame(names[20305], 25), frame("Judgement", 5)
+  local socBuff, socCustom = frame(names[20375], 12, "buffs"), frame(names[20375], 12, "customs")
   rec(lang .. ".seal", CDTL3:IsSealName(names[20375]))
   rec(lang .. ".judgement", CDTL3:IsSealName("Judgement"))
   rec(lang .. ".newseal", CDTL3:IsSealName(names.fury))
   CDTL3:EndOtherSealTimers(names[20154])
   rec(lang .. ".soc", soc.data.currentCD); rec(lang .. ".sotc", sotc.data.currentCD); rec(lang .. ".judge", judge.data.currentCD)
-  rec(lang .. ".held", #CDTL3.held)
-  soc.data.currentCD = 20; CDTL3.held = {}
+  rec(lang .. ".held", #CDTL3.held); rec(lang .. ".barheld", #CDTL3.barHeld); rec(lang .. ".ended", #CDTL3.ended)
+  rec(lang .. ".buff", socBuff.data.currentCD); rec(lang .. ".custom", socCustom.data.currentCD)
+  rec(lang .. ".live", tostring(soc.pubLive))
+  soc.data.currentCD = 20; socBuff.data.currentCD = 20; CDTL3.held = {}
   CDTL3:EndOtherSealTimers(names[20375])
   rec(lang .. ".recast", soc.data.currentCD); rec(lang .. ".recastheld", #CDTL3.held)
   CDTL3:EndOtherSealTimers("Judgement")
@@ -81,7 +91,10 @@ else {
     check(r[lang + '.newseal'] === 'true', lang + ': a seal outside the list is found by the common name start');
     check(r[lang + '.soc'] === '-1' && r[lang + '.sotc'] === '-1', lang + ': casting another seal ends both seal timers');
     check(r[lang + '.judge'] === '5', lang + ': the Judgement timer is untouched');
-    check(r[lang + '.held'] === '2', lang + ': ended seal timers go to the holding area (no ready frame)');
+    check(r[lang + '.held'] === '3' && r[lang + '.barheld'] === '3', lang + ': ended seal timers (two spells, one buff) go to the holding areas (no ready frame)');
+    check(r[lang + '.ended'] === '3' && r[lang + '.live'] === 'nil', lang + ': other addons hear each ended timer once');
+    check(r[lang + '.buff'] === '-1', lang + ': the old seal\'s buff timer ends too');
+    check(r[lang + '.custom'] === '12', lang + ': a custom timer named like a seal is left alone');
     check(r[lang + '.recast'] === '20' && r[lang + '.recastheld'] === '0', lang + ': recasting the same seal ends nothing');
     check(r[lang + '.afterjudgement'] === '20', lang + ': casting Judgement ends no seal timer');
   }

@@ -39,13 +39,13 @@ function CreateFrame()
 end
 
 local function newFrame(withAnim)
-	local f = { alpha = 1, outPlays = 0, inPlays = 0, childCount = 1 }
+	local f = { alpha = 1, outPlays = 0, inPlays = 0, childCount = 1, stops = 0 }
 	function f:GetAlpha() return self.alpha end
 	function f:SetAlpha(a) self.alpha = a end
 	if withAnim then
-		f.animateOut = { IsPlaying = function() return false end,
+		f.animateOut = { IsPlaying = function() return false end, Stop = function() f.stops = f.stops + 1 end,
 			Play = function() f.outPlays = f.outPlays + 1; f.alpha = 0 end }
-		f.animateIn = { IsPlaying = function() return false end,
+		f.animateIn = { IsPlaying = function() return false end, Stop = function() f.stops = f.stops + 1 end,
 			Play = function() f.inPlays = f.inPlays + 1; f.alpha = 1 end }
 	end
 	return f
@@ -53,19 +53,32 @@ end
 newTestFrame = newFrame
 FR = { lane = newFrame(false), bar = newFrame(true), ready = newFrame(false) }
 
+-- the settings of lane 1, bar frame 1 and ready frame 1 (Show, Dim instead of hide)
+local function frameSettings() return { alpha = 1, showMode = "GLOBAL", dimInsteadOfHide = false, dimAlpha = 0.3 } end
+FLIGHT = false
+function UnitExists() return false end
+
 CDTL3 = {
-	db = { profile = { global = { hideOutOfCombat = false, hideWhileCasting = false,
-		unlockFrames = false, debugMode = false, autohide = false } } },
+	db = { profile = {
+		global = { hideOutOfCombat = false, hideWhileCasting = false,
+			unlockFrames = false, debugMode = false, autohide = false },
+		lanes = { lane1 = frameSettings() }, barFrames = { frame1 = frameSettings() }, ready = { ready1 = frameSettings() },
+	} },
 	lanes = { { number = 1 } }, barFrames = { { number = 1 } },
-	testing = false, combat = false, casting = false, enabled = false,
+	testing = false, combat = false, casting = false, enabled = false, inEncounter = false,
 	retailAPI = true, tocversion = 11507, isForever = true,
 	succeeded = 0,
+	Flights = { Holds = function() return FLIGHT end },
 }
 function CDTL3:Print() end
 function CDTL3:RegisterEvent() end
 function CDTL3:UnregisterEvent() end
 function CDTL3:UNIT_SPELLCAST_SUCCEEDED() CDTL3.succeeded = CDTL3.succeeded + 1 end
-function CDTL3:RefreshLane(k) REFRESH_CALLS = REFRESH_CALLS + 1; CDTL3:Autohide(FR.lane, { alpha = 1 }) end
-function CDTL3:RefreshBarFrame(k) REFRESH_CALLS = REFRESH_CALLS + 1; CDTL3:Autohide(FR.bar, { alpha = 1 }) end
-function CDTL3:RefreshReady(i) REFRESH_CALLS = REFRESH_CALLS + 1; CDTL3:Autohide(FR.ready, nil) end
+local p = CDTL3.db.profile
+function CDTL3:RefreshLane(k) REFRESH_CALLS = REFRESH_CALLS + 1; CDTL3:Autohide(FR.lane, p.lanes["lane" .. k]) end
+function CDTL3:RefreshBarFrame(k) REFRESH_CALLS = REFRESH_CALLS + 1; CDTL3:Autohide(FR.bar, p.barFrames["frame" .. k]) end
+function CDTL3:RefreshReady(i) REFRESH_CALLS = REFRESH_CALLS + 1; CDTL3:Autohide(FR.ready, p.ready["ready" .. i]) end
+function ResetFrameSettings()
+	p.lanes.lane1, p.barFrames.frame1, p.ready.ready1 = frameSettings(), frameSettings(), frameSettings()
+end
 CDTL3_Ready_1 = true

@@ -57,6 +57,11 @@ local function newFrame(name, anim)
 	return f
 end
 FRAMES = { newFrame("lane", true), newFrame("bar", true), newFrame("plain", false) }
+-- each frame's settings: alpha, Show and Dim instead of hide (lane 1, bar frame 1, ready frame 1)
+local function frameSettings() return { alpha = 1, showMode = "GLOBAL", dimInsteadOfHide = false, dimAlpha = 0.3 } end
+for _, f in ipairs(FRAMES) do f.settings = frameSettings() end
+FLIGHT = false
+function UnitExists() return false end
 
 function step(dt)
 	FRAME = FRAME + 1
@@ -72,7 +77,7 @@ function step(dt)
 			if a and a.playing and NOW - a.t0 >= 0.3 - 1e-9 then a.playing = false; f.base = a.to end
 		end
 		-- the real OnUpdate only runs Autohide when triggerUpdate is set (child changes)
-		if f.triggerUpdate then f.triggerUpdate = false; CDTL3:Autohide(f, { alpha = 1 }) end
+		if f.triggerUpdate then f.triggerUpdate = false; CDTL3:Autohide(f, f.settings) end
 	end
 end
 function run(sec) local n = math.floor(sec * 60 + 0.5); for _ = 1, n do step() end end
@@ -88,19 +93,21 @@ end
 CDTL3 = {
 	db = { profile = { global = { hideOutOfCombat = false, hideWhileCasting = true,
 		unlockFrames = false, debugMode = false, autohide = false },
-		ready = { ready1 = { pTime = 0 }, ready2 = { pTime = 0 }, ready3 = { pTime = 0 } } } },
+		lanes = { lane1 = FRAMES[1].settings }, barFrames = { frame1 = FRAMES[2].settings },
+		ready = { ready1 = FRAMES[3].settings, ready2 = { pTime = 0 }, ready3 = { pTime = 0 } } } },
 	lanes = { { number = 1 } }, barFrames = { { number = 1 } },
-	testing = false, combat = false, casting = false, enabled = false,
+	testing = false, combat = false, casting = false, enabled = false, inEncounter = false,
 	retailAPI = false, tocversion = 11507, isForever = true,
+	Flights = { Holds = function() return FLIGHT end },
 }
 function CDTL3:Print() end
 function CDTL3:RegisterEvent() end
 function CDTL3:UnregisterEvent() end
 function CDTL3:UNIT_SPELLCAST_SUCCEEDED() end
 REFRESH_ARGS = {}
-function CDTL3:RefreshLane(i) REFRESH_ARGS.lane = i; REFRESHES = REFRESHES + 1; CDTL3:Autohide(FRAMES[1], { alpha = 1 }) end
-function CDTL3:RefreshBarFrame(i) REFRESH_ARGS.bar = i; REFRESHES = REFRESHES + 1; CDTL3:Autohide(FRAMES[2], { alpha = 1 }) end
-function CDTL3:RefreshReady() REFRESHES = REFRESHES + 1; CDTL3:Autohide(FRAMES[3], nil) end
+function CDTL3:RefreshLane(i) REFRESH_ARGS.lane = i; REFRESHES = REFRESHES + 1; CDTL3:Autohide(FRAMES[1], FRAMES[1].settings) end
+function CDTL3:RefreshBarFrame(i) REFRESH_ARGS.bar = i; REFRESHES = REFRESHES + 1; CDTL3:Autohide(FRAMES[2], FRAMES[2].settings) end
+function CDTL3:RefreshReady() REFRESHES = REFRESHES + 1; CDTL3:Autohide(FRAMES[3], FRAMES[3].settings) end
 CDTL3_Ready_1 = { }
 
 function reset(opts)
@@ -117,6 +124,11 @@ function reset(opts)
 	g.debugMode = false
 	g.autohide = opts.autohide or false
 	CDTL3.testing = false
+	CDTL3.inEncounter, FLIGHT = false, false
+	for _, f in ipairs(FRAMES) do
+		local s = f.settings
+		s.alpha, s.showMode, s.dimInsteadOfHide, s.dimAlpha = 1, opts.show or "GLOBAL", opts.dim or false, 0.3
+	end
 	CDTL3.enabled = false
 	CDTL3.combat = false
 	CDTL3.casting = false

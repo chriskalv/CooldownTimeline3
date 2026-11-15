@@ -193,6 +193,68 @@ SCEN[#SCEN + 1] = function(c)
 		.. tostring(REFRESH_ARGS.lane) .. "/" .. tostring(REFRESH_ARGS.bar) .. ")")
 end
 
+-- the release's Show rules (Show per frame, Dim instead of hide) under Hide while casting, the
+-- flight exception, and the fade times: out within 0.3 s of the START, back within 0.3 s of the
+-- frame after the stop
+local function with(c, extra) local o = {}; for k, v in pairs(c) do o[k] = v end; for k, v in pairs(extra) do o[k] = v end; return o end
+local function castCycle(c, tag, during, after)
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player"); run(0.5)
+	check(all(during), c.tag .. " " .. tag .. ": " .. during .. " while casting " .. show())
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player"); run(1.0)
+	check(all(after), c.tag .. " " .. tag .. ": " .. after .. " after the cast " .. show())
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(with(c, { show = "ALWAYS" })); settle()
+	castCycle(c, "Show Always", 0, 1)
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(with(c, { show = "ALWAYS", dim = true })); settle()
+	castCycle(c, "Show Always, dim", 0.3, 1)
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(with(c, { show = "COMBAT", dim = true })); settle()
+	check(all(0.3), c.tag .. " Only in combat, dim: dimmed out of combat " .. show())
+	castCycle(c, "Only in combat, dim, out of combat", 0.3, 0.3)
+	IN_COMBAT = true; CDTL3:PLAYER_REGEN_DISABLED(); run(0.5)
+	check(all(1), c.tag .. " Only in combat, dim: shown in combat " .. show())
+	castCycle(c, "Only in combat, dim, in combat", 0.3, 1)
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(with(c, { show = "COMBAT" })); settle()
+	check(all(0), c.tag .. " Only in combat: hidden out of combat " .. show())
+	castCycle(c, "Only in combat, out of combat", 0, 0)
+	IN_COMBAT = true; CDTL3:PLAYER_REGEN_DISABLED(); run(0.5)
+	castCycle(c, "Only in combat, in combat", 0, 1)
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(with(c, { show = "BOSS" })); settle()
+	check(all(0), c.tag .. " Boss fights only: hidden outside a boss fight " .. show())
+	CDTL3.inEncounter = true; CDTL3:ApplyCombatVisibility(true); run(0.5)
+	check(all(1), c.tag .. " Boss fights only: shown in a boss fight " .. show())
+	castCycle(c, "Boss fights only, boss fight", 0, 1)
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(c)
+	FLIGHT = true
+	castCycle(c, "flight", 1, 1)
+	FLIGHT = false
+end
+SCEN[#SCEN + 1] = function(c)
+	reset(c)
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	step()
+	local r = rendered()
+	check(r[3] == 0, c.tag .. " fade times: a frame without fade is gone at once " .. show())
+	check(r[1] > 0.5 and r[2] > 0.5, c.tag .. " fade times: the animated frames fade, they don't snap " .. show())
+	run(0.3)
+	check(all(0), c.tag .. " fade times: hidden 0.3 s after the START " .. show())
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player")
+	check(all(0), c.tag .. " fade times: still hidden in the stop frame " .. show())
+	step()
+	run(0.3)
+	check(all(1), c.tag .. " fade times: back 0.3 s after the frame after the stop " .. show())
+end
+
 for _, c in ipairs(CONFIGS) do
 	for _, s in ipairs(SCEN) do
 		local ok, err = pcall(s, c)

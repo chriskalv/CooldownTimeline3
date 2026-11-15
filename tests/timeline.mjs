@@ -18,12 +18,15 @@ export function extract(srcs) {
   const out = [];
   const pick = (src, names) => {
     const ast = luaparse.parse(src, { luaVersion: '5.1', ranges: true });
+    const seen = new Set();
     for (const st of ast.body) {
       if (st.type === 'FunctionDeclaration' && st.identifier && st.identifier.type === 'MemberExpression') {
         const n = st.identifier.identifier.name;
-        if (names.includes(n)) out.push(src.slice(st.range[0], st.range[1]));
+        if (names.includes(n)) { out.push(src.slice(st.range[0], st.range[1])); seen.add(n); }
       }
     }
+    const missing = names.filter((n) => !seen.has(n));
+    if (missing.length) throw new Error('not found: ' + missing.join(', '));
   };
   const c = srcs.cdtl3;
   const a = c.indexOf('local function ReadPlayerCasting');
@@ -33,15 +36,22 @@ export function extract(srcs) {
   const ue1 = c.indexOf('end)', ue0) + 4;
   out.push(c.slice(ue0, ue1));
   pick(c, ['RegisterUnitEvents', 'TurnOn', 'TurnOff', 'PLAYER_REGEN_DISABLED', 'PLAYER_REGEN_ENABLED']);
-  pick(srcs.helpers, ['Autohide', 'ApplyCombatVisibility']);
+  // Helpers.lua's rules share its file-local private table (private.AnyShowRule)
+  const h = srcs.helpers;
+  const any0 = h.indexOf('private.AnyShowRule = function');
+  const any1 = h.indexOf('\nend', any0) + 4;
+  if (any0 < 0) throw new Error('private.AnyShowRule not found');
+  out.push('do local private = {}', h.slice(any0, any1));
+  pick(h, ['InBossFight', 'ShowRuleHides', 'CastRuleHides', 'Autohide', 'ApplyCombatVisibility']);
+  out.push('end');
   // cast block holds locals: keep it in one chunk together with the rest
   return c.slice(a, b) + '\n' + out.join('\n');
 }
 
 export function load() {
   return {
-    cdtl3: readFileSync(ADDON + 'CDTL3.lua', 'utf8'),
-    helpers: readFileSync(ADDON + 'Helpers.lua', 'utf8'),
+    cdtl3: readFileSync(ADDON + 'CDTL3.lua', 'utf8').replace(/\r\n/g, '\n'),
+    helpers: readFileSync(ADDON + 'Helpers.lua', 'utf8').replace(/\r\n/g, '\n'),
   };
 }
 
