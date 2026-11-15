@@ -1198,6 +1198,19 @@ private.CalcTransitionIndicator = function(f, s)
 	end
 end
 
+-- Start of a spell running on its Custom CD Time. A spell the game gives no cooldown (a
+-- seal) reports a start of 0, so count from the last cast. A real start from the game wins.
+private.CustomCDStart = function(d, start)
+	if not start or start == 0 then
+		local castTime = CDTL3.spellCastTimes and CDTL3.spellCastTimes[d["id"]]
+		if castTime then
+			return castTime
+		end
+	end
+
+	return start
+end
+
 private.CooldownUpdate = function(f, elapsed)
 	local d = f.data
 	local ic = f.icon
@@ -1264,6 +1277,7 @@ private.CooldownUpdate = function(f, elapsed)
 								if d["setCustomCD"] and d["customCDTime"] then
 									d["baseCD"] = d["customCDTime"] / 1000
 									duration = d["baseCD"]
+									start = private.CustomCDStart(d, start)
 								end
 								d["currentCD"] = start + duration - GetTime()
 							end
@@ -1302,6 +1316,7 @@ private.CooldownUpdate = function(f, elapsed)
 								if d["setCustomCD"] and d["customCDTime"] then
 									d["baseCD"] = d["customCDTime"] / 1000
 									duration = d["baseCD"]
+									start = private.CustomCDStart(d, start)
 								end
 								d["currentCD"] = start + duration - GetTime()
 

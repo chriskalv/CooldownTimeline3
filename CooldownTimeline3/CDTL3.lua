@@ -69,7 +69,7 @@ CDTL3.Compat = {
 	end,
 }
 
-CDTL3.version = "3.0.12"
+CDTL3.version = "3.0.13"
 CDTL3.noticeVersion = "2.6"
 CDTL3.cdUID = 999
 -- where to report issues / make suggestions (first-run window, Changelog tab)
@@ -2195,6 +2195,73 @@ function CDTL3:COMBAT_LOG_EVENT_UNFILTERED()
 	end
 end
 
+-- Custom timers with trigger type "Spell": start or restart them on any player cast.
+-- Returns true when the cast matches one, even an ignored one.
+local function CheckCustomSpellTrigger(spellName, castGUID)
+	local s = CDTL3:GetCustomSpellSettings(spellName, "spell")
+	if not s then
+		return false
+	end
+
+	if CDTL3.db.profile.global["debugMode"] then
+		CDTL3:Print("CUSTOM_FOUND: spell - "..spellName.."-"..castGUID)
+	end
+
+	if not s["ignored"] then
+		local ef = CDTL3:GetExistingCooldown(s["name"], "customs")
+		if ef then
+			CDTL3:SendToLane(ef)
+			CDTL3:SendToBarFrame(ef)
+		elseif CDTL3.db.profile.global["customs"]["enabled"] then
+			CDTL3:CreateCooldown(CDTL3:GetUID(), "customs", s)
+			CDTL3:CheckEdgeCases(spellName)
+
+			if not CDTL3:IsUsedBy("customs", s["id"]) then
+				CDTL3:AddUsedBy("customs", s["id"], CDTL3.player["guid"])
+			end
+		end
+	end
+
+	return true
+end
+
+-- While aura data is secret UNIT_AURA can't see a recast of a buff you already have, but
+-- the cast itself shows. Restart the buff's timer at its saved length as an estimate;
+-- the buff poll re-syncs from the real expiry once auras are readable.
+local function RestartBuffFromCast(spellName)
+	if not CDTL3:AurasAreSecret() then
+		return
+	end
+
+	-- The cast event doesn't say who the spell landed on. With another friendly player
+	-- targeted it most likely went to them (a Blessing, a shield), so leave yours alone.
+	-- If the check can't be read, assume the cast was yours.
+	local otherOK, onOther = pcall(function()
+		if UnitExists("target") and not UnitIsUnit("target", "player") and UnitIsFriend("player", "target") then
+			return true
+		end
+		return false
+	end)
+	if otherOK and onOther then
+		return
+	end
+
+	local s = CDTL3:GetSpellSettings(spellName, "buffs")
+	if not s or s["ignored"] or (s["bCD"] or 0) <= 0 or not CDTL3.db.profile.global["buffs"]["enabled"] then
+		return
+	end
+
+	local ef = CDTL3:GetExistingCooldown(s["name"], "buffs")
+	if ef then
+		if (ef.data["baseCD"] or 0) > 0 then
+			CDTL3:SendToLane(ef)
+			CDTL3:SendToBarFrame(ef)
+		end
+	else
+		CDTL3:CreateCooldown(CDTL3:GetUID(), "buffs", s)
+	end
+end
+
 function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 	local temp, unitTarget, castGUID, spellID = ...
 
@@ -2232,6 +2299,9 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 		if CDTL3.db.profile.global["debugMode"] then
 			CDTL3:Print("SPELLCAST: "..spellName.."-"..castGUID)
 		end
+
+		local customFound = CheckCustomSpellTrigger(spellName, castGUID)
+		RestartBuffFromCast(spellName)
 
 		if isKnown or isKnownOrOverridesKnown then
 			local s = CDTL3:GetSpellSettings(spellName, "spells")
@@ -2305,37 +2375,9 @@ function CDTL3:UNIT_SPELLCAST_SUCCEEDED(...)
 				else
 					--CDTL3:Print("NOTFOUND: "..spellID)
 
-					-- CHECK FOR 'OTHER' SPELLS
-					local spellName, icon, originalIcon = CDTL3:GetSpellInfo(spellID)
-					--local s = CDTL3:GetSpellSettings(spellName, "customs")
-					local s = CDTL3:GetCustomSpellSettings(spellName, "spell")
-					if s then
-						--if s["triggerType"] and s["triggerType"] == "spell" then
-							if CDTL3.db.profile.global["debugMode"] then
-								CDTL3:Print("CUSTOM_FOUND: spell - "..spellName.."-"..castGUID)
-							end
-
-							if not s["ignored"] then
-								local ef = CDTL3:GetExistingCooldown(s["name"], "customs")
-								if ef then
-									CDTL3:SendToLane(ef)
-									CDTL3:SendToBarFrame(ef)
-									--+CDTL3:CheckEdgeCases(spellName)
-								else
-									if CDTL3.db.profile.global["customs"]["enabled"] then
-										CDTL3:CreateCooldown(CDTL3:GetUID(),"customs" , s)
-										CDTL3:CheckEdgeCases(spellName)
-										
-										if CDTL3:IsUsedBy("customs", s["id"]) then
-											--CDTL3:Print("USEDBY MATCH: "..s["id"])
-										else
-											CDTL3:AddUsedBy("customs", s["id"], CDTL3.player["guid"])
-										end
-									end
-								end
-							end
-						--end
-					else
+					-- 'OTHER' SPELLS: a custom spell trigger (checked above) takes the cast,
+					-- otherwise record it
+					if not customFound then
 						if CDTL3.db.profile.global["customDetection"] then
 							-- RECORD 'OTHER' SPELL
 							s = CDTL3:GetSpellSettings(spellName, "detected")

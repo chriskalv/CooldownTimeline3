@@ -3081,15 +3081,15 @@ private.foreverChanges = {
 	[6346] = { bCD = 180000 },	-- Fear Ward
 	[15286] = { bCD = 30000 },	-- Vampiric Embrace
 	-- Shaman
-	[16166] = { oaf = false },	-- Elemental Mastery
+	[16166] = { name = "Lightning Mastery", oaf = false },	-- Elemental Mastery
 	[1535] = DROP,	-- Fire Nova Totem (1)
 	[8498] = DROP,	-- Fire Nova Totem (2)
 	[8499] = DROP,	-- Fire Nova Totem (3)
 	[11314] = DROP,	-- Fire Nova Totem (4)
 	[11315] = DROP,	-- Fire Nova Totem (5)
-	[408490] = { bCD = 10000 },	-- Lava Burst
+	[408490] = DROP,	-- Lava Burst (Forever removed it from Shaman in November 2026)
 	[425336] = { name = "Rage of the Farseer", bCD = 180000 },	-- Shamanistic Rage
-	[437009] = { bCD = 60000 },	-- Totemic Projection
+	[437009] = { name = "Totemic Call", bCD = 30000 },	-- Totemic Projection
 	-- Warlock
 	[603] = { name = "Bane of Doom" },	-- Curse of Doom
 	[18708] = { bCD = 300000 },	-- Fel Domination
@@ -3115,7 +3115,7 @@ private.GetForeverData = function(class)
 	local d = {}
 	
 	if class == "PALADIN" then
-		table.insert(d, { id = 1310994, name = "Swift Judgement", rank = "", bCD = 60000, oaf = true } )
+		table.insert(d, { id = 1310994, name = "Swift Judgement", rank = "", bCD = 60000 } )
 	end
 	
 	return d

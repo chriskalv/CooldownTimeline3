@@ -143,6 +143,23 @@ function CDTL3:AddUsedBy(type, id, guid)
 	end
 end
 
+-- True while the game hides aura data from addons (retail-API clients: combat, encounters,
+-- M+, PvP). False where the API doesn't exist (Classic). A second return of true means the
+-- check itself errored; the first is false then.
+function CDTL3:AurasAreSecret()
+	local ok, secret = pcall(function()
+		if C_Secrets and C_Secrets.ShouldAurasBeSecret then
+			return C_Secrets.ShouldAurasBeSecret() and true or false
+		end
+		return false
+	end)
+	if not ok then
+		return false, true
+	end
+
+	return secret
+end
+
 function CDTL3:AuraExists(unit, aura)
 	-- 12.1 made aura data SECRET in combat/encounter/M+/PvP: the index accessor Lua-errors while
 	-- auras are secret, and comparing/doing arithmetic on secret fields throws. So — same pattern
@@ -184,13 +201,8 @@ function CDTL3:AuraExists(unit, aura)
 
 		-- Not found. While auras are secret the client can also just omit them, so
 		-- "not found" only means "gone" when it says auras are readable.
-		local secretOK, aurasSecret = pcall(function()
-			if C_Secrets and C_Secrets.ShouldAurasBeSecret then
-				return C_Secrets.ShouldAurasBeSecret() and true or false
-			end
-			return false
-		end)
-		if not secretOK or aurasSecret then
+		local aurasSecret, checkFailed = CDTL3:AurasAreSecret()
+		if aurasSecret or checkFailed then
 			return nil, true
 		end
 
