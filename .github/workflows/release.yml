@@ -1,0 +1,119 @@
+# Release: builds CooldownTimeline3-<version>-forever.zip and release.json with tools/release.mjs,
+# creates the tag v<version> and the GitHub release "CDTL3 <version> (Zippy build)" of this private
+# repository with both files as assets; the notes come from RELEASE_NOTES.md. Started by hand
+# (Actions > Release > Run workflow) on main with the version from the TOC; with "dry run" it only
+# builds and checks the assets and keeps them as a workflow artifact, no tag and no release.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release; must equal "## Version:" in CooldownTimeline3/CooldownTimeline3.toc (e.g. 3.2.1)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run: build and check the assets, create no tag and no release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      ADDON: CooldownTimeline3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the version against the TOC and the existing tags
+        run: |
+          set -eu
+          toc=$(sed -n 's/^## Version:[[:space:]]*//p' "$ADDON/$ADDON.toc" | tr -d '\r')
+          echo "TOC version: $toc, requested: $VERSION"
+          test "$toc" = "$VERSION" || { echo "::error::the TOC says $toc, not $VERSION"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "::error::the tag v$VERSION exists already"; exit 1
+          fi
+
+      - name: Only main is released
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -eu
+          test "$GITHUB_REF" = "refs/heads/main" || { echo "::error::releases are made from main, not $GITHUB_REF"; exit 1; }
+
+      - name: Install and test
+        run: |
+          npm ci
+          npm test
+
+      - name: Build the assets
+        run: |
+          set -eu
+          npm run release
+          ls -l dist
+          zip="dist/$ADDON-$VERSION-forever.zip"
+          test -f "$zip"
+          test -f dist/release.json
+          unzip -tq "$zip"
+          roots=$(unzip -Z1 "$zip" | cut -d/ -f1 | sort -u)
+          test "$roots" = "$ADDON" || { echo "::error::the zip must hold exactly one root folder $ADDON/, found: $roots"; exit 1; }
+          unzip -Z1 "$zip" | grep -qx "$ADDON/$ADDON.toc" || { echo "::error::$ADDON.toc missing in the zip"; exit 1; }
+          cat dist/release.json
+          node -e '
+            const fs = require("fs");
+            const [addon, version] = [process.env.ADDON, process.env.VERSION];
+            const toc = fs.readFileSync(`${addon}/${addon}.toc`, "utf8");
+            const m = /^##[ \t]*Interface-Forever[ \t]*:[ \t]*(\d+)/m.exec(toc) || /^##[ \t]*Interface[ \t]*:[ \t]*(\d+)/m.exec(toc);
+            const r = JSON.parse(fs.readFileSync("dist/release.json", "utf8")).releases;
+            const ok = r.length === 1 && r[0].name === addon && r[0].version === version
+              && r[0].filename === `${addon}-${version}-forever.zip` && r[0].nolib === false
+              && r[0].metadata.length === 1 && r[0].metadata[0].flavor === "forever"
+              && m && r[0].metadata[0].interface === Number(m[1]);
+            if (!ok) { console.log("::error::release.json does not match the zip and the TOC"); process.exit(1); }
+            console.log(`release.json: ${version}, interface ${m[1]}`);
+          '
+
+      - name: Release notes from RELEASE_NOTES.md
+        run: |
+          set -eu
+          ver_re=$(printf '%s' "$VERSION" | sed 's/[.]/\\./g')
+          if ! grep -Eq "(^|[^0-9.])CDTL3 $ver_re([^0-9.]|$)" RELEASE_NOTES.md; then
+            echo "::error::RELEASE_NOTES.md doesn't name CDTL3 $VERSION; update it before the release"; exit 1
+          fi
+          cp RELEASE_NOTES.md notes.md
+          cat notes.md
+
+      - name: Keep the assets as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CooldownTimeline3-${{ inputs.version }}
+          path: |
+            dist/CooldownTimeline3-${{ inputs.version }}-forever.zip
+            dist/release.json
+            notes.md
+
+      - name: Create the tag and the release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh release create "v$VERSION" \
+            "dist/$ADDON-$VERSION-forever.zip" \
+            dist/release.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "CDTL3 $VERSION (Zippy build)" \
+            --notes-file notes.md
+          echo "released v$VERSION from $GITHUB_SHA"
