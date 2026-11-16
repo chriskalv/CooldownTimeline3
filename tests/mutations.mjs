@@ -11,6 +11,23 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
 const SUITES = ['seal_patches.test.mjs', 'seal_flow.test.mjs', 'hide_casting.test.mjs', 'quiet_start.test.mjs', 'border_secret.test.mjs', 'timeline.mjs'];
 
+// the version in CooldownTimeline3.toc; a personal build has four parts and LOCAL PATCH comments
+function versionProbes() {
+  const toc = readFileSync(path.join(root, 'CooldownTimeline3', 'CooldownTimeline3.toc'), 'utf8').replace(/\r/g, '');
+  const v = (/^##\s*Version\s*:\s*(\S+)/m.exec(toc) || [])[1] || '';
+  const personal = /^\d+\.\d+\.\d+\.\d+$/.test(v);
+  const base = v.split('.').slice(0, 3).join('.');
+  const other = personal ? base : `${v}.1`;
+  const p = [
+    ['version', 'one TOC keeps another version', 'CooldownTimeline3_Mists.toc', `## Version: ${v}\n`, `## Version: ${other}\n`],
+    ['version', 'main TOC with another version', 'CooldownTimeline3.toc', `## Version: ${v}\n`, `## Version: ${v}9\n`],
+    ['version', 'CDTL3.version differs', 'CDTL3.lua', `CDTL3.version = "${v}"`, `CDTL3.version = "${other}"`],
+  ];
+  if (personal) p.push(['version', 'TOC version comment missing', 'CooldownTimeline3_TBC.toc', `# LOCAL PATCH (Zippy, `, '## X-Note: (Zippy, ']);
+  else p.push(['version', 'LOCAL PATCH comment left at a release version', 'CooldownTimeline3_TBC.toc', `## Version: ${v}\n`, `# LOCAL PATCH (Zippy, 2026-11-16): leftover\n## Version: ${v}\n`]);
+  return p;
+}
+
 const M = [
   // Seal switch (CDTL3.lua)
   ['seal', 'EndOtherSealTimers not called', 'CDTL3.lua', '\t\t\tCDTL3:EndOtherSealTimers(spellName)\n', ''],
@@ -87,11 +104,9 @@ const M = [
   ['border', 'retry never ends', 'Helpers.lua', '\tf:SetScript("OnUpdate", nil)\n\tif f.backdropInfo then', '\tif f.backdropInfo then'],
   ['border', 'retry works out a cleared border', 'Helpers.lua', '\tif f.backdropInfo then\n\t\tf:SetupTextureCoordinates()\n', '\tif true then\n\t\tf:SetupTextureCoordinates()\n'],
 
-  // Version of the personal build (all TOC files and CDTL3.lua)
-  ['version', 'one TOC keeps the release version', 'CooldownTimeline3_Mists.toc', '## Version: 3.2.1.1\n', '## Version: 3.2.1\n'],
-  ['version', 'main TOC with another version', 'CooldownTimeline3.toc', '## Version: 3.2.1.1\n', '## Version: 3.2.1.2\n'],
-  ['version', 'CDTL3.version keeps the release version', 'CDTL3.lua', 'CDTL3.version = "3.2.1.1"', 'CDTL3.version = "3.2.1"'],
-  ['version', 'TOC version comment missing', 'CooldownTimeline3_TBC.toc', '# LOCAL PATCH (Zippy, 2026-11-16): personal build 3.2.1.1', '## X-Note: personal build 3.2.1.1'],
+  // Version of the personal build (all TOC files and CDTL3.lua), derived from the current version so
+  // the probes keep working after a release's version lines come back (README "Versions")
+  ...versionProbes(),
 ];
 
 let red = 0;

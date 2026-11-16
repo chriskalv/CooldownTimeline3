@@ -1,7 +1,8 @@
 // Tests for the local patch Border frames tolerate hidden geometry (2026-11-16) and the version of
 // the personal build. Static: every backdrop in the addon is set through CDTL3:SetBorder, the icon
-// border and highlight use it, and the version is the same four-part one in all TOC files and in
-// CDTL3.version. Then the real CDTL3:SetBorder and its helpers from Helpers.lua run in fengari on
+// border and highlight use it, and the version is the same in all TOC files, CDTL3.version and
+// tools/release.mjs (a personal build's fourth part with LOCAL PATCH comments, a plain release
+// version without them, see README "Versions"). Then the real CDTL3:SetBorder and its helpers from Helpers.lua run in fengari on
 // the stub world of border_secret_env.lua (frames with anchors, secret numbers that throw on
 // arithmetic, a backdrop mixin that computes with the size like Blizzard's); scenarios in
 // border_secret_spec.lua. Last, the real CDTL3:LastSeenOlderThan with four-part versions.
@@ -36,24 +37,35 @@ check(/f\.SetupTextureCoordinates = private\.BorderCoords\n[^]*f:SetBackdrop\(\{
 check(cooldown.includes('CDTL3:SetBorder(f.bd, s["icons"]["border"])') && cooldown.includes('CDTL3:SetBorder(f.hl, s["icons"]["highlight"]["border"])'),
   'Cooldown.lua: icon border and highlight are set through CDTL3:SetBorder');
 
-// the version: one four-part version in all six TOC files and CDTL3.version
+// the version: the same in all six TOC files and CDTL3.version. A personal build has four parts and
+// LOCAL PATCH comments at every version line; a release's own version (three parts, after merging
+// upstream) has none (README "Versions"), so the next release does not turn this suite red.
 const tocs = readdirSync(ADDON).filter((n) => n.endsWith('.toc')).sort();
 check(tocs.length === 6, `six TOC files (${tocs.join(', ')})`);
-const versions = tocs.map((t) => {
-  const text = readAddon(t);
-  const lines = text.split('\n');
+const tocInfo = tocs.map((t) => {
+  const lines = readAddon(t).split('\n').map((l) => l.replace(/\r$/, ''));
   const vs = lines.filter((l) => /^##\s*Version\s*:/.test(l));
   const i = lines.findIndex((l) => /^##\s*Version\s*:/.test(l));
   check(vs.length === 1, `${t}: one ## Version: line`);
-  check(i > 0 && /^# LOCAL PATCH \(Zippy, \d{4}-\d{2}-\d{2}\): /.test(lines[i - 1]), `${t}: the line before it is a "# LOCAL PATCH" comment`);
   check(!lines.some((l) => /^\s+#/.test(l)), `${t}: no comment with whitespace before the # (the client would take it for a file name)`);
-  return (vs[0] || '').replace(/^##\s*Version\s*:\s*/, '').trim();
+  return { t, v: (vs[0] || '').replace(/^##\s*Version\s*:\s*/, '').trim(),
+    commented: i > 0 && /^# LOCAL PATCH \(Zippy, \d{4}-\d{2}-\d{2}\): /.test(lines[i - 1]) };
 });
-const luaVersion = (/\nCDTL3\.version = "([^"]*)"\n/.exec(cdtl3) || [])[1];
-check(/^\d+\.\d+\.\d+\.\d+$/.test(versions[0] || ''), `the version has four numeric parts (${versions[0]})`);
-check(versions.every((v) => v === versions[0]), `the same version in every TOC (${versions.join(', ')})`);
-check(luaVersion === versions[0], `CDTL3.version equals the TOC version (${luaVersion})`);
-check(/-- LOCAL PATCH \(Zippy, \d{4}-\d{2}-\d{2}\)[^\n]*\n(--[^\n]*\n)*CDTL3\.version = /.test(cdtl3), 'CDTL3.version carries a LOCAL PATCH comment');
+const versions = tocInfo.map((x) => x.v);
+const version = versions[0] || '';
+const luaVersion = (/\r?\nCDTL3\.version = "([^"]*)"\r?\n/.exec(cdtl3) || [])[1];
+const luaCommented = /-- LOCAL PATCH \(Zippy, \d{4}-\d{2}-\d{2}\)[^\n]*\n(--[^\n]*\n)*CDTL3\.version = /.test(cdtl3.replace(/\r/g, ''));
+const personal = /^\d+\.\d+\.\d+\.\d+$/.test(version);
+check(personal || /^\d+\.\d+(\.\d+)?$/.test(version), `the version is a release version or a personal build with a fourth part (${version})`);
+check(versions.every((v) => v === version), `the same version in every TOC (${versions.join(', ')})`);
+check(luaVersion === version, `CDTL3.version equals the TOC version (${luaVersion})`);
+for (const x of tocInfo) {
+  check(x.commented === personal, personal ? `${x.t}: the line before the version is a "# LOCAL PATCH" comment`
+    : `${x.t}: no LOCAL PATCH comment left at the release's version line`);
+}
+check(luaCommented === personal, personal ? 'CDTL3.version carries a LOCAL PATCH comment' : 'no LOCAL PATCH comment left at the release\'s CDTL3.version');
+const base = personal ? version.split('.').slice(0, 3).join('.') : version;
+const nextRelease = base.split('.').map((n, i, a) => (i === a.length - 1 ? String(Number(n) + 1) : n)).join('.');
 let built = '';
 try { built = readVersion(ADDON); } catch (e) { built = e.message; }
 check(built === versions[0], `tools/release.mjs reads the same version (${built})`);
@@ -76,7 +88,7 @@ if (chunks) {
   }
 }
 
-// the welcome window's version rule with four parts (CDTL3:LastSeenOlderThan, the release's)
+// the welcome window's version rule with the current version (four parts for a personal build) (CDTL3:LastSeenOlderThan, the release's)
 try {
   res.push(...runLua([
     ['CDTL3.lua', `CDTL3 = { db = { profile = { global = {} } } }\n${pick(cdtl3, ['CDTL3.version', 'CDTL3.noticeVersion', 'CDTL3:LastSeenOlderThan'], 'CDTL3.lua')}`],
@@ -86,10 +98,12 @@ local function seen(v) CDTL3.db.profile.global.previousVersion = v end
 seen(CDTL3.version)
 check(not CDTL3:LastSeenOlderThan(CDTL3.noticeVersion) and not CDTL3:LastSeenOlderThan("3.1"), "the personal build counts as seen for the notice and the 3.1 block")
 check(not CDTL3:LastSeenOlderThan(CDTL3.version), "the own version is not older than itself")
-seen("3.2.1")
-check(CDTL3:LastSeenOlderThan(CDTL3.version), "3.2.1 is older than the personal build")
+${personal ? `seen("${base}")
+check(CDTL3:LastSeenOlderThan(CDTL3.version), "the release ${base} is older than the personal build")
 seen(CDTL3.version)
-check(CDTL3:LastSeenOlderThan("3.2.2") and CDTL3:LastSeenOlderThan("3.3"), "the next release is newer than the personal build")
+check(not CDTL3:LastSeenOlderThan("${base}"), "the personal build is not older than its release ${base}")` : ''}
+seen(CDTL3.version)
+check(CDTL3:LastSeenOlderThan("${nextRelease}"), "the next release ${nextRelease} is newer than ${version}")
 `],
   ]));
 } catch (e) {
