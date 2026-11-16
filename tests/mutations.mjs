@@ -1,4 +1,4 @@
-// Mutation probes for the two local patches (and two for the release's Custom CD start, which the
+// Mutation probes for the four local patches (and two for the release's Custom CD start, which the
 // seal tests also cover): each probe breaks one line of an addon file on disk, runs every
 // simulation (at least one must exit red), then restores the file with git checkout. At the end
 // the addon folder must be clean again. Strings are written with LF; they are matched against
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
-const SUITES = ['seal_patches.test.mjs', 'seal_flow.test.mjs', 'hide_casting.test.mjs', 'timeline.mjs'];
+const SUITES = ['seal_patches.test.mjs', 'seal_flow.test.mjs', 'hide_casting.test.mjs', 'quiet_start.test.mjs', 'timeline.mjs'];
 
 const M = [
   // Seal switch (CDTL3.lua)
@@ -61,6 +61,19 @@ const M = [
   ['cast', 'option name not a locale key', 'Options.lua', 'name = L["Hide while casting"],', 'name = "Hide while casting",'],
   ['cast', 'dim toggle stays disabled for Always', 'Options.lua', 'return settings()["showMode"] == "ALWAYS" and not CDTL3.db.profile.global["hideWhileCasting"]', 'return settings()["showMode"] == "ALWAYS"'],
   ['cast', 'locale entry missing', 'Locales/enUS.lua', 'L["Hide while casting"] = true\n', ''],
+  // Flight timers off by default (CDTL3.lua; Flights.lua is the release's)
+  ['flight', 'default back to on', 'CDTL3.lua', '\t\t\t\tenabled = false,\n\t\t\t\tdefaultLane = 1,\n\t\t\t\tdefaultReady = 1,\n\t\t\t\tdefaultBar = 1,\n\t\t\t},\n\t\t},', '\t\t\t\tenabled = true,\n\t\t\t\tdefaultLane = 1,\n\t\t\t\tdefaultReady = 1,\n\t\t\t\tdefaultBar = 1,\n\t\t\t},\n\t\t},'],
+  ['flight', 'default missing', 'CDTL3.lua', '\t\t\t\tenabled = false,\n\t\t\t\tdefaultLane = 1,\n\t\t\t\tdefaultReady = 1,\n\t\t\t\tdefaultBar = 1,\n\t\t\t},\n\t\t},', '\t\t\t\tdefaultLane = 1,\n\t\t\t\tdefaultReady = 1,\n\t\t\t\tdefaultBar = 1,\n\t\t\t},\n\t\t},'],
+  ['flight', 'a taxi map pick ignores the switch', 'Flights.lua', 'private.OnTakeTaxiNode = function(slot)\n\tif not FL:Enabled() then', 'private.OnTakeTaxiNode = function(slot)\n\tif false then'],
+  ['flight', 'a resumed flight ignores the switch', 'Flights.lua', 'if not (UnitOnTaxi and UnitOnTaxi("player")) or not FL:Enabled() then', 'if not (UnitOnTaxi and UnitOnTaxi("player")) then'],
+
+  // No automatic What's new (CDTL3.lua)
+  ['news', 'automatic open restored', 'CDTL3.lua', "\t-- LOCAL PATCH (Zippy, 2026-11-16): no automatic What's new: the welcome window no longer opens\n\t-- by itself after an update or on a profile's first run; /cdtl3 whatsnew still opens it\n", '\telseif CDTL3.db.profile.global["firstRun"] or notice then\n\t\tC_Timer.After(10, function()\n\t\t\tprivate.CreateFirstRunFrame()\n\t\tend)\n'],
+  ['news', 'opens on a profile\'s first run', 'CDTL3.lua', "\t-- LOCAL PATCH (Zippy, 2026-11-16): no automatic What's new: the welcome window no longer opens\n", '\telseif CDTL3.db.profile.global["firstRun"] then\n\t\tC_Timer.After(10, function() CDTL3:ShowWhatsNew() end)\n'],
+  ['news', 'opens after an update', 'CDTL3.lua', "\t-- LOCAL PATCH (Zippy, 2026-11-16): no automatic What's new: the welcome window no longer opens\n", '\telseif notice then\n\t\tC_Timer.After(30, function() CDTL3:ShowWhatsNew() end)\n'],
+  ['news', 'ShowWhatsNew opens nothing', 'CDTL3.lua', '\treturn private.CreateFirstRunFrame()\n', '\treturn nil\n'],
+  ['news', '/cdtl3 whatsnew removed', 'CDTL3.lua', '\telseif input:trim() == "whatsnew" then\n\t\tCDTL3:ShowWhatsNew()\n', ''],
+  ['news', 'first-install tour dropped too', 'CDTL3.lua', '\t\t\tCDTL3.Start:StartTour()\n', ''],
 ];
 
 let red = 0;
@@ -87,4 +100,5 @@ for (const [patch, name, file, from, to] of M) {
 const st = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'CooldownTimeline3']).toString();
 for (const [patch, c] of Object.entries(perPatch)) console.log(`${patch}: ${c.red}/${c.probes} red`);
 console.log(`${red}/${M.length} red; addon tree ${st ? 'DIRTY' : 'clean'}`);
-if (red !== M.length || st || perPatch.seal.probes < 6 || perPatch.cast.probes < 6) process.exitCode = 1;
+if (red !== M.length || st || perPatch.seal.probes < 6 || perPatch.cast.probes < 6
+    || perPatch.flight.probes < 3 || perPatch.news.probes < 3) process.exitCode = 1;

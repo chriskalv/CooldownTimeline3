@@ -946,7 +946,8 @@ local defaults = {
 
 			-- flight timers (Flights.lua); learned times are account-wide in db.global.flightTimes
 			flights = {
-				enabled = true,
+				-- LOCAL PATCH (Zippy, 2026-11-16): flight timers are off by default; Global tab > Flight timers turns them on
+				enabled = false,
 				defaultLane = 1,
 				defaultReady = 1,
 				defaultBar = 1,
@@ -1298,10 +1299,8 @@ function CDTL3:OnEnable()
 		C_Timer.After(10, function()
 			CDTL3.Start:StartTour()
 		end)
-	elseif CDTL3.db.profile.global["firstRun"] or notice then
-		C_Timer.After(10, function()
-			private.CreateFirstRunFrame()
-		end)
+	-- LOCAL PATCH (Zippy, 2026-11-16): no automatic What's new: the welcome window no longer opens
+	-- by itself after an update or on a profile's first run; /cdtl3 whatsnew still opens it
 	end
 end
 
