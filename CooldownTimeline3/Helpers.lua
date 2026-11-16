@@ -2406,9 +2406,47 @@ function CDTL3:ScanCurrentCooldowns(class, race)
 	end
 end
 
+-- LOCAL PATCH (Zippy, 2026-11-16): border frames tolerate hidden geometry. An icon that rides a
+-- combat timer hangs on the fill of a StatusBar with a hidden (secret) value (CombatTimers.lua,
+-- private.PlaceIcon); anchors pass that on, so its border and highlight frames report a secret width
+-- and height, and Blizzard's backdrop code throws when it does arithmetic on them
+-- (BackdropTemplateMixin:SetupTextureCoordinates, from OnSizeChanged and from SetBackdrop). While the
+-- size is secret the texture coordinates stay as they are; they are worked out again on the next
+-- size change or, at the latest, on the first frame the size can be read again.
+private.SizeHidden = function(f)
+	return issecretvalue(f:GetWidth()) or issecretvalue(f:GetHeight())
+end
+
+private.BorderCoordsRetry = function(f)
+	if private.SizeHidden(f) then
+		return
+	end
+	f:SetScript("OnUpdate", nil)
+	if f.backdropInfo then
+		f:SetupTextureCoordinates()
+	end
+end
+
+private.BorderCoords = function(f)
+	if private.SizeHidden(f) then
+		if not f:GetScript("OnUpdate") then
+			f:SetScript("OnUpdate", private.BorderCoordsRetry)
+		end
+		return
+	end
+	f.cdtl3SetupCoords(f)
+end
+
 function CDTL3:SetBorder(f, s)
 	local inset = s["inset"]
 	local padding = s["padding"]
+
+	-- LOCAL PATCH (Zippy, 2026-11-16): Blizzard's texture coordinates of this frame go through
+	-- private.BorderCoords (above), so a border in a hidden anchor chain throws no error
+	if issecretvalue and f.SetupTextureCoordinates and not f.cdtl3SetupCoords then
+		f.cdtl3SetupCoords = f.SetupTextureCoordinates
+		f.SetupTextureCoordinates = private.BorderCoords
+	end
 
 	f:SetBackdrop({
 		bgFile = CDTL3.LSM:Fetch("background", "None"),
