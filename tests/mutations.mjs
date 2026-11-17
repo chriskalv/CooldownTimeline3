@@ -1,4 +1,4 @@
-// Mutation probes for the five local patches and the version of the personal build (and two for the release's Custom CD start, which the
+// Mutation probes for the six local patches and the version of the personal build (and two for the release's Custom CD start, which the
 // seal tests also cover): each probe breaks one line of an addon file on disk, runs every
 // simulation (at least one must exit red), then restores the file with git checkout. At the end
 // the addon folder must be clean again. Strings are written with LF; they are matched against
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
-const SUITES = ['seal_patches.test.mjs', 'seal_flow.test.mjs', 'hide_casting.test.mjs', 'quiet_start.test.mjs', 'border_secret.test.mjs', 'timeline.mjs'];
+const SUITES = ['seal_patches.test.mjs', 'seal_flow.test.mjs', 'hide_casting.test.mjs', 'quiet_start.test.mjs', 'border_secret.test.mjs', 'effect_strip.test.mjs', 'timeline.mjs'];
 
 // the version in CooldownTimeline3.toc; a personal build has four parts and LOCAL PATCH comments
 function versionProbes() {
@@ -104,6 +104,22 @@ const M = [
   ['border', 'retry never ends', 'Helpers.lua', '\tf:SetScript("OnUpdate", nil)\n\tif f.backdropInfo then', '\tif f.backdropInfo then'],
   ['border', 'retry works out a cleared border', 'Helpers.lua', '\tif f.backdropInfo then\n\t\tf:SetupTextureCoordinates()\n', '\tif true then\n\t\tf:SetupTextureCoordinates()\n'],
 
+  // Effect strip tolerates hidden geometry (Group.lua)
+  ['strip', 'icon width guard removed', 'Group.lua', '\tif not private.Hidden(w) then\n\t\treturn w\n', '\tif true then\n\t\treturn w\n'],
+  ['strip', 'icon width guard always on', 'Group.lua', '\tif not private.Hidden(w) then\n\t\treturn w\n', '\tif false then\n\t\treturn w\n'],
+  ['strip', 'Hidden never true', 'Group.lua', '\treturn issecretvalue and issecretvalue(v) or false\n', '\treturn false\n'],
+  ['strip', 'fill guard removed', 'Group.lua', '\tif private.Hidden(sw) then\n', '\tif false then\n'],
+  ['strip', 'fill guard always on', 'Group.lua', '\tif private.Hidden(sw) then\n', '\tif true then\n'],
+  ['strip', 'secret width to SetSize', 'Group.lua', '\t\tst:SetSize(w, 4)\n', '\t\tst:SetSize(ic:GetWidth(), 4)\n'],
+  ['strip', 'secret width to SetWidth', 'Group.lua', '\t\tst:SetWidth(w)\n', '\t\tst:SetWidth(f.icon:GetWidth())\n'],
+  ['strip', 'guard swallows every error (pcall)', 'Group.lua', '\tlocal w = f.icon:GetWidth()\n', '\tlocal ok, w = pcall(f.icon.GetWidth, f.icon)\n\tif not ok then\n\t\treturn nil\n\tend\n'],
+  ['strip', 'every lane reads lane 1', 'Group.lua', '[(n == 2 or n == 3) and ("lane" .. n) or "lane1"]', '["lane1"]'],
+  ['strip', 'lane icon size not used', 'Group.lua', '\tif type(w) == "number" then\n\t\treturn w\n\tend\n\treturn nil\n', '\treturn nil\n'],
+  ['strip', 'new width not remembered', 'Group.lua', '\t\tst:SetWidth(w)\n\t\tst.cdtl3Width = w\n', '\t\tst:SetWidth(w)\n'],
+  ['strip', 'no retry while the width is missing', 'Group.lua', '\telseif not st.cdtl3Width then\n\t\tSetStripWidth(st, f)\n', ''],
+  ['strip', 'width set every tick', 'Group.lua', '\telseif not st.cdtl3Width then\n', '\telseif true then\n'],
+  ['strip', 'no height without a width', 'Group.lua', '\telse\n\t\tst:SetHeight(4)\n', '\telse\n'],
+
   // Version of the personal build (all TOC files and CDTL3.lua), derived from the current version so
   // the probes keep working after a release's version lines come back (README "Versions")
   ...versionProbes(),
@@ -134,5 +150,5 @@ const st = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'Cool
 for (const [patch, c] of Object.entries(perPatch)) console.log(`${patch}: ${c.red}/${c.probes} red`);
 console.log(`${red}/${M.length} red; addon tree ${st ? 'DIRTY' : 'clean'}`);
 if (red !== M.length || st || perPatch.seal.probes < 6 || perPatch.cast.probes < 6
-    || perPatch.flight.probes < 3 || perPatch.news.probes < 3 || perPatch.border.probes < 6
+    || perPatch.flight.probes < 3 || perPatch.news.probes < 3 || perPatch.border.probes < 6 || perPatch.strip.probes < 6
     || perPatch.version.probes < 3) process.exitCode = 1;

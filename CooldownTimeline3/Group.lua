@@ -312,13 +312,45 @@ private.EndEffect = function(spellName)
 	end
 end
 
-local function StripFor(ic)
+-- LOCAL PATCH (Zippy, 2026-11-17): effect strip tolerates hidden geometry. An icon that rides a
+-- combat timer hangs on the fill of a StatusBar with a hidden (secret) value (CombatTimers.lua,
+-- private.PlaceIcon); anchors pass that on, so the icon and its strip report a secret width, which
+-- addon code can neither compute with nor hand to SetWidth or SetSize. The width then comes from
+-- what CDTL3 itself set: the icon's size from its lane's settings (RefreshIcon sizes the icon by
+-- them) and the strip's last width. A readable width is used as in the release; with no readable
+-- source the step is skipped. Any other error still goes up (no pcall).
+private.Hidden = function(v)
+	return issecretvalue and issecretvalue(v) or false
+end
+
+private.IconWidth = function(f)
+	local w = f.icon:GetWidth()
+	if not private.Hidden(w) then
+		return w
+	end
+	local n = f.data["lane"]
+	local s = CDTL3.db.profile.lanes[(n == 2 or n == 3) and ("lane" .. n) or "lane1"]
+	w = s and s["icons"] and s["icons"]["size"]
+	if type(w) == "number" then
+		return w
+	end
+	return nil
+end
+
+-- LOCAL PATCH (Zippy, 2026-11-17): takes the timer too, for the icon's width (private.IconWidth)
+local function StripFor(ic, f)
 	local st = ic.cdtl3Strip
 	if st then
 		return st
 	end
 	st = CreateFrame("Frame", nil, ic)
-	st:SetSize(ic:GetWidth(), 4)
+	-- LOCAL PATCH (Zippy, 2026-11-17): a readable width only (the first tick sets and remembers it again)
+	local w = private.IconWidth(f)
+	if w then
+		st:SetSize(w, 4)
+	else
+		st:SetHeight(4)
+	end
 	st:SetPoint("BOTTOMLEFT", ic, "TOPLEFT", 0, 2)
 	st.bg = st:CreateTexture(nil, "BACKGROUND")
 	st.bg:SetAllPoints()
@@ -333,6 +365,16 @@ local function StripFor(ic)
 	st.time:SetPoint("LEFT", st.name, "RIGHT", 3, 0)
 	ic.cdtl3Strip = st
 	return st
+end
+
+-- LOCAL PATCH (Zippy, 2026-11-17): sets the strip's width from a readable source only and remembers it
+-- for the fill (private.IconWidth); with no source the width stays as it is
+local function SetStripWidth(st, f)
+	local w = private.IconWidth(f)
+	if w then
+		st:SetWidth(w)
+		st.cdtl3Width = w
+	end
 end
 
 -- Called from IconUpdate (Cooldown.lua) while any effect is live: draws the strip on the spell's icon
@@ -352,7 +394,7 @@ function CDTL3:EffectStripTick(f)
 	end
 
 	local ic = f.icon
-	local st = StripFor(ic)
+	local st = StripFor(ic, f)	-- LOCAL PATCH (Zippy, 2026-11-17): the timer for the icon's width
 	if not st.named then
 		local font = CDTL3.LSM:Fetch("font", "Fira Sans Condensed")
 		if font then
@@ -364,7 +406,10 @@ function CDTL3:EffectStripTick(f)
 		st.fill:SetColorTexture(private.ClassColor(ex.class))
 		st.named = true
 		st:SetAlpha(ex.estimated and 0.6 or 1)
-		st:SetWidth(ic:GetWidth())
+		SetStripWidth(st, f)	-- LOCAL PATCH (Zippy, 2026-11-17): a readable width only, remembered for the fill
+	-- LOCAL PATCH (Zippy, 2026-11-17): no width yet (no readable source when the effect started): try every tick
+	elseif not st.cdtl3Width then
+		SetStripWidth(st, f)
 	end
 	if not st.shown then
 		st:Show()
@@ -374,7 +419,15 @@ function CDTL3:EffectStripTick(f)
 	if frac > 1 then
 		frac = 1
 	end
-	st.fill:SetWidth(math.max(0.1, st:GetWidth() * frac))
+	-- LOCAL PATCH (Zippy, 2026-11-17): while the strip's width reads back hidden, the width it was last
+	-- given; with none the fill keeps its width
+	local sw = st:GetWidth()
+	if private.Hidden(sw) then
+		sw = st.cdtl3Width
+	end
+	if sw then
+		st.fill:SetWidth(math.max(0.1, sw * frac))
+	end
 	local now = GetTime()
 	if not st.nextText or now >= st.nextText then
 		st.time:SetText(string.format("%.1f", left))
