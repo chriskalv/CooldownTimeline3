@@ -1,5 +1,6 @@
-// Mutation probes for the six local patches and the version of the personal build (and two for the release's Custom CD start, which the
-// seal tests also cover): each probe breaks one line of an addon file on disk, runs every
+// Mutation probes for the five local patches and the version of the personal build (and probes for two
+// pieces of the release that replaced local patches and keep their tests: the Custom CD start, which
+// the seal tests also cover, and the border fix of 3.2.2): each probe breaks one line of an addon file on disk, runs every
 // simulation (at least one must exit red), then restores the file with git checkout. At the end
 // the addon folder must be clean again. Strings are written with LF; they are matched against
 // the CRLF files of the release.
@@ -92,17 +93,22 @@ const M = [
   ['news', '/cdtl3 whatsnew removed', 'CDTL3.lua', '\telseif input:trim() == "whatsnew" then\n\t\tCDTL3:ShowWhatsNew()\n', ''],
   ['news', 'first-install tour dropped too', 'CDTL3.lua', '\t\t\tCDTL3.Start:StartTour()\n', ''],
 
-  // Border frames tolerate hidden geometry (Helpers.lua)
-  ['border', 'guard not installed', 'Helpers.lua', '\t\tf.SetupTextureCoordinates = private.BorderCoords\n', ''],
-  ['border', 'guard always on', 'Helpers.lua', '\treturn issecretvalue(f:GetWidth()) or issecretvalue(f:GetHeight())\n', '\treturn true\n'],
-  ['border', 'guard never on', 'Helpers.lua', '\treturn issecretvalue(f:GetWidth()) or issecretvalue(f:GetHeight())\n', '\treturn false\n'],
-  ['border', 'guard swallows every error (pcall)', 'Helpers.lua', '\tf.cdtl3SetupCoords(f)\n', '\tpcall(f.cdtl3SetupCoords, f)\n'],
-  ['border', 'installed again on every SetBorder', 'Helpers.lua', 'if issecretvalue and f.SetupTextureCoordinates and not f.cdtl3SetupCoords then', 'if issecretvalue and f.SetupTextureCoordinates then'],
-  ['border', 'installed on a client without secrets', 'Helpers.lua', 'if issecretvalue and f.SetupTextureCoordinates and not f.cdtl3SetupCoords then', 'if f.SetupTextureCoordinates and not f.cdtl3SetupCoords then'],
-  ['border', 'no retry after a skip', 'Helpers.lua', '\t\t\tf:SetScript("OnUpdate", private.BorderCoordsRetry)\n', '\t\t\t-- no retry\n'],
-  ['border', 'retry replaces another OnUpdate', 'Helpers.lua', '\t\tif not f:GetScript("OnUpdate") then\n', '\t\tif true then\n'],
-  ['border', 'retry never ends', 'Helpers.lua', '\tf:SetScript("OnUpdate", nil)\n\tif f.backdropInfo then', '\tif f.backdropInfo then'],
-  ['border', 'retry works out a cleared border', 'Helpers.lua', '\tif f.backdropInfo then\n\t\tf:SetupTextureCoordinates()\n', '\tif true then\n\t\tf:SetupTextureCoordinates()\n'],
+  // the release's border fix (Helpers.lua, 3.2.2), which replaced the local patch Border frames tolerate
+  // hidden geometry: border_secret stays as a regression test against it
+  ['border', 'guard not installed', 'Helpers.lua', '\t\tf.SetupTextureCoordinates = private.BorderTexCoords\n', ''],
+  ['border', 'guard always on', 'Helpers.lua', '\treturn not ok or hidden\n', '\treturn true\n'],
+  ['border', 'guard never on', 'Helpers.lua', '\treturn not ok or hidden\n', '\treturn false\n'],
+  ['border', 'unreadable answer counts as plain', 'Helpers.lua', '\treturn not ok or hidden\n', '\treturn ok and hidden\n'],
+  ['border', 'guard swallows every error (pcall)', 'Helpers.lua', '\tBackdropTemplateMixin.SetupTextureCoordinates(f)\nend\n\nfunction CDTL3:SetBorder', '\tpcall(BackdropTemplateMixin.SetupTextureCoordinates, f)\nend\n\nfunction CDTL3:SetBorder'],
+  ['border', 'installed on a client without hidden sizes', 'Helpers.lua', 'if f.IsAnchoringSecret and BackdropTemplateMixin and', 'if BackdropTemplateMixin and'],
+  ['border', 'no retry after a skip', 'Helpers.lua', '\t\t\tf:SetScript("OnUpdate", private.RetileWhenPlain)\n', '\t\t\t-- no retry\n'],
+  ['border', 'retry never ends', 'Helpers.lua', '\tf.cdtl3Retile = nil\n\tf:SetScript("OnUpdate", nil)\n\tBackdropTemplateMixin', '\tf.cdtl3Retile = nil\n\tBackdropTemplateMixin'],
+  ['border', 'retry tiles while hidden', 'Helpers.lua', 'private.RetileWhenPlain = function(f)\n\tif private.SizeHidden(f) then\n\t\treturn\n\tend\n', 'private.RetileWhenPlain = function(f)\n'],
+  ['border', 'a plain size leaves the retry waiting', 'Helpers.lua', '\tif f.cdtl3Retile then\n\t\tf.cdtl3Retile = nil\n\t\tf:SetScript("OnUpdate", nil)\n\tend\n', ''],
+  ['border', 'a new backdrop table every time', 'Helpers.lua', 'if not (b and b.bgFile == bgFile', 'if true or not (b and b.bgFile == bgFile'],
+  ['border', 'a new edge size keeps the old backdrop', 'Helpers.lua', 'b.edgeFile == edgeFile and b.edgeSize == s["size"] and', 'b.edgeFile == edgeFile and'],
+  ['border', 'a new style keeps the old backdrop', 'Helpers.lua', 'b.bgFile == bgFile and b.edgeFile == edgeFile and', 'b.bgFile == bgFile and'],
+  ['border', 'a new inset keeps the old backdrop', 'Helpers.lua', ' and b.insets.left == inset) then', ') then'],
 
   // Effect strip tolerates hidden geometry (Group.lua)
   ['strip', 'icon width guard removed', 'Group.lua', '\tif not private.Hidden(w) then\n\t\treturn w\n', '\tif true then\n\t\treturn w\n'],

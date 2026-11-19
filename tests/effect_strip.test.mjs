@@ -16,6 +16,8 @@ const cooldown = readAddon('Cooldown.lua');
 // The geometry reads (secret at a frame with secret anchoring, SimpleScriptRegionAPIDocumentation.lua)
 // in code, comments left out, per file, as reviewed on 2026-11-17. Group.lua's two GetWidth are the
 // patch's own (private.IconWidth and the fill); everything else is listed in the review (README).
+// Helpers.lua has none since 3.2.2: the release's border fix asks IsAnchoringSecret instead of
+// reading the size (the two reads were the dropped local border patch's).
 const REVIEWED = {
   'Anchors.lua': 'GetLeft 2, GetRect 1',
   'BarFrames.lua': 'GetPoint 1',
@@ -26,7 +28,6 @@ const REVIEWED = {
   'Cooldown.lua': 'IsMouseOver 6',
   'FightTimeline.lua': 'GetPoint 1',
   'Group.lua': 'GetCenter 2, GetWidth 2',
-  'Helpers.lua': 'GetHeight 1, GetWidth 1',
   'Holders.lua': 'GetHeight 2',
   'IconFx.lua': 'GetWidth 1',
   'Lanes.lua': 'GetCenter 4, GetPoint 1',

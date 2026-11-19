@@ -1,5 +1,5 @@
--- Stub world for the local patch Border frames tolerate hidden geometry (border_secret.test.mjs):
--- frames with anchors, secret numbers and a backdrop mixin that does what Blizzard's does with the
+-- Stub world for the border fix of the release 3.2.2 (border_secret.test.mjs; until 3.2.1.1 a local
+-- patch): frames with anchors, secret numbers and a backdrop mixin that does what Blizzard's does with the
 -- size (BackdropTemplateMixin in Blizzard_SharedXML/Backdrop.lua, WoW Forever build 70938):
 -- OnSizeChanged -> OnBackdropSizeChanged -> self:SetupTextureCoordinates() while a backdrop is set,
 -- SetBackdrop -> ApplyBackdrop -> self:SetupTextureCoordinates(), and SetupTextureCoordinates
@@ -78,6 +78,14 @@ function Region:Size()
 	end
 	return self.w, self.h
 end
+-- the game's ScriptRegion:IsAnchoringSecret (SimpleScriptRegionAPIDocumentation, build 70938). Its
+-- answer can itself be secret (SecretReturnsForAspect ObjectSecrets); a region marked answerSecret
+-- stands for that: testing the answer throws, as a secret boolean does in addon code
+function Region:IsAnchoringSecret()
+	if self.answerSecret then error("attempt to perform boolean test on a secret boolean value", 2) end
+	return self:AnchoringSecret()
+end
+REGION = Region
 function Region:GetWidth()
 	if self:AnchoringSecret() then return Secret() end
 	return (self:Size())

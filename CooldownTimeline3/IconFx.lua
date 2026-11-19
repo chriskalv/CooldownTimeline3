@@ -1290,7 +1290,8 @@ function FX:AddEntryArgs(args, t)
 	args["warnSecs"] = {
 		name = L["Warn before ready (seconds)"],
 		desc = L["Pulses its icon with an orange border in its last seconds before it's ready, so you can hold a pull or a potion. 0 is off. On Retail and Forever, while the time is hidden in combat, it's timed from CDTL3's own estimate."],
-		order = 761, type = "range", min = 0, max = 120, step = 1,
+		-- 1.5 wide: at the standard 170px the label was cut to "Warn before ready (seco..."
+		order = 761, type = "range", min = 0, max = 120, step = 1, width = 1.5,
 		hidden = hidden,
 		get = function(info) return get("warnSecs", 0) end,
 		set = function(info, val) apply("warnSecs", val > 0 and val or nil) end,

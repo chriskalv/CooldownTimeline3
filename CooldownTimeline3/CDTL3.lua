@@ -74,9 +74,7 @@ CDTL3.Compat = {
 	end,
 }
 
--- LOCAL PATCH (Zippy, 2026-11-16): personal build 3.2.1.1 on the release 3.2.1 (the fourth part counts
--- local builds between releases; LastSeenOlderThan compares any number of parts)
-CDTL3.version = "3.2.1.1"
+CDTL3.version = "3.2.2"
 -- the welcome window (GetSpecialMessage + changelog) opens once for anyone whose last seen version is older
 CDTL3.noticeVersion = "3.2"
 CDTL3.cdUID = 999

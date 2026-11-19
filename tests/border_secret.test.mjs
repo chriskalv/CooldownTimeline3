@@ -1,11 +1,13 @@
-// Tests for the local patch Border frames tolerate hidden geometry (2026-11-16) and the version of
-// the personal build. Static: every backdrop in the addon is set through CDTL3:SetBorder, the icon
-// border and highlight use it, and the version is the same in all TOC files, CDTL3.version and
+// Regression tests for the release's border fix (CDTL3 3.2.2; until the personal build 3.2.1.1 the
+// local patch Border frames tolerate hidden geometry did this) and the version of the personal build.
+// Static: every backdrop in the addon is set through CDTL3:SetBorder, the icon border and highlight
+// use it, nothing clears a backdrop and no frame given to SetBorder gets an OnUpdate script of its own
+// (the fix's retry would replace it), and the version is the same in all TOC files, CDTL3.version and
 // tools/release.mjs (a personal build's fourth part with LOCAL PATCH comments, a plain release
-// version without them, see README "Versions"). Then the real CDTL3:SetBorder and its helpers from Helpers.lua run in fengari on
-// the stub world of border_secret_env.lua (frames with anchors, secret numbers that throw on
-// arithmetic, a backdrop mixin that computes with the size like Blizzard's); scenarios in
-// border_secret_spec.lua. Last, the real CDTL3:LastSeenOlderThan with four-part versions.
+// version without them, see README "Versions"). Then the real CDTL3:SetBorder and its helpers from
+// Helpers.lua run in fengari on the stub world of border_secret_env.lua (frames with anchors, secret
+// numbers that throw on arithmetic, a backdrop mixin that computes with the size like Blizzard's);
+// scenarios in border_secret_spec.lua. Last, the real CDTL3:LastSeenOlderThan with the version.
 import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { ADDON, readAddon, readTest, pick, runLua, report } from './lua_harness.mjs';
@@ -31,9 +33,20 @@ const backdropCalls = files.flatMap((f) => (readAddon(f).match(/:SetBackdrop\(/g
 check(backdropCalls.length === 1 && backdropCalls[0] === 'Helpers.lua', `SetBackdrop only in Helpers.lua (${backdropCalls.join(', ')})`);
 let setBorder = '';
 try { setBorder = pick(helpers, ['CDTL3:SetBorder'], 'Helpers.lua'); } catch (e) { check(false, e.message); }
-check(setBorder.includes('f:SetBackdrop({'), 'the SetBackdrop call is in CDTL3:SetBorder');
-check(/f\.SetupTextureCoordinates = private\.BorderCoords\n[^]*f:SetBackdrop\(\{/.test(setBorder),
+check(setBorder.includes('f:SetBackdrop(b)'), 'the SetBackdrop call is in CDTL3:SetBorder');
+check(/f\.SetupTextureCoordinates = private\.BorderTexCoords\n[^]*f:SetBackdrop\(b\)/.test(setBorder),
   'SetBorder routes the texture coordinates through the guard before it sets the backdrop');
+check(!/LOCAL PATCH/.test(setBorder), 'CDTL3:SetBorder is the release\'s again (no local patch left in it)');
+// the two cases the local patch also guarded and the release's retry does not (a cleared backdrop, an
+// OnUpdate script of the frame's own) cannot happen in the addon: nothing clears a backdrop, and the
+// frames given to SetBorder (f.bd, f.mf.bd, f.hl and the welcome window's local border) get no script
+const clears = files.filter((f) => /ClearBackdrop|SetBackdrop\(\s*nil/.test(readAddon(f)));
+check(clears.length === 0, `no backdrop is cleared (${clears.join(', ')})`);
+const targets = files.flatMap((f) => [...readAddon(f).matchAll(/CDTL3:SetBorder\(([^,]+),/g)].map((m) => m[1].trim()));
+check(targets.length >= 8 && targets.every((t) => ['f', 'f.bd', 'f.mf.bd', 'f.hl', 'border'].includes(t)),
+  `SetBorder is given only f.bd, f.mf.bd, f.hl or a local border (${[...new Set(targets)].join(', ')})`);
+const scripted = files.filter((f) => /(\.bd|\.hl|\bborder):(SetScript|HookScript)\(\s*"OnUpdate"/.test(readAddon(f)));
+check(scripted.length === 0, `no border frame gets an OnUpdate script of its own (${scripted.join(', ')})`);
 check(cooldown.includes('CDTL3:SetBorder(f.bd, s["icons"]["border"])') && cooldown.includes('CDTL3:SetBorder(f.hl, s["icons"]["highlight"]["border"])'),
   'Cooldown.lua: icon border and highlight are set through CDTL3:SetBorder');
 
@@ -74,8 +87,8 @@ let chunks;
 try {
   chunks = [
     ['env', readTest('border_secret_env.lua')],
-    ['Helpers.lua', `do local private = {}\n${pick(helpers, ['private.SizeHidden', 'private.BorderCoordsRetry',
-      'private.BorderCoords', 'CDTL3:SetBorder'], 'Helpers.lua')}\nHELPERS = private\nend`],
+    ['Helpers.lua', `do local private = {}\n${pick(helpers, ['private.AnchoringHidden', 'private.SizeHidden',
+      'private.RetileWhenPlain', 'private.BorderTexCoords', 'CDTL3:SetBorder'], 'Helpers.lua')}\nHELPERS = private\nend`],
   ];
 } catch (e) {
   check(false, e.message);
