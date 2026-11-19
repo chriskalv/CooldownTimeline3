@@ -74,7 +74,7 @@ CDTL3.Compat = {
 	end,
 }
 
-CDTL3.version = "3.2.1"
+CDTL3.version = "3.2.2"
 -- the welcome window (GetSpecialMessage + changelog) opens once for anyone whose last seen version is older
 CDTL3.noticeVersion = "3.2"
 CDTL3.cdUID = 999

@@ -77,7 +77,8 @@ private.AddBorderArgs = function(args, base, border, refresh, first)
 	first = first or base + 1
 
 	args["border"] = {
-		name = "                    " .. L["Border Texture"],
+		-- no leading spaces: the menu's label starts right of its 42px preview square, so padding cut it off
+		name = L["Border Texture"],
 		desc = L["Selects the border texture"],
 		order = first,
 		type = "select",
@@ -603,6 +604,11 @@ function CDTL3:GetChangeLog()
 	changeLog = changeLog.."CDTL3 continues Cooldown Timeline for Retail (Midnight), Classic Era,\n"
 	changeLog = changeLog.."TBC Anniversary, MoP Classic and World of Warcraft: Forever,\n"
 	changeLog = changeLog.."based on the original by Vreenak and the v2 rewrite by cliffclive.\n\n"
+	changeLog = changeLog.."Changelog 3.2.2:\n\n"
+	changeLog = changeLog.."  - Icon borders no longer throw \"secret number value\" errors in combat on\n"
+	changeLog = changeLog.."    Retail and WoW: Forever. Thanks to TeZwo for posting the full error\n"
+	changeLog = changeLog.."  - Border Texture and Warn before ready (seconds) are no longer cut off\n"
+	changeLog = changeLog.."    in the settings\n\n"
 	changeLog = changeLog.."Changelog 3.2.1:\n\n"
 	changeLog = changeLog.."  - /cdtl3 tour takes the three-step tour again, and /cdtl3 whatsnew opens\n"
 	changeLog = changeLog.."    this window any time. Both are on the Help tab with a Run button\n\n"
@@ -6149,7 +6155,7 @@ private.GetLaneSet = function(i)
 							end,
 					},
 					hlBorder = {
-						name = "                    " .. L["Border Texture"],
+						name = L["Border Texture"],
 						desc = L["Selects the border texture"],
 						order = 501,
 						hidden = function(info)

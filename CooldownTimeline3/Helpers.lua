@@ -2380,18 +2380,75 @@ function CDTL3:ScanCurrentCooldowns(class, race)
 	end
 end
 
+-- BORDERS AND HIDDEN SIZES (GitHub issue 9). Blizzard's BackdropTemplate works out a border's edge
+-- tiling from the frame's own size (Backdrop.lua SetupTextureCoordinates), on SetBackdrop and on every
+-- size change. In combat a spell icon rides the game's timer bar (CombatTimers.lua), and the game hides
+-- the size of anything hanging on that bar (GetWidth is "SecretWhenAnchoringSecret"), still for a moment
+-- after it leaves: from 3.1.0 a bordered icon threw "attempt to perform arithmetic on local 'width'".
+-- So a border keeps its backdrop table while its settings stay the same (SetBackdrop then does nothing),
+-- and where sizes can be hidden each border frame gets its own SetupTextureCoordinates: it waits while
+-- the size is hidden and tiles on the first frame the size reads plain.
+private.AnchoringHidden = function(f)
+	if f:IsAnchoringSecret() then
+		return true
+	end
+	return false
+end
+
+private.SizeHidden = function(f)
+	local ok, hidden = pcall(private.AnchoringHidden, f)
+	return not ok or hidden
+end
+
+-- OnUpdate of a border that waits: tiles it on the first frame its size reads plain
+private.RetileWhenPlain = function(f)
+	if private.SizeHidden(f) then
+		return
+	end
+	f.cdtl3Retile = nil
+	f:SetScript("OnUpdate", nil)
+	BackdropTemplateMixin.SetupTextureCoordinates(f)
+end
+
+private.BorderTexCoords = function(f)
+	if private.SizeHidden(f) then
+		if not f.cdtl3Retile then
+			f.cdtl3Retile = true
+			f:SetScript("OnUpdate", private.RetileWhenPlain)
+		end
+		return
+	end
+	if f.cdtl3Retile then
+		f.cdtl3Retile = nil
+		f:SetScript("OnUpdate", nil)
+	end
+	BackdropTemplateMixin.SetupTextureCoordinates(f)
+end
+
 function CDTL3:SetBorder(f, s)
 	local inset = s["inset"]
 	local padding = s["padding"]
 
-	f:SetBackdrop({
-		bgFile = CDTL3.LSM:Fetch("background", "None"),
-		edgeFile = CDTL3.LSM:Fetch("border", s["style"]),
-		tile = false,
-		tileSize = 0,
-		edgeSize = s["size"],
-		insets = { left = inset, right = inset, top = inset, bottom = inset }
-	})
+	-- only clients that can hide a size have IsAnchoringSecret (Retail, Forever)
+	if f.IsAnchoringSecret and BackdropTemplateMixin and BackdropTemplateMixin.SetupTextureCoordinates then
+		f.SetupTextureCoordinates = private.BorderTexCoords
+	end
+
+	local bgFile = CDTL3.LSM:Fetch("background", "None")
+	local edgeFile = CDTL3.LSM:Fetch("border", s["style"])
+	local b = f.cdtl3Backdrop
+	if not (b and b.bgFile == bgFile and b.edgeFile == edgeFile and b.edgeSize == s["size"] and b.insets.left == inset) then
+		b = {
+			bgFile = bgFile,
+			edgeFile = edgeFile,
+			tile = false,
+			tileSize = 0,
+			edgeSize = s["size"],
+			insets = { left = inset, right = inset, top = inset, bottom = inset }
+		}
+		f.cdtl3Backdrop = b
+	end
+	f:SetBackdrop(b)
 	f:SetBackdropBorderColor(
 		s["color"]["r"],
 		s["color"]["g"],
