@@ -5,7 +5,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { here, ADDON, readAddon, readTest, pick, range } from './lua_harness.mjs';
+import { here, ADDON, readAddon, readTest, pick, range, slots } from './lua_harness.mjs';
 
 const require = createRequire(import.meta.url);
 const NM = path.join(here, '..', 'node_modules');
@@ -119,6 +119,7 @@ const c = src.cdtl3, h = src.helpers;
 let code = '';
 try {
   code = [
+    slots(c),
     pick(c, ['CDTL3.unitEventFrame'], 'CDTL3.lua'),
     range(c, 'CDTL3.unitEventFrame:SetScript', 'function CDTL3:RegisterUnitEvents', 'CDTL3.lua'),
     pick(c, ['CDTL3:RegisterUnitEvents'], 'CDTL3.lua'),
@@ -127,6 +128,11 @@ try {
     'do local private = {}',
     pick(h, ['CDTL3:InBossFight', 'CDTL3:ShowRuleHides', 'CDTL3:CastRuleHides', 'private.AnyShowRule',
       'CDTL3:Autohide', 'CDTL3:ApplyCombatVisibility'], 'Helpers.lua'),
+    'end',
+    // the release's Show and hide animations (3.3.0): one group per frame and direction
+    'do local private = {}',
+    pick(readAddon('Lanes.lua'), ['private.ANIM_LIMITS', 'local Clamp', 'private.ReadAnim', 'private.AnimShape',
+      'private.ConfigAnim', 'private.BuildAnim', 'CDTL3:SetFadeAnimations'], 'Lanes.lua'),
     'end',
   ].join('\n');
   check(true);

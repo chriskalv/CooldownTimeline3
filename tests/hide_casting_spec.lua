@@ -330,4 +330,109 @@ reset(); gl.hideWhileCasting = true; CAST = "Fireball"; CDTL3:TurnOn()
 fire("UNIT_SPELLCAST_STOP", "player"); CDTL3:TurnOff(); nextFrame()
 check(CDTL3.casting == false and visible(), "a recheck after TurnOff leaves the state cleared")
 
+-- (d) Hide while casting with the release's Show and hide tab (3.3.0): every lane, bar frame and
+-- ready frame shows and hides with its own animation (Fade or Scale, length, loops, Bounce), the
+-- real groups of CDTL3:SetFadeAnimations (Lanes.lua) on the timed animation stub of the env. For
+-- each shape, with Auto-hide Frames on and off, a frame alpha of 1 and 0.8, Autohide only on the
+-- cast edges or on every frame, and casts shorter than, about as long as and longer than the hide
+-- animation, then a second cast right after: the frames are fully hidden at the end of a long cast,
+-- never come back during a cast, never go away again after it, and always end at their own alpha
+-- and scale with no animation left running (nothing hangs, nothing flickers).
+local SAVED_FR = FR
+local DT = 0.05
+local function settle(n, everyFrame)
+	for _ = 1, n do
+		nextFrame()
+		tickAnims(DT)
+		if everyFrame then
+			for _, k in ipairs({ "lane", "bar", "ready" }) do CDTL3:Autohide(FR[k], FR[k].cdtl3S) end
+		end
+	end
+end
+local function steps(t) return math.floor(t / DT + 0.5) end
+local shapes = {}
+for _, ty in ipairs({ "FADE", "SCALE" }) do
+	for _, loops in ipairs({ 1, 3 }) do
+		for _, bounce in ipairs({ false, true }) do
+			for _, dur in ipairs({ 0.3, 3 }) do
+				shapes[#shapes + 1] = { type = ty, loops = loops, bounce = bounce, duration = dur }
+			end
+		end
+	end
+end
+local function anim(sh, hide)
+	local from, to = hide and 1 or 0, hide and 0 or 1
+	if sh.type == "SCALE" then from, to = hide and 1 or 0.5, hide and 0.5 or 1 end
+	return { type = sh.type, duration = sh.duration, from = from, to = to, loops = sh.loops, bounce = sh.bounce }
+end
+local function total(sh) return sh.duration * sh.loops end
+local cases = 0
+for _, hideSh in ipairs(shapes) do
+for _, showSh in ipairs({ shapes[1], shapes[#shapes], hideSh }) do
+for _, autohide in ipairs({ false, true }) do
+for _, fAlpha in ipairs({ 1, 0.8 }) do
+for _, everyFrame in ipairs({ false, true }) do
+for _, castLen in ipairs({ 0.05, total(hideSh) / 2, total(hideSh) + 0.5 }) do
+	reset()
+	ANIM_GROUPS = {}
+	gl.hideWhileCasting, gl.autohide = true, autohide
+	FR = { lane = newAnimFrame(1), bar = newAnimFrame(1), ready = newAnimFrame(1) }
+	local all = { lane = p.lanes.lane1, bar = p.barFrames.frame1, ready = p.ready.ready1 }
+	for k, st in pairs(all) do
+		st.alpha, st.showAnim, st.hideAnim = fAlpha, anim(showSh, false), anim(hideSh, true)
+		FR[k].alpha, FR[k].cdtl3S = fAlpha, st
+		CDTL3:SetFadeAnimations(FR[k], fAlpha, st)
+	end
+	CDTL3:TurnOn()
+	local tag = string.format("anim hide=%s%d%s/%.1f show=%s%d%s/%.1f autohide=%s alpha=%.1f %s cast=%.2f",
+		hideSh.type, hideSh.loops, hideSh.bounce and "b" or "", hideSh.duration,
+		showSh.type, showSh.loops, showSh.bounce and "b" or "", showSh.duration,
+		tostring(autohide), fAlpha, everyFrame and "every-frame" or "edges", castLen)
+	local function each(fn) local ok = true; for _, k in ipairs({ "lane", "bar", "ready" }) do ok = ok and fn(FR[k]) end; return ok end
+	local function atRest() return each(function(f)
+		return math.abs(f.alpha - fAlpha) < 1e-9 and f.scale == 1 and not f.animateIn:IsPlaying() and not f.animateOut:IsPlaying()
+	end) end
+	check(atRest(), tag .. ": shown at rest before the cast")
+	for castNo = 1, 2 do
+		local ins = each(function(f) f.inBefore = f.plays.animateIn; f.outBefore = f.plays.animateOut; return true end)
+		CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+		settle(steps(castLen), everyFrame)
+		check(each(function(f) return f.plays.animateIn == f.inBefore end), tag .. " #" .. castNo .. ": no show animation during the cast")
+		check(each(function(f) return f.plays.animateOut <= f.outBefore + 1 end), tag .. " #" .. castNo .. ": the hide animation plays at most once per cast")
+		if castLen > total(hideSh) then
+			check(each(function(f) return f.alpha == 0 and f.scale == 1 and not f.animateOut:IsPlaying() end),
+				tag .. " #" .. castNo .. ": fully hidden at the end of a long cast")
+		end
+		local outAtEnd = each(function(f) f.outAtEnd = f.plays.animateOut; f.inAtEnd = f.plays.animateIn; return true end)
+		CAST = nil; fire("UNIT_SPELLCAST_STOP", "player")
+		settle(steps(total(showSh) + 0.2), everyFrame)
+		check(each(function(f) return f.plays.animateOut == f.outAtEnd end), tag .. " #" .. castNo .. ": no hide animation after the cast")
+		check(each(function(f) return f.plays.animateIn <= f.inAtEnd + 1 end), tag .. " #" .. castNo .. ": the show animation plays at most once after the cast")
+		check(atRest(), tag .. " #" .. castNo .. ": back at its own alpha and scale, nothing running (" .. FR.lane.alpha .. "/" .. FR.bar.alpha .. "/" .. FR.ready.alpha .. ")")
+	end
+	-- a cast that starts while the show animation of the last one still runs
+	CAST = "Fireball"; fire("UNIT_SPELLCAST_START", "player")
+	settle(steps(total(hideSh) + 0.5), everyFrame)
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player")
+	settle(2, everyFrame)
+	CAST = "Frostbolt"; fire("UNIT_SPELLCAST_START", "player")
+	settle(steps(total(hideSh) + 0.5), everyFrame)
+	check(each(function(f) return f.alpha == 0 and not f.animateIn:IsPlaying() and not f.animateOut:IsPlaying() end),
+		tag .. ": a cast during the show animation hides the frames again")
+	CAST = nil; fire("UNIT_SPELLCAST_STOP", "player")
+	settle(steps(total(showSh) + 0.2), everyFrame)
+	check(atRest(), tag .. ": back at rest after the chained casts")
+	CDTL3:TurnOff()
+	cases = cases + 1
+end
+end
+end
+end
+end
+end
+check(cases == 16 * 3 * 2 * 2 * 2 * 3, "animation cases run: " .. cases)
+FR = SAVED_FR
+ANIM_GROUPS = {}
+reset()
+
 return results

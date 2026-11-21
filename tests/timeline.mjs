@@ -44,8 +44,12 @@ export function extract(srcs) {
   out.push('do local private = {}', h.slice(any0, any1));
   pick(h, ['InBossFight', 'ShowRuleHides', 'CastRuleHides', 'Autohide', 'ApplyCombatVisibility']);
   out.push('end');
+  // CDTL3.lua's slot lookups (3.3.0): ApplyCombatVisibility finds the ready frames through CDTL3:SlotFrame
+  const s0 = c.indexOf('-- Lane, bar frame and ready frame 1 to 3 by number');
+  const s1 = c.indexOf('CDTL3.version = ');
+  if (s0 < 0 || s1 < s0) throw new Error('slot lookups not found');
   // cast block holds locals: keep it in one chunk together with the rest
-  return c.slice(a, b) + '\n' + out.join('\n');
+  return c.slice(s0, s1) + '\n' + c.slice(a, b) + '\n' + out.join('\n');
 }
 
 export function load() {

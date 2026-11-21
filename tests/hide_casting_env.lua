@@ -82,3 +82,90 @@ function ResetFrameSettings()
 	p.lanes.lane1, p.barFrames.frame1, p.ready.ready1 = frameSettings(), frameSettings(), frameSettings()
 end
 CDTL3_Ready_1 = true
+
+-- Frames with the release's own Show and hide animations (3.3.0, CDTL3:SetFadeAnimations in
+-- Lanes.lua): animation groups that run in game time, as in the client. While a group plays, its
+-- Alpha (and Scale) animation drives the frame's alpha (and scale), and GetAlpha reads the driven
+-- value; when it stops (Stop) or runs to its end the frame is back at the alpha it had before
+-- Play; only a group that ran to its end calls OnFinished (requested false), where the release
+-- sets the frame's resting alpha. ANIM_GROUPS lists every group so tickAnims can run them.
+ANIM_GROUPS = {}
+local function newAnim(kind)
+	local a = { kind = kind, duration = 0, order = 1 }
+	function a:SetDuration(d) self.duration = d end
+	function a:SetOrder(o) self.order = o end
+	function a:SetSmoothing() end
+	function a:SetOrigin() end
+	function a:SetFromAlpha(v) self.fromA = v end
+	function a:SetToAlpha(v) self.toA = v end
+	function a:SetScaleFrom(x) self.fromS = x end
+	function a:SetScaleTo(x) self.toS = x end
+	return a
+end
+function newAnimFrame(childCount)
+	local f = { alpha = 1, scale = 1, childCount = childCount or 1, plays = { animateIn = 0, animateOut = 0 } }
+	function f:GetAlpha() return self.alpha end
+	function f:SetAlpha(v) self.alpha = v end
+	function f:CreateAnimationGroup()
+		local g = { anims = {}, playing = false, t = 0, frame = f, scripts = {} }
+		function g:SetLooping() end
+		function g:CreateAnimation(kind) local a = newAnim(kind); self.anims[#self.anims + 1] = a; return a end
+		function g:SetScript(name, fn) self.scripts[name] = fn end
+		function g:IsPlaying() return self.playing end
+		function g:Total()
+			local per = {}
+			for _, a in ipairs(self.anims) do per[a.order] = math.max(per[a.order] or 0, a.duration) end
+			local sum = 0
+			for _, d in pairs(per) do sum = sum + d end
+			return sum
+		end
+		function g:Apply()
+			-- the animations of the current order drive the frame
+			local t, start = self.t, 0
+			for order = 1, 100 do
+				local d = 0
+				for _, a in ipairs(self.anims) do if a.order == order then d = math.max(d, a.duration) end end
+				if d == 0 then break end
+				if t <= start + d or order == 100 then
+					local k = math.min(1, (t - start) / d)
+					for _, a in ipairs(self.anims) do
+						if a.order == order then
+							if a.kind == "Alpha" then f.alpha = a.fromA + (a.toA - a.fromA) * k end
+							if a.kind == "Scale" then f.scale = a.fromS + (a.toS - a.fromS) * k end
+						end
+					end
+					return
+				end
+				start = start + d
+			end
+		end
+		function g:Play()
+			for _, o in ipairs({ "animateIn", "animateOut" }) do
+				if f[o] == self then f.plays[o] = f.plays[o] + 1 end
+			end
+			self.base, self.playing, self.t = f.alpha, true, 0
+			self:Apply()
+		end
+		function g:Rest()
+			self.playing = false
+			f.alpha, f.scale = self.base, 1
+		end
+		function g:Stop() if self.playing then self:Rest() end end
+		function g:Tick(dt)
+			if not self.playing then return end
+			self.t = self.t + dt
+			if self.t >= self:Total() then
+				self:Rest()
+				if self.scripts.OnFinished then self.scripts.OnFinished(self, false) end
+			else
+				self:Apply()
+			end
+		end
+		ANIM_GROUPS[#ANIM_GROUPS + 1] = g
+		return g
+	end
+	return f
+end
+function tickAnims(dt)
+	for _, g in ipairs(ANIM_GROUPS) do g:Tick(dt) end
+end
