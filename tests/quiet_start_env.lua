@@ -44,6 +44,7 @@ function FrameMethods:Show() self.shown = true end
 function FrameMethods:Hide() self.shown = false end
 function FrameMethods:IsShown() return self.shown end
 function FrameMethods:GetFrameLevel() return 1 end
+function FrameMethods:GetName() return self.name end
 function FrameMethods:GetWidth() return 500 end
 function FrameMethods:GetSize() return 500, 200 end
 FRAMES_MADE = {}
@@ -110,7 +111,9 @@ end
 function CDTL3:Print(msg) PRINTED[#PRINTED + 1] = tostring(msg) end
 for _, n in ipairs({ "ApplyCombatVisibility", "SendToLane", "SendToBarFrame", "RegisterEvent", "BuildMinimapButton",
 		"Cleanup", "CreateLanes", "CreateBarFrames", "CreateReadyFrames", "CreateHolders", "GetCharacterData",
-		"ScanCurrentCooldowns", "RefreshLane", "SetBorder", "StopPreview" }) do
+		"ScanCurrentCooldowns", "RefreshLane", "SetBorder", "StopPreview",
+		-- the samples of the What's new window (3.3.0) draw the release's highlights
+		"ApplyHighlight", "RemoveHighlights" }) do
 	CDTL3[n] = function() end
 end
 function CDTL3:GetAardvark() return "" end

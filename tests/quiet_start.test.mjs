@@ -92,8 +92,9 @@ try {
     ['CallbackHandler', readAddon('Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua')],
     ['AceDB', readAddon('Libs/AceDB-3.0/AceDB-3.0.lua')],
     ['locale', 'LoadLocaleStub()'],
-    ['defaults', `do ${LKEY}\n${pick(cdtl3, ['local WithOverrides', 'local laneDefaults', 'local barFrameDefaults',
-      'local readyDefaults', 'local defaults'], 'CDTL3.lua')}\nDEFAULTS = defaults\nend`],
+    ['defaults', `do ${LKEY}\n${pick(cdtl3, ['local WithOverrides', 'local HIGHLIGHT', 'local ICON_TEXT', 'local MODE_TEXT',
+      'local ShowAnim', 'local HideAnim', 'local FRAME_BACK', 'local laneDefaults', 'local barFrameDefaults',
+      'local readyDefaults', 'local NO_MODE_TEXT', 'local defaults'], 'CDTL3.lua')}\nDEFAULTS = defaults\nend`],
     ['Flights.lua', readAddon('Flights.lua')],
     ['Start.lua', `do local S = CDTL3.Start\nlocal private = { TourSteps = function() return {} end }\n${LKEY}\n${range(start,
       '-- Players who already have CDTL3 keep the welcome window', 'function S:TourDue()', 'Start.lua')}\n${pick(start,
@@ -101,7 +102,7 @@ try {
     ['CDTL3.lua', `do local private = { CreateUnlockFrame = function() end, CreateDebugFrame = function() end }\n${LKEY}\n${pick(cdtl3, [
       'CDTL3.version', 'CDTL3.noticeVersion', 'CDTL3.supportlink', 'CDTL3:OnEnable', 'CDTL3:ChatCommand',
       'CDTL3:ShowWhatsNew', 'private.CreateFirstRunFrame', 'CDTL3:LastSeenOlderThan', 'CDTL3:IsNewerVersion',
-    ], 'CDTL3.lua')}\nend`],
+    ], 'CDTL3.lua')}\n${range(cdtl3, "-- The samples at the top of the What's new window", 'private.CreateFirstRunFrame = function', 'CDTL3.lua')}\nend`],
   ];
 } catch (e) {
   check(false, e.message);
