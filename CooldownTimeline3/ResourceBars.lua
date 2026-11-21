@@ -39,9 +39,10 @@ private.GaugeRead = function(g)
 	g:SetMinMaxValues(0, max)
 	g:SetValue(current)
 
-	local ok, pct = pcall(private.Percent, current, max)
-	if not ok then
-		pct = nil	-- hidden: the bar fills, the percent stays blank
+	local ok, got = pcall(private.Percent, current, max)
+	local pct ---@type number?
+	if ok then
+		pct = got	-- hidden (not ok): the bar fills, the percent stays blank
 	end
 
 	-- A class with no mana shows nothing (the alpha, not Hide: the ticks keep running). Whether there is
@@ -144,6 +145,8 @@ private.RefreshGauge = function(f, s)
 	CDTL3:SetBarTexture(g, "CDTL3 Smooth")
 	local c = gs["color"] or { r = 0.165, g = 0.373, b = 0.839, a = 1 }
 	g:SetStatusBarColor(c["r"], c["g"], c["b"], c["a"] or 1)
+	-- SetAllPoints(true) anchors to the parent; the definitions only list a region
+	---@diagnostic disable-next-line: param-type-mismatch
 	g.bg:SetAllPoints(true)
 	g.bg:SetColorTexture(0.15, 0.15, 0.15, 0.5)
 	g.pct:SetFont(private.FontPath(), 11, "OUTLINE")
@@ -267,6 +270,8 @@ function RB.Refresh(i)
 end
 
 local refreshLane = CDTL3.RefreshLane
+-- deliberate wrapper: chains to the handler that was there before
+---@diagnostic disable-next-line: duplicate-set-field
 function CDTL3:RefreshLane(i)
 	refreshLane(self, i)
 	RB.Refresh(i)

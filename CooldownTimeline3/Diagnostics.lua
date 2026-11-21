@@ -183,7 +183,8 @@ function CDTL3:ShowCopyBox(title, text)
 		private.box = nil
 	end
 
-	local frame = AceGUI:Create("Frame")
+	-- AceGUI widgets carry methods the API definitions don't list
+	local frame = AceGUI:Create("Frame") --[[@as table]]
 	frame:SetTitle(title)
 	frame:SetStatusText("Ctrl+C copies the selected text (Ctrl+A selects it all again)")
 	frame:SetLayout("Fill")
@@ -196,7 +197,7 @@ function CDTL3:ShowCopyBox(title, text)
 		AceGUI:Release(widget)
 	end)
 
-	local box = AceGUI:Create("MultiLineEditBox")
+	local box = AceGUI:Create("MultiLineEditBox") --[[@as table]]
 	box:SetLabel("")
 	box:DisableButton(true)
 	box:SetFullWidth(true)
@@ -506,18 +507,18 @@ function CDTL3:PerfLines()
 	for _, cd in ipairs(CDTL3.cooldowns) do
 		local ip = cd.icon and cd.icon:GetParent()
 		local name = ip and ip:GetName() or ""
-		if name:match("^CDTL3_Lane_%d$") then
+		if CDTL3:SlotOfParent(name) == "lanes" then
 			onLanes = onLanes + 1
 			if cd.icon.valid then
 				moving = moving + 1
 			end
-		elseif name:match("^CDTL3_Ready_%d_MF$") then
+		elseif CDTL3:SlotOfParent(name) == "ready" then
 			inReady = inReady + 1
 		else
 			parked = parked + 1
 		end
 		local bp = cd.bar and cd.bar:GetParent()
-		if bp and (bp:GetName() or ""):match("^CDTL3_BarFrame_%d_MF$") and cd.bar.valid then
+		if bp and CDTL3:SlotOfParent(bp:GetName()) == "barFrames" and cd.bar.valid then
 			bars = bars + 1
 		end
 	end

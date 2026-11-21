@@ -66,7 +66,7 @@ private.ApplyLayout = function(layoutName)
 		return
 	end
 
-	for frame, info in pairs(private.registered) do
+	for _, info in pairs(private.registered) do
 		local s = private.Settings(info)
 		local pos = s["editMode"] and s["editMode"][layoutName]
 		if pos then
@@ -218,7 +218,7 @@ hooksecurefunc(CDTL3, "ToggleFrameLock", function(_, quiet)
 		return
 	end
 
-	for frame, info in pairs(private.registered) do
+	for _, info in pairs(private.registered) do
 		local s = private.Settings(info)
 		if s["editMode"] then
 			s["editMode"][layoutName] = { point = s["relativeTo"], x = s["posX"], y = s["posY"] }

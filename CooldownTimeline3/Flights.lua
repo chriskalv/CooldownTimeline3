@@ -220,7 +220,10 @@ private.ReadMap = function()
 				local hops = {}
 				local count = GetNumRoutes(i) or 0
 				for r = 1, count do
+					-- the game's TaxiGetNodeSlot takes (slot, route, isStart); the definitions list no parameters
+					---@diagnostic disable-next-line: redundant-parameter
 					local a = TaxiGetNodeSlot(i, r, true)
+					---@diagnostic disable-next-line: redundant-parameter
 					local b = TaxiGetNodeSlot(i, r, false)
 					if a and b then
 						hops[#hops + 1] = { a, b }
@@ -390,6 +393,8 @@ private.PlayerPos = function()
 			local mapID = C_Map.GetBestMapForUnit("player")
 			local v = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
 			if v then
+				-- v is only set when mapID is
+				---@diagnostic disable-next-line: param-type-mismatch
 				local cont, world = C_Map.GetWorldPosFromMapPos(mapID, v)
 				local x, y = private.XY(world)
 				if type(cont) == "number" and x then
@@ -610,7 +615,7 @@ function FL:Holds(frame)
 	local p = ic and ic:GetParent()
 	if p and p.GetName then
 		local n = p:GetName()
-		inReady = n == "CDTL3_Ready_1_MF" or n == "CDTL3_Ready_2_MF" or n == "CDTL3_Ready_3_MF"
+		inReady = CDTL3:SlotOfParent(n) == "ready"
 	end
 	local counting = private.flight and private.flight.duration
 	if not counting and not (inReady and ic.readyTime and ic.readyTime > 0) then
