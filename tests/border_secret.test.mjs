@@ -47,7 +47,11 @@ check(targets.length >= 8 && targets.every((t) => ['f', 'f.bd', 'f.mf.bd', 'f.hl
   `SetBorder is given only f.bd, f.mf.bd, f.hl or a local border (${[...new Set(targets)].join(', ')})`);
 const scripted = files.filter((f) => /(\.bd|\.hl|\bborder):(SetScript|HookScript)\(\s*"OnUpdate"/.test(readAddon(f)));
 check(scripted.length === 0, `no border frame gets an OnUpdate script of its own (${scripted.join(', ')})`);
-check(cooldown.includes('CDTL3:SetBorder(f.bd, s["icons"]["border"])') && cooldown.includes('CDTL3:SetBorder(f.hl, s["icons"]["highlight"]["border"])'),
+// since 3.3.0 the highlight is drawn by CDTL3:ApplyHighlight (hs = the lane's icons.highlight)
+let applyHl = '';
+try { applyHl = pick(cooldown, ['CDTL3:ApplyHighlight'], 'Cooldown.lua'); } catch (e) { check(false, e.message); }
+check(cooldown.includes('CDTL3:SetBorder(f.bd, s["icons"]["border"])')
+    && applyHl.includes('local hs = s["icons"]["highlight"]') && applyHl.includes('CDTL3:SetBorder(f.hl, hs["border"])'),
   'Cooldown.lua: icon border and highlight are set through CDTL3:SetBorder');
 
 // the version: the same in all six TOC files and CDTL3.version. A personal build has four parts and
