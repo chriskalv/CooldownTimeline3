@@ -96,3 +96,9 @@ export function report(label, res) {
   if (fails.length || res.length === 0) process.exitCode = 1;
   return fails.length;
 }
+
+// CDTL3.lua's slot table and its lookups (CDTL3:SlotSettings, SlotFrame, SlotOfParent, SlotParent;
+// since 3.3.0 the lane, bar frame and ready frame code finds its frames through them)
+export function slots(cdtl3) {
+  return range(cdtl3, '-- Lane, bar frame and ready frame 1 to 3 by number', 'CDTL3.version = ', 'CDTL3.lua');
+}

@@ -21,8 +21,16 @@ const cooldown = read('Cooldown.lua');
 check(!cooldown.includes('LOCAL PATCH'), 'Cooldown.lua: no local patch left (Seal as custom cooldown dropped)');
 check(/private\.CustomCDStart = function\(d, start\)\n\tif not start or start == 0 then/.test(cooldown),
   'Cooldown.lua: private.CustomCDStart counts from the cast when the game reports no start');
-check((cooldown.match(/duration = d\["baseCD"\]\n\s*start = private\.CustomCDStart\(d, start\)\n\s*end\n\s*d\["currentCD"\] = start \+ duration - GetTime\(\)/g) || []).length === 2,
-  'Cooldown.lua: both Custom CD branches (on-aura-fade and plain spells) use private.CustomCDStart');
+// since 3.3.0 both spell branches share one countdown (private.SpellCountdown), which uses it once
+check((cooldown.match(/duration = d\["baseCD"\]\n\s*start = private\.CustomCDStart\(d, start\)\n\s*end\n\s*d\["currentCD"\] = start \+ duration - GetTime\(\)/g) || []).length === 1,
+  'Cooldown.lua: the shared spell countdown uses private.CustomCDStart for a Custom CD Time');
+{
+  const cu = cooldown.slice(cooldown.indexOf('private.CooldownUpdate = function'));
+  const spells = cu.slice(0, cu.indexOf('-- ITEMS'));
+  check(/if not d\["oafHeld"\] then\n\s*private\.SpellCountdown\(f, d, elapsed\)/.test(spells)
+      && /\telse\n\s*if private\.SpellCountdown\(f, d, elapsed\) then/.test(spells),
+    'Cooldown.lua: both Custom CD branches (on-aura-fade and plain spells) count down through private.SpellCountdown');
+}
 
 // Patch 2: real code from CDTL3.lua
 const cdtl3 = read('CDTL3.lua');
