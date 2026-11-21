@@ -34,6 +34,8 @@ check((cooldown.match(/duration = d\["baseCD"\]\n\s*start = private\.CustomCDSta
 
 // Patch 2: real code from CDTL3.lua
 const cdtl3 = read('CDTL3.lua');
+check(cdtl3.includes('local SEAL_IDS = { 20154, 20375, 20305, 20165, 20166, 20164, 1311649 }'),
+  'CDTL3.lua: the seal list holds the seven seals of WoW Forever');
 const a = cdtl3.indexOf('local SEAL_IDS'), b = cdtl3.indexOf('function CDTL3:UNIT_SPELLCAST_SUCCEEDED');
 check(a > 0 && b > a, 'CDTL3.lua: seal helpers found before the cast handler');
 check(/if isKnown or isKnownOrOverridesKnown then\n(\s*--[^\n]*\n)*\s*CDTL3:EndOtherSealTimers\(spellName\)/.test(cdtl3),
@@ -86,6 +88,16 @@ for lang, names in pairs({
   rec(lang .. ".recast", soc.data.currentCD); rec(lang .. ".recastheld", #CDTL3.held)
   CDTL3:EndOtherSealTimers("Judgement")
   rec(lang .. ".afterjudgement", soc.data.currentCD)
+  -- every listed seal: its buff timer ends on a switch (buffs end only by the listed client names)
+  local ids = { 20154, 20375, 20305, 20165, 20166, 20164, 1311649 }
+  local ended = 0
+  for i, id in ipairs(ids) do
+    setup(names)
+    local buff = frame(names[id], 9, "buffs")
+    CDTL3:EndOtherSealTimers(names[ids[i % #ids + 1]])
+    if buff.data.currentCD == -1 then ended = ended + 1 end
+  end
+  rec(lang .. ".everybuff", ended)
 end
 setup({})
 local f = frame("Seal of Command", 12)
@@ -114,6 +126,7 @@ else {
     check(r[lang + '.custom'] === '12', lang + ': a custom timer named like a seal is left alone');
     check(r[lang + '.recast'] === '20' && r[lang + '.recastheld'] === '0', lang + ': recasting the same seal ends nothing');
     check(r[lang + '.afterjudgement'] === '20', lang + ': casting Judgement ends no seal timer');
+    check(r[lang + '.everybuff'] === '7', lang + ': the buff timer of each of the seven listed seals ends on a switch');
   }
   check(r['empty.untouched'] === '12', 'without seal names from the client nothing is ended');
 }

@@ -40,6 +40,7 @@ const M = [
   ['seal', 'any buff that starts like a seal ends', 'CDTL3.lua', '(t == "buffs" and sealNames[d["name"]])', '(t == "buffs" and CDTL3:IsSealName(d["name"]))'],
   ['seal', 'spell timers end only by the listed names', 'CDTL3.lua', '(t == "spells" and CDTL3:IsSealName(d["name"]))', '(t == "spells" and sealNames[d["name"]])'],
   ['seal', 'Seal of Fury missing from the seal list', 'CDTL3.lua', '20166, 20164, 1311649 }', '20166, 20164 }'],
+  ['seal', 'Seal of Light missing from the seal list', 'CDTL3.lua', '20305, 20165, 20166', '20305, 20166'],
   ['seal', 'recasting a seal ends its own timer', 'CDTL3.lua', 'and d["name"] ~= castName and d["currentCD"]', 'and d["currentCD"]'],
   ['seal', 'held timers are ended again', 'CDTL3.lua', 'd["currentCD"] and d["currentCD"] >= 0\n', 'd["currentCD"]\n'],
   ['seal', 'old timer keeps its time', 'CDTL3.lua', '\t\t\td["currentCD"] = -1\n\t\t\tCDTL3:SendToHolding(f)', '\t\t\tCDTL3:SendToHolding(f)'],
