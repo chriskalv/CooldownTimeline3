@@ -170,6 +170,19 @@ function S.login_old_version()
 	check(g().firstRun == false and g().previousVersion == "3.1.1", "firstRun and previousVersion untouched")
 end
 
+-- the update to 3.3.0 itself: the release opens the window once for everyone coming from 3.2.x
+-- (noticeVersion 3.3); the personal build opens nothing
+function S.login_from_322()
+	CDTL3DB = { profileKeys = { [CHAR] = "Default" },
+		profiles = { Default = { global = { firstRun = false, previousVersion = "3.2.2" } } } }
+	login()
+	check(CDTL3.noticeVersion == "3.3" and CDTL3:IsNewerVersion() == true, "3.2.2 is older than the release's noticeVersion 3.3")
+	runTimers(600)
+	check(#TOUR_STEPS == 0, "no tour")
+	check(not welcomeMade() and not welcomeShown(), "the update from 3.2.2 opens no window, after every timer ran")
+	check(g().previousVersion == "3.2.2", "previousVersion untouched")
+end
+
 -- both reasons at once (firstRun and an old version): still no window
 function S.login_both()
 	CDTL3DB = { profileKeys = { [CHAR] = "Default" },

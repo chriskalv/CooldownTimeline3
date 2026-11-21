@@ -83,7 +83,7 @@ const onEnable = pick(cdtl3, ['CDTL3:OnEnable'], 'CDTL3.lua');
 check(onEnable.includes('CDTL3.Start:StartTour()'), 'OnEnable still starts the tour');
 
 const SCENARIOS = ['flight_fresh', 'flight_saved', 'flight_resume', 'login_fresh_install', 'login_new_profile',
-  'login_old_version', 'login_both', 'whatsnew'];
+  'login_old_version', 'login_from_322', 'login_both', 'whatsnew'];
 let chunks;
 try {
   chunks = [
