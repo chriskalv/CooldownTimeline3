@@ -328,7 +328,8 @@ P.Attach = function()
 		return
 	end
 
-	local store = P.Store(true)
+	-- Store(true) always returns a table
+	local store = P.Store(true) --[[@as table]]
 	local lists = store["lists"]
 	P.EnsureLists(lists)
 	if cur == lists then
@@ -378,7 +379,8 @@ P.SetSharing = function(on)
 
 	local name = db:GetCurrentProfile()
 	if on then
-		local store = P.Store(true)
+		-- Store(true) always returns a table
+		local store = P.Store(true) --[[@as table]]
 		local own = rawget(db.profile, "tables")
 		if type(own) ~= "table" then
 			own = {}
@@ -523,12 +525,16 @@ end
 -- The spec profile when spec profiles are on (no zone profile applies when this is asked)
 P.SpecProfile = function()
 	local db = CDTL3.db
+	-- LibDualSpec adds these methods to the database, so the definitions don't list them
+	---@diagnostic disable-next-line: undefined-field
 	if type(db.IsDualSpecEnabled) ~= "function" or type(db.GetDualSpecProfile) ~= "function" then
 		return nil
 	end
 
+	---@diagnostic disable-next-line: undefined-field
 	local ok, on = pcall(db.IsDualSpecEnabled, db)
 	if ok and on then
+		---@diagnostic disable-next-line: undefined-field
 		local ok2, name = pcall(db.GetDualSpecProfile, db)
 		if ok2 then
 			return name
@@ -758,6 +764,8 @@ P.Setup = function()
 	P.RememberProfile()
 
 	if CDTL3.profile then
+		-- AceDBOptions' table takes a plugins field, which the definitions don't list
+		---@diagnostic disable-next-line: inject-field
 		CDTL3.profile.plugins = CDTL3.profile.plugins or {}
 		CDTL3.profile.plugins["CDTL3"] = P.Options()
 	end
@@ -770,6 +778,8 @@ P.Setup = function()
 end
 
 local OnInitialize = CDTL3.OnInitialize
+-- a deliberate wrapper around the original
+---@diagnostic disable-next-line: duplicate-set-field
 function CDTL3:OnInitialize(...)
 	P.StartNewCharacter()
 	OnInitialize(self, ...)
@@ -779,6 +789,8 @@ end
 -- every profile switch, Copy From, Reset Profile and import ends in RefreshConfig: point the
 -- Filters lists first (an error here is reported and the refresh still runs)
 local RefreshConfig = CDTL3.RefreshConfig
+-- a deliberate wrapper around the original
+---@diagnostic disable-next-line: duplicate-set-field
 function CDTL3:RefreshConfig(...)
 	local ok, err = pcall(P.Attach)
 	if not ok then

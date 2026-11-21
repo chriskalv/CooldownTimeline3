@@ -233,7 +233,11 @@ function CDTL3:InBossFight()
 	end
 
 	local ok, yes = pcall(function()
-		if IsEncounterInProgress and IsEncounterInProgress() == true then
+		-- every client has C_InstanceEncounter's call; the bare global is only Blizzard's deprecation
+		-- copy of it, gone when a player turns the fallbacks off
+		---@diagnostic disable-next-line: undefined-global
+		local inEncounter = (C_InstanceEncounter and C_InstanceEncounter.IsEncounterInProgress) or IsEncounterInProgress
+		if inEncounter and inEncounter() == true then
 			return true
 		end
 		return UnitExists("boss1") == true
@@ -387,7 +391,7 @@ function CDTL3:Autohide(f, s)
 				--if f:GetAlpha() ~= 1 then
 				if f:GetAlpha() ~= fAlpha then
 					--f:SetAlpha(1)
-					
+
 					if f.animateIn then
 						if not f.animateIn:IsPlaying() then
 							f.animateIn:Play()
@@ -438,8 +442,55 @@ function CDTL3:ApplyCombatVisibility(bossOnly)
 		end
 	end
 	for i = 1, 3 do
-		if _G["CDTL3_Ready_" .. i] and wanted("ready", "ready", i) then
+		if CDTL3:SlotFrame("ready", i) and wanted("ready", "ready", i) then
 			CDTL3:RefreshReady(i)
+		end
+	end
+end
+
+-- Put a spell on its shared lockout (Paladin protections): lift a running cooldown to
+-- lockoutTime, or start one (and save the entry if it is new)
+local function LockOut(secondarySpellName, lockoutTime)
+	local s = CDTL3:GetSpellSettings(secondarySpellName, "spells")
+	if s then
+		if not CDTL3:IsIgnored(s, "spells") then
+			local ef = CDTL3:GetExistingCooldown(secondarySpellName, "spells")
+			if ef then
+				if ef.data["currentCD"] < lockoutTime then
+					CDTL3:SendToLane(ef)
+					CDTL3:SendToBarFrame(ef)
+
+					ef.data["currentCD"] = lockoutTime
+					ef.data["overrideCD"] = true
+				end
+			else
+				if CDTL3.db.profile.global["spells"]["enabled"] then
+					local f = CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
+					f.data["currentCD"] = lockoutTime
+					f.data["overrideCD"] = true
+
+					if CDTL3:IsUsedBy("spells", s["id"]) then
+						--CDTL3:Print("USEDBY MATCH: "..s["id"])
+					else
+						--CDTL3:Print("NEW USEDBY: "..s["id"])
+						CDTL3:AddUsedBy("spells", s["id"], CDTL3.player["guid"])
+					end
+				end
+			end
+		end
+	else
+		s = CDTL3:TableCopy(CDTL3:GetSpellData(0, secondarySpellName))
+		if s then
+			CDTL3:ApplyEntryDefaults(s, "spells")
+			s["icon"] = select(2, CDTL3:GetSpellInfo(s["id"]))
+			s["link"] = CDTL3:GetSpellLink(s["id"])
+			s["ignored"] = CDTL3:IgnoredByDefault("spells", s["bCD"])
+
+			local f = CDTL3:SaveNewEntry(s, "spells")
+			if f then
+				f.data["currentCD"] = lockoutTime
+				f.data["overrideCD"] = true
+			end
 		end
 	end
 end
@@ -457,7 +508,7 @@ function CDTL3:CheckEdgeCases(spellName)
 				else
 					if CDTL3.db.profile.global["spells"]["enabled"] then
 						CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
-						
+
 						if CDTL3:IsUsedBy("spells", s["id"]) then
 							--CDTL3:Print("USEDBY MATCH: "..s["id"])
 						else
@@ -482,7 +533,7 @@ function CDTL3:CheckEdgeCases(spellName)
 			end
 		end
 	end
-	
+
 	-- SHADOWMELD
 	if spellName == "Shadowmeld" then
 		local s = CDTL3:GetSpellSettings("Shadowmeld", "spells")
@@ -495,7 +546,7 @@ function CDTL3:CheckEdgeCases(spellName)
 				else
 					if CDTL3.db.profile.global["spells"]["enabled"] then
 						CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
-						
+
 						if CDTL3:IsUsedBy("spells", s["id"]) then
 							--CDTL3:Print("USEDBY MATCH: "..s["id"])
 						else
@@ -517,12 +568,12 @@ function CDTL3:CheckEdgeCases(spellName)
 			end
 		end
 	end
-	
+
 	-- PALLY SPELL LOCKOUT: VARIOUS PROTECTIONS
-	if	spellName == "Divine Protection" or 
-		spellName == "Divine Shield" or 
-		spellName == "Hand of Protection" or 
-		spellName == "Lay on Hands" 
+	if	spellName == "Divine Protection" or
+		spellName == "Divine Shield" or
+		spellName == "Hand of Protection" or
+		spellName == "Lay on Hands"
 	then
 		if CDTL3.db.profile.global["detectSharedCD"] then
 			for i = 1, 5, 1 do
@@ -544,55 +595,14 @@ function CDTL3:CheckEdgeCases(spellName)
 					secondarySpellName = "Avenging Wrath"
 					lockoutTime = 30
 				end
-				
-				if spellName ~= secondarySpellName then
-					local s = CDTL3:GetSpellSettings(secondarySpellName, "spells")
-					if s then
-						if not CDTL3:IsIgnored(s, "spells") then
-							local ef = CDTL3:GetExistingCooldown(secondarySpellName, "spells")
-							if ef then
-								if ef.data["currentCD"] < lockoutTime then
-									CDTL3:SendToLane(ef)
-									CDTL3:SendToBarFrame(ef)
-									
-									ef.data["currentCD"] = lockoutTime
-									ef.data["overrideCD"] = true
-								end
-							else
-								if CDTL3.db.profile.global["spells"]["enabled"] then
-									local f = CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
-									f.data["currentCD"] = lockoutTime
-									f.data["overrideCD"] = true
-									
-									if CDTL3:IsUsedBy("spells", s["id"]) then
-										--CDTL3:Print("USEDBY MATCH: "..s["id"])
-									else
-										--CDTL3:Print("NEW USEDBY: "..s["id"])
-										CDTL3:AddUsedBy("spells", s["id"], CDTL3.player["guid"])
-									end
-								end
-							end
-						end
-					else
-						s = CDTL3:TableCopy(CDTL3:GetSpellData(0, secondarySpellName))
-						if s then
-							CDTL3:ApplyEntryDefaults(s, "spells")
-							s["icon"] = select(2, CDTL3:GetSpellInfo(s["id"]))
-							s["link"] = CDTL3:GetSpellLink(s["id"])
-							s["ignored"] = CDTL3:IgnoredByDefault("spells", s["bCD"])
 
-							local f = CDTL3:SaveNewEntry(s, "spells")
-							if f then
-								f.data["currentCD"] = lockoutTime
-								f.data["overrideCD"] = true
-							end
-						end
-					end
+				if spellName ~= secondarySpellName then
+					LockOut(secondarySpellName, lockoutTime)
 				end
 			end
 		end
 	end
-	
+
 	-- PALLY SPELL LOCKOUT: AVENGING WRATH
 	if spellName == "Avenging Wrath" and CDTL3.db.profile.global["detectSharedCD"] then
 		local lockoutTime = 30
@@ -607,49 +617,8 @@ function CDTL3:CheckEdgeCases(spellName)
 			elseif i == 4 then
 				secondarySpellName = "Lay on Hands"
 			end
-			
-			local s = CDTL3:GetSpellSettings(secondarySpellName, "spells")
-			if s then
-				if not CDTL3:IsIgnored(s, "spells") then
-					local ef = CDTL3:GetExistingCooldown(secondarySpellName, "spells")
-					if ef then
-						if ef.data["currentCD"] < lockoutTime then
-							CDTL3:SendToLane(ef)
-							CDTL3:SendToBarFrame(ef)
-							
-							ef.data["currentCD"] = lockoutTime
-							ef.data["overrideCD"] = true
-						end
-					else
-						if CDTL3.db.profile.global["spells"]["enabled"] then
-							local f = CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
-							f.data["currentCD"] = lockoutTime
-							f.data["overrideCD"] = true
-							
-							if CDTL3:IsUsedBy("spells", s["id"]) then
-								--CDTL3:Print("USEDBY MATCH: "..s["id"])
-							else
-								--CDTL3:Print("NEW USEDBY: "..s["id"])
-								CDTL3:AddUsedBy("spells", s["id"], CDTL3.player["guid"])
-							end
-						end
-					end
-				end
-			else
-				s = CDTL3:TableCopy(CDTL3:GetSpellData(0, secondarySpellName))
-				if s then
-					CDTL3:ApplyEntryDefaults(s, "spells")
-					s["icon"] = select(2, CDTL3:GetSpellInfo(s["id"]))
-					s["link"] = CDTL3:GetSpellLink(s["id"])
-					s["ignored"] = CDTL3:IgnoredByDefault("spells", s["bCD"])
 
-					local f = CDTL3:SaveNewEntry(s, "spells")
-					if f then
-						f.data["currentCD"] = lockoutTime
-						f.data["overrideCD"] = true
-					end
-				end
-			end
+			LockOut(secondarySpellName, lockoutTime)
 		end
 	end
 end
@@ -672,7 +641,7 @@ function CDTL3:CheckEngTinkerCases(spellName)
 	elseif spellName == "Nitro Boosts" then
 		return true, 8
 	end
-	
+
 	return false, nil
 end
 
@@ -700,7 +669,7 @@ end
 -- is left out, with any mark after it, so the lane splits as if only the marks inside it were set.
 -- The saved values stay as they are: the sliders show every value the setting holds. nil when the
 -- count isn't a number.
-private.MARK_VALUES = { "s1v", "s2v", "s3v" }
+private.MARK_VALUES = { "s1v", "s2v", "s3v", "s4v", "s5v" }
 function CDTL3:SplitAbsCount(ss)
 	local n = CDTL3:SplitCount(ss)
 	if not n then
@@ -708,7 +677,7 @@ function CDTL3:SplitAbsCount(ss)
 	end
 	local max = tonumber(ss["max"])
 	local used = 0
-	for i = 1, math.min(n, 3) do
+	for i = 1, math.min(n, #private.MARK_VALUES) do
 		local v = tonumber(ss[private.MARK_VALUES[i]])
 		if not v or (max and v >= max) then
 			break
@@ -719,8 +688,9 @@ function CDTL3:SplitAbsCount(ss)
 end
 
 function CDTL3:ConvertTime(raw, style)
+	---@type string|number
 	local t = ""
-	
+
 	if style == "XhYmZs" then
 		local h = math.floor(raw / 3600)
 		raw = raw % 3600
@@ -728,7 +698,7 @@ function CDTL3:ConvertTime(raw, style)
 		raw = raw % 60
 		local s = math.floor(raw / 1)
 		raw = raw % 1
-		
+
 		if s > 0 then
 			t = s.."s"
 		end
@@ -745,7 +715,7 @@ function CDTL3:ConvertTime(raw, style)
 		raw = raw % 60
 		local s = math.floor(raw / 1)
 		raw = raw % 1
-		
+
 		if h > 0 then
 			t = h..":"..string.format("%02d", m)..":"..string.format("%02d", s)
 		else
@@ -754,15 +724,15 @@ function CDTL3:ConvertTime(raw, style)
 			else
 				t = s
 			end
-		end		
+		end
 	else
 		if raw > 9.9 then
-			t = tonumber(string.format("%.0f", raw))
+			t = tonumber(string.format("%.0f", raw)) --[[@as number]]
 		else
-			t = tonumber(string.format("%.1f", raw))
+			t = tonumber(string.format("%.1f", raw)) --[[@as number]]
 		end
 	end
-	
+
 	return t
 end
 
@@ -771,7 +741,6 @@ function CDTL3:GenerateTestCooldowns()
     local testingNumber = CDTL3.db.profile.global["testingNumber"]
     local testingMinTime = CDTL3.db.profile.global["testingMinTime"]
     local testingMaxTime = CDTL3.db.profile.global["testingMaxTime"]
-    local testingLoop = CDTL3.db.profile.global["testingLoop"]
 
     local timeRange = testingMaxTime - testingMinTime
     local increment = timeRange / (testingNumber - 1)
@@ -865,8 +834,10 @@ end
 function CDTL3:GetCharacterData()
 	if CDTL3.player["class"] == nil then
 		local playerGUID = UnitGUID("player")
-		local _, engClass, _, engRace, gender, name, server = GetPlayerInfoByGUID(playerGUID)
-		
+		-- UnitGUID("player") is set once the character is in the world
+		---@diagnostic disable-next-line: param-type-mismatch
+		local _, engClass, _, engRace, _, name = GetPlayerInfoByGUID(playerGUID)
+
 		if engClass ~= nil then
 			CDTL3.player = {
 				guid = playerGUID,
@@ -875,11 +846,11 @@ function CDTL3:GetCharacterData()
 				class = engClass,
 				classPower = CDTL3:GetPlayerPower(engClass),
 			}
-			
+
 			-- every client: Data.lua's lists are Classic/TBC/Wrath-era content (Forever reads the
 			-- Classic ones), and the aura-fade flag and the Vanish/Shadowmeld cases look up here
 			CDTL3.spellData = CDTL3:GetAllSpellData(engClass, engRace)
-			
+
 			if CDTL3.db.profile.global["debugMode"] then
 				CDTL3:Print("PLAYER: "..CDTL3.player["name"].." - "..CDTL3.player["race"].." - "..CDTL3.player["class"].." - "..CDTL3.player["classPower"])
 			end
@@ -922,44 +893,46 @@ function CDTL3:GetPlayerPower(class)
 end
 
 function CDTL3:GetReadableTime(t)
+	---@type number|string
 	local readableTimeLeft = t
 
 	if t > 60 then
 		readableTimeLeft = math.floor(t*math.pow(10,0)+0.5) / math.pow(10,0)
-		
+
 		local minutes = tostring(math.floor(readableTimeLeft / 60))
 		local seconds = readableTimeLeft % 60
-		
+
+		local secondsText
 		if seconds >= 10 then
-			seconds = tostring(seconds)
+			secondsText = tostring(seconds)
 		elseif seconds > 0 then
-			seconds = tostring("0"..seconds)
+			secondsText = tostring("0"..seconds)
 		else
-			seconds = "00"
+			secondsText = "00"
 		end
-		
-		readableTimeLeft = minutes..":"..seconds
-		
+
+		readableTimeLeft = minutes..":"..secondsText
+
 	elseif t > 10 then
-		readableTimeLeft = tonumber(string.format("%.0f", readableTimeLeft))
+		readableTimeLeft = tonumber(string.format("%.0f", readableTimeLeft)) --[[@as number]]
 	else
-		readableTimeLeft = tonumber(string.format("%.1f", readableTimeLeft))
+		readableTimeLeft = tonumber(string.format("%.1f", readableTimeLeft)) --[[@as number]]
 		if readableTimeLeft == math.floor(readableTimeLeft) then
 			readableTimeLeft = readableTimeLeft..".0"
 		end
 	end
-	
+
 	return readableTimeLeft
 end
 
 function CDTL3:GetTestTableData(testType, bCD, number)
     local data = {}
-    local testType = testType:lower()
-    local nameType = testType:gsub("^%l", string.upper)
+    local lowerType = testType:lower()
+    local nameType = lowerType:gsub("^%l", string.upper)
           nameType = nameType:sub(1, -2)
 
     local count = 0
-    for _, e in pairs(CDTL3.icons["era"]) do
+    for _ in pairs(CDTL3.icons["era"]) do
         count = count + 1
     end
 
@@ -983,15 +956,15 @@ function CDTL3:GetTestTableData(testType, bCD, number)
     data["icon"] = randomIcon
     data["stacks"] = 0
     data["type"] = "testing"
-    data["testType"] = testType
+    data["testType"] = lowerType
     data["enabled"] = true
     data["pinned"] = false
     data["highlight"] = false
     data["ignored"] = false
 
-	data["lane"] = CDTL3.db.profile.global[testType]["defaultLane"]
-	data["barFrame"] = CDTL3.db.profile.global[testType]["defaultBar"]
-	data["readyFrame"] = CDTL3.db.profile.global[testType]["defaultReady"]
+	data["lane"] = CDTL3.db.profile.global[lowerType]["defaultLane"]
+	data["barFrame"] = CDTL3.db.profile.global[lowerType]["defaultBar"]
+	data["readyFrame"] = CDTL3.db.profile.global[lowerType]["defaultReady"]
 
     return data
 end
@@ -1012,7 +985,7 @@ function CDTL3:GetExistingCooldown(name, type, targetID)
 			end
 		end
 	end
-	
+
 	return nil
 end
 
@@ -1023,6 +996,8 @@ function CDTL3:GetSpellLink(id)
 	if CDTL3.retailAPI then
     	link = C_Spell.GetSpellLink(id)
 	else
+		-- Classic clients only: the old global (the C_Spell branch above handles the rest)
+		---@diagnostic disable-next-line: undefined-field
 		link = _G.GetSpellLink(id)
 	end
 
@@ -1042,7 +1017,7 @@ function CDTL3:GetSpellInfo(id)
 
 	if CDTL3.retailAPI then
 		local data = C_Spell.GetSpellInfo(id)
-		
+
 		if data then
 			name = data["name"]
 			icon = data["iconID"]
@@ -1050,6 +1025,8 @@ function CDTL3:GetSpellInfo(id)
 		end
 	else
 		local _
+		-- Classic clients only (the other branch uses C_Spell)
+		---@diagnostic disable-next-line: undefined-global
 		name, _, icon, _, _, _, _, originalIconID = GetSpellInfo(id)
 	end
 
@@ -1093,9 +1070,11 @@ function CDTL3:GetSpellCharges(id)
 			end
 		end
 	else
+		-- Classic clients only (the other branch uses C_Spell)
+		---@diagnostic disable-next-line: undefined-global
 		currentCharges, maxCharges, cooldownStart, cooldownDuration = GetSpellCharges(id)
 	end
-	
+
 	return currentCharges, maxCharges, cooldownStart, cooldownDuration
 end
 
@@ -1128,6 +1107,7 @@ function CDTL3:GetSpellCooldown(id)
 	-- + GetSpellBaseCooldown() (static spell data, not a runtime secret value).
 	local start    = 0
 	local duration = 0
+	---@type boolean|number
 	local enabled  = true
 
 	if CDTL3.retailAPI then
@@ -1229,7 +1209,7 @@ function CDTL3:GetSpellSettings(name, type, specialCase, id)
 			end
 		end
 	end
-	
+
 	return nil
 end
 
@@ -1279,9 +1259,12 @@ function CDTL3:GetUnitAura(unit, i, filter)
 		end
 	else
 		local _
+		-- a fallback only: every current client has C_UnitAuras.GetAuraDataByIndex, and on the Classic
+		-- clients UnitAura is Blizzard's deprecation copy of it
+		---@diagnostic disable-next-line: undefined-global
 		name, icon, count, _, duration, expirationTime, _, _, _, spellID = UnitAura(unit, i, filter)
 	end
-	
+
 	return name, spellID, duration, icon, count, expirationTime
 end
 
@@ -1292,6 +1275,8 @@ function CDTL3:IsUsableSpell(id)
 	if CDTL3.retailAPI then
     	usable, noPower = C_Spell.IsSpellUsable(id)
 	else
+		-- Classic clients only (the other branch uses C_Spell)
+		---@diagnostic disable-next-line: undefined-global
 		usable, noPower = IsUsableSpell(id)
 	end
 
@@ -1302,7 +1287,7 @@ function CDTL3:IsUsedBy(type, id, specialCase)
 	if CDTL3.player["class"] == nil then
 		CDTL3:GetCharacterData()
 	end
-	
+
 	for _, spell in pairs(CDTL3.db.profile.tables[type]) do
 		if specialCase then
 			if spell["itemID"] == id then
@@ -1322,17 +1307,17 @@ function CDTL3:IsUsedBy(type, id, specialCase)
 			end
 		end
 	end
-	
+
 	return false
 end
 
 function CDTL3:IsValidItem(itemID)
 	local _, itemType, itemSubType, _, _, classID, subclassID = CDTL3.Compat.GetItemInfoInstant(itemID)
-	
+
 	if CDTL3.db.profile.global["debugMode"] then
 		CDTL3:Print("ITEM: "..itemType.."("..tostring(classID)..") - "..itemSubType.."("..tostring(subclassID)..")")
 	end
-	
+
 	-- CONSUMABLE
 	if classID == 0 then
 		if
@@ -1343,17 +1328,17 @@ function CDTL3:IsValidItem(itemID)
 			return true
 		end
 	end
-	
+
 	-- WEAPON
 	if classID == 2 then
 		return true
 	end
-	
+
 	-- ARMOR
 	if classID == 4 then
 		return true
 	end
-	
+
 	-- TRADEGOODS
 	if classID == 7 then
 		if
@@ -1362,12 +1347,12 @@ function CDTL3:IsValidItem(itemID)
 			return true
 		end
 	end
-	
+
 	-- QUEST
 	if classID == 12 then
 		return true
 	end
-	
+
 	-- MISCELLANEOUS
 	if classID == 15 then
 		if
@@ -1376,9 +1361,9 @@ function CDTL3:IsValidItem(itemID)
 			return true
 		end
 	end
-	
-	
-	
+
+
+
 	return false
 end
 
@@ -1417,7 +1402,7 @@ function CDTL3:LoadFilterList(type, specialCase)
 	else
 		list["<< Select >>"] = "<< Select >>"
 	end
-	
+
 	for _, data in pairs(CDTL3.db.profile.tables[type]) do
 		-- items are listed by item name, which loads asynchronously and can still be nil
 		local key = specialCase and data["itemName"] or data["name"]
@@ -1425,7 +1410,7 @@ function CDTL3:LoadFilterList(type, specialCase)
 			list[key] = key
 		end
 	end
-	
+
 	return list
 end
 
@@ -1433,13 +1418,13 @@ function CDTL3:LoadDetectedList()
 	local list = {}
 
 	list["<< Select Detected >>"] = "<< Select Detected >>"
-	
+
 	for _, data in pairs(CDTL3.db.profile.tables["detected"]) do
 		--for _, guid in pairs(data["usedBy"]) do
 			list[data["name"]] = data["name"]
 		--end
 	end
-	
+
 	return list
 end
 
@@ -1469,7 +1454,7 @@ function CDTL3:OnTalentChanges()
 
 			if isKnown or isKnownOrOverridesKnown then
 				--local start, duration, enabled, _ = GetSpellCooldown(spellID)
-				local start, duration, enabled = CDTL3:GetSpellCooldown(spellID)
+				local _, duration = CDTL3:GetSpellCooldown(spellID)
 				if duration and duration > 1.5 then
 					CDTL3:SendToLane(cd)
 					CDTL3:SendToBarFrame(cd)
@@ -1486,18 +1471,20 @@ function CDTL3:OnTalentChanges()
 end
 
 function CDTL3:RecycleOffensiveCD()
-	for k, child in ipairs(CDTL3.cooldowns) do
+	for _, child in ipairs(CDTL3.cooldowns) do
 		if child.data["type"] == "offensives" then
 			if child.data["currentCD"] < 0 then
 				return child
 			end
 		end
 	end
-	
+
 	return nil
 end
 
-function CDTL3:RefreshConfig()	
+-- the base definition: Profiles.lua and Group.lua wrap it
+---@diagnostic disable-next-line: duplicate-set-field
+function CDTL3:RefreshConfig()
 	-- Refresh every existing frame by its own number (the lists hold only frames that
 	-- were created, in creation order, so the list index isn't the frame number), then
 	-- create any frame that is enabled in this profile but didn't exist yet.
@@ -1505,24 +1492,24 @@ function CDTL3:RefreshConfig()
 		CDTL3:RefreshReady(f.number)
 	end
 	CDTL3:CreateReadyFrames()
-	
+
 	for _, f in pairs(CDTL3.barFrames) do
 		CDTL3:RefreshBarFrame(f.number)
 	end
 	CDTL3:CreateBarFrames()
-	
+
 	for _, f in pairs(CDTL3.lanes) do
 		CDTL3:RefreshLane(f.number)
 	end
 	CDTL3:CreateLanes()
-	
+
 	CDTL3:RefreshAllIcons()
 	CDTL3:RefreshAllBars()
-	
+
 	-- Re-register the FULL tree (not just the main table) so a profile switch never strips
 	-- the Lanes/Ready/Bar Frames/Filters/Profiles tabs from the standalone window.
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("CDTL3", CDTL3:GetFullOptions())
-	
+
 	-- the "Frames currently unlocked" box follows this profile's lock state (a switch from an
 	-- unlocked profile to a locked one left it up over locked frames)
 	if CDTL3.db.profile.global["unlockFrames"] then
@@ -1548,7 +1535,7 @@ function CDTL3:ResetStaleFilters()
 		if t ~= "default" and CDTL3.db.profile.tables[t] then
 			local list
 			if t == "detected" then
-				list = CDTL3:LoadDetectedList(t)
+				list = CDTL3:LoadDetectedList()
 			else
 				list = CDTL3:LoadFilterList(t, t == "items")
 			end
@@ -1753,13 +1740,19 @@ private.Book = function()
 				end
 			end
 		else
+			-- Classic clients only: the old spellbook calls (the other branch uses C_SpellBook)
+			---@diagnostic disable-next-line: undefined-global
 			for i = 1, GetNumSpellTabs() do
+				---@diagnostic disable-next-line: undefined-global
 				local _, _, offset, numSlots, _, offSpecID = GetSpellTabInfo(i)
 				if not (offSpecID and offSpecID ~= 0) then
 					for j = offset + 1, offset + numSlots do
+						---@diagnostic disable-next-line: undefined-global
 						local name, _, id = GetSpellBookItemName(j, BOOKTYPE_SPELL)
+						---@diagnostic disable-next-line: undefined-global
 						local kind = GetSpellBookItemInfo and GetSpellBookItemInfo(j, BOOKTYPE_SPELL)
 						if kind == nil or kind == "SPELL" then
+							---@diagnostic disable-next-line: undefined-global
 							add(name, id, IsPassiveSpell and IsPassiveSpell(j, BOOKTYPE_SPELL))
 						end
 					end
@@ -2126,7 +2119,9 @@ end
 -- ignored. A buff on you now shows at once. Returns what it did, or nil where there's no Cooldown Manager.
 function CDTL3:PullTrackedBuffs()
 	local CT = CDTL3.CombatTimers
-	local bars, viewerOn = nil, false
+	local bars
+	---@type boolean?
+	local viewerOn = false
 	if CT and CT.TrackedBarBuffs then
 		bars, viewerOn = CT:TrackedBarBuffs()
 	end
@@ -2197,17 +2192,30 @@ function CDTL3:PullTrackedBuffs()
 	return result
 end
 
+-- the highlight effects' animation groups (Cooldown.lua), each made once per icon
+local HIGHLIGHT_GROUPS = { "agGlow", "agBorderPulse", "agPulse", "agIconPulse", "agBounce", "agShake", "agScale" }
+
 function CDTL3:RemoveHighlights(f, s)
-	if f.hl.agBorderPulse then
-		f.hl.agBorderPulse:Stop()
+	if not f.hl then
+		return
 	end
-	
-	if f.hl.agPulse then
-		f.hl.agPulse:Stop()
+
+	for i = 1, #HIGHLIGHT_GROUPS do
+		local g = f.hl[HIGHLIGHT_GROUPS[i]]
+		if g then
+			g:Stop()
+		end
 	end
-	
-	if ActionButton_HideOverlayGlow then
-		ActionButton_HideOverlayGlow(f)
+
+	-- the glow and the plain edge (Cooldown.lua), when made
+	if f.hl.glow then
+		f.hl.glow:Hide()
+	end
+	if f.hl.edge then
+		CDTL3.IconFx.RingShow(f.hl.edge, false)
+	end
+	if f.hl.roundEdge then
+		f.hl.roundEdge:Hide()
 	end
 	f.hl:SetBackdropBorderColor(
 		s["icons"]["highlight"]["border"]["color"]["r"],
@@ -2220,14 +2228,14 @@ end
 
 function CDTL3:ScanSharedSpellCooldown(initialName, initialDuration)
 	local sd = CDTL3:GetAllSpellData(CDTL3.player["class"], CDTL3.player["race"])
-	
+
 	-- SPELLS
 	for _, spell in pairs(sd) do
 		if spell["name"] ~= initialName then
 			--local start, duration, enabled, _ = GetSpellCooldown(spell["id"])
-			local start, duration, enabled = CDTL3:GetSpellCooldown(spell["id"])
+			local _, duration = CDTL3:GetSpellCooldown(spell["id"])
 			local difference = math.abs(initialDuration - duration)
-			
+
 			if difference < 0.2 then
 				if duration > 1.5 then
 					local ef = CDTL3:GetExistingCooldown(spell["name"], "spells")
@@ -2241,28 +2249,74 @@ function CDTL3:ScanSharedSpellCooldown(initialName, initialDuration)
 								if CDTL3.db.profile.global["spells"]["enabled"] then
 									CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
 								end
-								
+
 								if not CDTL3:IsUsedBy("spells", spell["id"]) then
 									CDTL3:AddUsedBy("spells", spell["id"], CDTL3.player["guid"])
 								end
 							end
 						else
-							local spellName, icon, originalIcon = CDTL3:GetSpellInfo(spell["id"])
-							
-							local s = CDTL3:ApplyEntryDefaults({
+							local _, icon = CDTL3:GetSpellInfo(spell["id"])
+
+							local entry = CDTL3:ApplyEntryDefaults({
 								id = spell["id"],
 								bCD = duration * 1000,	-- bCD is milliseconds everywhere else
 								name = spell["name"],
 								type = "spells",
 								icon = icon,
 							}, "spells")
-							s["link"] = CDTL3:GetSpellLink(spell["id"])
-							s["ignored"] = CDTL3:IgnoredByDefault("spells", s["bCD"])
+							entry["link"] = CDTL3:GetSpellLink(spell["id"])
+							entry["ignored"] = CDTL3:IgnoredByDefault("spells", entry["bCD"])
 
-							CDTL3:SaveNewEntry(s, "spells")
+							CDTL3:SaveNewEntry(entry, "spells")
 						end
 					end
 				end
+			end
+		end
+	end
+end
+
+-- A known spell with a saved entry: put it on its lane and bar frame, or start a cooldown for it,
+-- unless it is ignored
+function CDTL3:ShowKnownSpell(s, spellName)
+	if not CDTL3:IsIgnored(s, "spells") then
+		local ef = CDTL3:GetExistingCooldown(s["name"], "spells")
+		if ef then
+			CDTL3:SendToLane(ef)
+			CDTL3:SendToBarFrame(ef)
+			CDTL3:CheckEdgeCases(spellName)
+		else
+			if CDTL3.db.profile.global["spells"]["enabled"] then
+				CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
+				CDTL3:CheckEdgeCases(spellName)
+
+				if CDTL3:IsUsedBy("spells", s["id"]) then
+					--CDTL3:Print("USEDBY MATCH: "..s["id"])
+				else
+					CDTL3:AddUsedBy("spells", s["id"], CDTL3.player["guid"])
+				end
+			end
+		end
+	end
+end
+
+-- One spellbook spell: if it is cooling down, show it (saving a new entry when it has none)
+local function ScanSpell(spellName, spellID)
+	local _, duration = CDTL3:GetSpellCooldown(spellID)
+
+	if duration > 1.5 then
+		if CDTL3.db.profile.global["debugMode"] then
+			CDTL3:Print("COOLINGDOWN: "..tostring(spellName).." - "..spellID)
+		end
+
+		local s = CDTL3:GetSpellSettings(spellName, "spells")
+		if s then
+			CDTL3:ShowKnownSpell(s, spellName)
+		else
+			local infoName, icon = CDTL3:GetSpellInfo(spellID)
+			s = CDTL3:NewSpellEntry(spellID, infoName, icon, "spells")
+			if CDTL3:SaveNewEntry(s, "spells") then
+				CDTL3:CheckEdgeCases(infoName)
 			end
 		end
 	end
@@ -2274,93 +2328,27 @@ function CDTL3:ScanCurrentCooldowns(class, race)
 		for i = 1, C_SpellBook.GetNumSpellBookSkillLines() do
 			local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(i)
 			local offset, numSlots = skillLineInfo.itemIndexOffset, skillLineInfo.numSpellBookItems
-			
+
 			--local j = 1
 			for j = offset + 1, offset + numSlots do
 			--for j = offset + 1, numSlots do
-				local spellName, subName = C_SpellBook.GetSpellBookItemName(j, Enum.SpellBookSpellBank.Player)
+				local spellName = C_SpellBook.GetSpellBookItemName(j, Enum.SpellBookSpellBank.Player)
 				local spellID = select(2,C_SpellBook.GetSpellBookItemType(j, Enum.SpellBookSpellBank.Player))
 
-				local start, duration, enabled = CDTL3:GetSpellCooldown(spellID)
-
-				if duration > 1.5 then
-					if CDTL3.db.profile.global["debugMode"] then
-						CDTL3:Print("COOLINGDOWN: "..tostring(spellName).." - "..spellID)
-					end
-
-					local s = CDTL3:GetSpellSettings(spellName, "spells")
-					if s then
-						if not CDTL3:IsIgnored(s, "spells") then
-							local ef = CDTL3:GetExistingCooldown(s["name"], "spells")
-							if ef then
-								CDTL3:SendToLane(ef)
-								CDTL3:SendToBarFrame(ef)
-								CDTL3:CheckEdgeCases(spellName)
-							else
-								if CDTL3.db.profile.global["spells"]["enabled"] then
-									CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
-									CDTL3:CheckEdgeCases(spellName)
-
-									if CDTL3:IsUsedBy("spells", s["id"]) then
-										--CDTL3:Print("USEDBY MATCH: "..s["id"])
-									else
-										CDTL3:AddUsedBy("spells", s["id"], CDTL3.player["guid"])
-									end
-								end
-							end
-						end
-					else
-						local spellName, icon = CDTL3:GetSpellInfo(spellID)
-						s = CDTL3:NewSpellEntry(spellID, spellName, icon, "spells")
-						if CDTL3:SaveNewEntry(s, "spells") then
-							CDTL3:CheckEdgeCases(spellName)
-						end
-					end
-				end
+				ScanSpell(spellName, spellID)
 			end
 		end
 	else
+		-- Classic clients only: the old spellbook calls (the other branch uses C_SpellBook)
+		---@diagnostic disable-next-line: undefined-global
 		for i = 1, GetNumSpellTabs() do
+			---@diagnostic disable-next-line: undefined-global
 			local offset, numSlots = select(3, GetSpellTabInfo(i))
 			for j = offset + 1, offset + numSlots do
+				---@diagnostic disable-next-line: undefined-global
 				local spellName, _, spellID = GetSpellBookItemName(j, BOOKTYPE_SPELL)
 				if spellID then
-					local start, duration, enabled = CDTL3:GetSpellCooldown(spellID)
-
-					if duration > 1.5 then
-						if CDTL3.db.profile.global["debugMode"] then
-							CDTL3:Print("COOLINGDOWN: "..tostring(spellName).." - "..spellID)
-						end
-
-						local s = CDTL3:GetSpellSettings(spellName, "spells")
-						if s then
-							if not CDTL3:IsIgnored(s, "spells") then
-								local ef = CDTL3:GetExistingCooldown(s["name"], "spells")
-								if ef then
-									CDTL3:SendToLane(ef)
-									CDTL3:SendToBarFrame(ef)
-									CDTL3:CheckEdgeCases(spellName)
-								else
-									if CDTL3.db.profile.global["spells"]["enabled"] then
-										CDTL3:CreateCooldown(CDTL3:GetUID(),"spells" , s)
-										CDTL3:CheckEdgeCases(spellName)
-										
-										if CDTL3:IsUsedBy("spells", s["id"]) then
-											--CDTL3:Print("USEDBY MATCH: "..s["id"])
-										else
-											CDTL3:AddUsedBy("spells", s["id"], CDTL3.player["guid"])
-										end
-									end
-								end
-							end
-						else
-							local spellName, icon = CDTL3:GetSpellInfo(spellID)
-							s = CDTL3:NewSpellEntry(spellID, spellName, icon, "spells")
-							if CDTL3:SaveNewEntry(s, "spells") then
-								CDTL3:CheckEdgeCases(spellName)
-							end
-						end
-					end
+					ScanSpell(spellName, spellID)
 				end
 			end
 		end
@@ -2375,13 +2363,13 @@ function CDTL3:ScanCurrentCooldowns(class, race)
 		print("petSubType", petSubType) -- like "Basic Ability" or "Pet Stance"
 		print("spellID", spellId)
 	end]]--
-	
+
 	-- ITEMS (equipped, then bags)
 	for _, itemId in ipairs(private.CarriedItemIDs()) do
 		local spellName, spellID = CDTL3.Compat.GetItemSpell(itemId)
 
 		if spellName and CDTL3:IsValidItem(itemId) then
-			local start, duration, enabled = CDTL3:GetItemCooldown(itemId)
+			local _, duration = CDTL3:GetItemCooldown(itemId)
 
 			if duration and duration > 1.5 and not CDTL3:GetExistingCooldown(spellName, "items") then
 				local s = CDTL3:GetSpellSettings(spellName, "items")
@@ -2499,7 +2487,7 @@ function CDTL3:SetSpellData(name, type, k, v)
 	if CDTL3.db.profile.global["debugMode"] then
 		CDTL3:Print("DATASAVE: "..name.." - "..type.." - "..k..":"..tostring(v))
 	end
-	
+
 	for _, e in pairs(CDTL3.db.profile.tables[type]) do
 		if type == "items" then
 			if e["itemName"] == name then
@@ -2515,66 +2503,68 @@ end
 
 function CDTL3:ToggleDebug()
 	local debugMode = CDTL3.db.profile.global["debugMode"]
-	
+
 	if debugMode then
 		CDTL3.db.profile.global["debugMode"] = false
 		CDTL3.debugFrame:Hide()
-		
+
 		for _, f in pairs(CDTL3.holders) do
 			f:SetAlpha(0)
 			f:Hide()
 		end
-		
+
 		for _, f in pairs(CDTL3.lanes) do
 			private.DebugOff(f)
 		end
-		
+
 		for _, f in pairs(CDTL3.barFrames) do
 			private.DebugOff(f)
 		end
-		
+
 		for _, f in pairs(CDTL3.readyFrames) do
 			private.DebugOff(f)
 		end
-		
+
 		for _, f in pairs(CDTL3.cooldowns) do
 			private.DebugOff(f.bar)
 			private.DebugOff(f.icon)
 		end
-		
+
 		CDTL3:Print(L["Debug Mode Disabled"])
 	else
 		CDTL3.db.profile.global["debugMode"] = true
 		CDTL3.debugFrame:Show()
-		
+
 		-- holders are created hidden when debug is off, so alpha alone never showed them
 		for _, f in pairs(CDTL3.holders) do
 			f:SetAlpha(1)
 			f:Show()
 		end
-		
+
 		for _, f in pairs(CDTL3.lanes) do
 			private.DebugOn(f)
 		end
-		
+
 		for _, f in pairs(CDTL3.barFrames) do
 			private.DebugOn(f)
 		end
-		
+
 		for _, f in pairs(CDTL3.readyFrames) do
 			private.DebugOn(f)
 		end
-		
+
 		for _, f in pairs(CDTL3.cooldowns) do
 			private.DebugOff(f.bar)
 			private.DebugOff(f.icon)
 		end
-		
+
 		CDTL3:Print(L["Debug Mode Enabled"])
 	end
 end
 
 -- quiet: no chat line and no unlock popup (Edit Mode shows/hides the frames itself)
+-- the base definition: Group.lua wraps it
+---@diagnostic disable-next-line: duplicate-set-field
 function CDTL3:ToggleFrameLock(quiet)
 	local unlockFrames = CDTL3.db.profile.global["unlockFrames"]
 
@@ -2583,7 +2573,7 @@ function CDTL3:ToggleFrameLock(quiet)
 		CDTL3:Print(L["CDTL3: unlockFrame not ready — try reloading the UI."])
 		return
 	end
-	
+
 	if unlockFrames then
 		CDTL3.db.profile.global["unlockFrames"] = false
 		CDTL3.db.global.lockedOnce = true	-- the unlock box drops its how-to wording from now on
@@ -2593,17 +2583,17 @@ function CDTL3:ToggleFrameLock(quiet)
 			private.FrameLock(f)
 			CDTL3:RefreshLane(f.number)
 		end
-		
+
 		for _, f in pairs(CDTL3.barFrames) do
 			private.FrameLock(f)
 			CDTL3:RefreshBarFrame(f.number)
 		end
-		
+
 		for _, f in pairs(CDTL3.readyFrames) do
 			private.FrameLock(f)
 			CDTL3:RefreshReady(f.number)
 		end
-		
+
 		if not quiet then
 			CDTL3:Print(L["Frames Locked"])
 		end
@@ -2612,22 +2602,22 @@ function CDTL3:ToggleFrameLock(quiet)
 		if not quiet then
 			CDTL3.unlockFrame:Show()
 		end
-		
+
 		for _, f in pairs(CDTL3.lanes) do
 			private.FrameUnlock(f)
 			CDTL3:RefreshLane(f.number)
 		end
-		
+
 		for _, f in pairs(CDTL3.barFrames) do
 			private.FrameUnlock(f)
 			CDTL3:RefreshBarFrame(f.number)
 		end
-		
+
 		for _, f in pairs(CDTL3.readyFrames) do
 			private.FrameUnlock(f)
 			CDTL3:RefreshReady(f.number)
 		end
-		
+
 		if not quiet then
 			CDTL3:Print(L["Frames Unlocked"])
 		end
@@ -2660,7 +2650,7 @@ function CDTL3:TableCopy(orig)
 		for orig_key, orig_value in next, orig, nil do
 			copy[CDTL3:TableCopy(orig_key)] = CDTL3:TableCopy(orig_value)
 		end
-		
+
 		setmetatable(copy, CDTL3:TableCopy(getmetatable(orig)))
     else
         copy = orig
@@ -2898,7 +2888,8 @@ end
 -- Is the string usable in this import mode? nil when it is, else what's wrong. Checks only:
 -- nothing is written, so a bad string changes nothing.
 local function CheckShare(plan, mode)
-	local data, defaults = plan.data, CDTL3.db.defaults.profile
+	-- the registered defaults always have a profile table
+	local data, defaults = plan.data, CDTL3.db.defaults.profile --[[@as table]]
 
 	if plan.meta and plan.meta.kind == "LOOK" then
 		return L["That is a saved look: paste it under Quick Style > Import a look."]
@@ -3101,7 +3092,8 @@ end
 local function PreviewText(plan, mode)
 	local data, meta = plan.data, plan.meta
 	local kind = meta and meta.kind
-	local defaults = CDTL3.db.defaults.profile
+	-- the registered defaults always have a profile table
+	local defaults = CDTL3.db.defaults.profile --[[@as table]]
 	local lines, parts = {}, {}
 	local lists, carries
 
@@ -3273,9 +3265,9 @@ function CDTL3:ImportHandler(importString)
 	return nil
 end
 
-private.DebugOff = function(f)	
+private.DebugOff = function(f)
 	f.db:Hide()
-	
+
 	if CDTL3.db.profile.global["unlockFrames"] then
 		private.FrameUnlock(f)
 	end
@@ -3289,11 +3281,11 @@ end
 private.FrameLock = function(f)
 	f:SetMovable(false)
 	f:EnableMouse(false)
-	
+
 	f.db.text:SetText(f.name)
-	
+
 	f.db:Hide()
-	
+
 	if CDTL3.db.profile.global["debugMode"] then
 		private.DebugOn(f)
 	end
@@ -3302,7 +3294,7 @@ end
 private.FrameUnlock = function(f)
 	f:SetMovable(true)
 	f:EnableMouse(true)
-	
+
 	f.db.text:SetText(f.name)
 
 	f.db:Show()

@@ -83,6 +83,8 @@ private.AddBorderArgs = function(args, base, border, refresh, first)
 		order = first,
 		type = "select",
 		dialogControl = 'LSM30_Border',
+		-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+		---@diagnostic disable-next-line: undefined-global
 		values = AceGUIWidgetLSMlists.border,
 		get = function(info) return border()["style"] end,
 		set = function(info, val)
@@ -393,6 +395,8 @@ private.SplitBlizzardSound = function(args, key, option)
 		if type(list) == "function" then
 			list = list(info)
 		end
+		-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+		---@diagnostic disable-next-line: undefined-global
 		return list or (AceGUIWidgetLSMlists and AceGUIWidgetLSMlists.sound) or {}
 	end
 	local function listOf(blizzard)
@@ -604,6 +608,38 @@ function CDTL3:GetChangeLog()
 	changeLog = changeLog.."CDTL3 continues Cooldown Timeline for Retail (Midnight), Classic Era,\n"
 	changeLog = changeLog.."TBC Anniversary, MoP Classic and World of Warcraft: Forever,\n"
 	changeLog = changeLog.."based on the original by Vreenak and the v2 rewrite by cliffclive.\n\n"
+	changeLog = changeLog.."Changelog 3.3.0:\n"
+	changeLog = changeLog.."\n"
+	changeLog = changeLog.."  - The original looks are back: eight highlight effects for spells you\n"
+	changeLog = changeLog.."    mark Highlight in Filters (Lanes > Icons > Highlight Style): Glow,\n"
+	changeLog = changeLog.."    Pulse, Border, Border Pulse, Bounce, Shake, Scale and Flash Icon.\n"
+	changeLog = changeLog.."    Pulse, Bounce, Shake and Scale return from the original Cooldown\n"
+	changeLog = changeLog.."    Timeline, and Border Flash is called Border Pulse again\n"
+	changeLog = changeLog.."  - New Effect speed slider next to Highlight Style: 50% (half the\n"
+	changeLog = changeLog.."    original's speed) out of the box, from 25% to 200%\n"
+	changeLog = changeLog.."  - Border and Border Pulse highlights now show without a border texture\n"
+	changeLog = changeLog.."    chosen: they draw a thin edge in the highlight colour. Thanks to TeZwo\n"
+	changeLog = changeLog.."  - Glow is a gold halo CDTL3 draws itself, so it shows on every client.\n"
+	changeLog = changeLog.."    On a round Masque skin (Cirque and the like) the glow, the plain\n"
+	changeLog = changeLog.."    border and Flash Icon are round too\n"
+	changeLog = changeLog.."  - New Finish effect per lane (Lanes > Icons > Finish effect): when an\n"
+	changeLog = changeLog.."    icon reaches the Ready end it can grow and fade, or shrink away as a\n"
+	changeLog = changeLog.."    gold ring goes out. Off by default\n"
+	changeLog = changeLog.."  - This window now has live samples at the top: the two Finish effects\n"
+	changeLog = changeLog.."    and each highlight effect\n"
+	changeLog = changeLog.."  - Split (%) and Split (Time) lanes can have up to five marks: Split\n"
+	changeLog = changeLog.."    Count goes to 5, each mark has its own position and value sliders,\n"
+	changeLog = changeLog.."    and marks 4 and 5 get their own text slots (Text 6 and Text 7)\n"
+	changeLog = changeLog.."  - Every lane, Ready frame and bar frame has a Show and hide tab: pick\n"
+	changeLog = changeLog.."    Fade or Scale for how it comes in and goes out, with its own length,\n"
+	changeLog = changeLog.."    start and end, number of plays and Bounce. The defaults look exactly\n"
+	changeLog = changeLog.."    as before\n"
+	changeLog = changeLog.."  - Under the hood: the code passes the WoW API check with no warnings\n"
+	changeLog = changeLog.."    and about 2,000 lines of copied code are gone. Nothing looks or works\n"
+	changeLog = changeLog.."    differently in game\n"
+	changeLog = changeLog.."  - Boss fights only asks the game's current encounter call first, so it\n"
+	changeLog = changeLog.."    keeps working if you switch off Blizzard's old-API fallbacks\n"
+	changeLog = changeLog.."\n"
 	changeLog = changeLog.."Changelog 3.2.2:\n\n"
 	changeLog = changeLog.."  - Icon borders no longer throw \"secret number value\" errors in combat on\n"
 	changeLog = changeLog.."    Retail and WoW: Forever. Thanks to TeZwo for posting the full error\n"
@@ -762,7 +798,7 @@ function CDTL3:GetChangeLog()
 	changeLog = changeLog.."  - Fixed the options command erroring on Midnight 12.0.7\n\n"
 	changeLog = changeLog.."Changelog 3.0.1:\n\n"
 	changeLog = changeLog.."  - Midnight 12.0.7 compatibility\n"
-		
+
 	return changeLog
 end
 
@@ -843,9 +879,9 @@ function CDTL3:GetMainOptions()
 							end,
 						set = function(info, val)
 								CDTL3.db.profile.global["enabledAlways"] = val
-								
+
 								local turnOn = CDTL3:DetermineOnOff()
-	
+
 								if turnOn then
 									CDTL3:TurnOn()
 								else
@@ -867,9 +903,9 @@ function CDTL3:GetMainOptions()
 							end,
 						set = function(info, val)
 								CDTL3.db.profile.global["enabledGroup"] = val
-								
+
 								local turnOn = CDTL3:DetermineOnOff()
-	
+
 								if turnOn then
 									CDTL3:TurnOn()
 								else
@@ -891,9 +927,9 @@ function CDTL3:GetMainOptions()
 							end,
 						set = function(info, val)
 								CDTL3.db.profile.global["enabledInstance"] = val
-								
+
 								local turnOn = CDTL3:DetermineOnOff()
-	
+
 								if turnOn then
 									CDTL3:TurnOn()
 								else
@@ -960,7 +996,7 @@ function CDTL3:GetMainOptions()
 							end,
 						set = function(info, val)
 								CDTL3.db.profile.global["autohide"] = val
-								
+
 								for i = 1, 3, 1 do
 									CDTL3:RefreshLane(i)
 									CDTL3:RefreshReady(i)
@@ -1218,11 +1254,11 @@ function CDTL3:GetMainOptions()
 								local g = CDTL3.db.profile.global["notUsableColor"]["g"]
 								local b = CDTL3.db.profile.global["notUsableColor"]["b"]
 								local a = CDTL3.db.profile.global["notUsableColor"]["a"]
-								
+
 								return r, g, b, a
 							end,
 						set = function(info, red, green, blue, alpha)
-								CDTL3.db.profile.global["notUsableColor"] = { r = red, g = green, b = blue, a = alpha }							
+								CDTL3.db.profile.global["notUsableColor"] = { r = red, g = green, b = blue, a = alpha }
 								CDTL3:RefreshAllIcons()
 							end,
 					},
@@ -1293,12 +1329,12 @@ function CDTL3:GetMainOptions()
 							if CDTL3.tocversion >= 30000 then
 								return false
 							end
-							
+
 							return true
 						end,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["DEATHKNIGHT"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1320,12 +1356,12 @@ function CDTL3:GetMainOptions()
 							if CDTL3.tocversion >= 70000 then
 								return false
 							end
-							
+
 							return true
 						end,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["DEMONHUNTER"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1345,7 +1381,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["DRUID"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1367,12 +1403,12 @@ function CDTL3:GetMainOptions()
 							if CDTL3.tocversion >= 100000 then
 								return false
 							end
-							
+
 							return true
 						end,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["EVOKER"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1392,7 +1428,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["HUNTER"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1412,7 +1448,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["MAGE"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1434,12 +1470,12 @@ function CDTL3:GetMainOptions()
 							if CDTL3.tocversion >= 50000 then
 								return false
 							end
-							
+
 							return true
 						end,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["MONK"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1459,7 +1495,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["PALADIN"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1479,7 +1515,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["PRIEST"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1499,7 +1535,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["ROGUE"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1519,7 +1555,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["SHAMAN"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1539,7 +1575,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["WARLOCK"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1559,7 +1595,7 @@ function CDTL3:GetMainOptions()
 						hasAlpha = true,
 						get = function(info)
 								local t = CDTL3.db.profile.global["classColors"]["WARRIOR"]
-								
+
 								local r = t["r"]
 								local g = t["g"]
 								local b = t["b"]
@@ -1699,9 +1735,9 @@ function CDTL3:GetMainOptions()
 					},
 					spacer300 = {
 						name = function(info)
-							local info = ""
-							info = info..CDTL3:GetChangeLog()
-							return info
+							local text = ""
+							text = text..CDTL3:GetChangeLog()
+							return text
 						end,
 						type = "description",
 						order = 300,
@@ -1776,7 +1812,7 @@ private.BuildFilterOptions = function()
 									--[[if CDTL3.db.profile.global["debugMode"] then
 										choices["OTHER"] = "Other"
 									end]]--
-									
+
 								-- timer types other addons registered (CDTL3:RegisterTimerType)
 									for key, t in pairs(CDTL3.timerTypes or {}) do
 										CDTL3:TimerTypeSettings(key)
@@ -1786,7 +1822,7 @@ private.BuildFilterOptions = function()
 									if CDTL3.player["class"] == "DEATHKNIGHT" then
 									choices["RUNES"] = L["Runes"]
 								end
-								
+
 								return choices
 							end,
 						get = function(info)
@@ -1818,7 +1854,7 @@ private.BuildFilterOptions = function()
 							end,
 						func = function(info)
 								local default = CDTL3.currentFilter["default"]
-								
+
 								-- only this character's entries (the ones Filters lists); other
 								-- characters on a shared profile keep theirs, shared ones included.
 								-- Rebuilt in place so the saved list stays a list with no holes.
@@ -1837,7 +1873,7 @@ private.BuildFilterOptions = function()
 								for i, v in ipairs(kept) do
 									list[i] = v
 								end
-								
+
 								CDTL3.currentFilter[string.lower(default)] = "<< Select >>"
 								CDTL3.currentFilterHidden[string.lower(default)] = true
 							end
@@ -1854,22 +1890,22 @@ private.BuildFilterOptions = function()
 								if string.lower(CDTL3.currentFilter["default"]) ~= "items" then
 									return true
 								end
-								
+
 								return false
 							end,
 						func = function(info)
 								local cleanTable = {}
-						
-								for k, v in pairs(CDTL3.db.profile.tables["items"]) do
-									local _, _, _, _, _, classID, subclassID = CDTL3.Compat.GetItemInfoInstant(v["itemID"])
-									
+
+								for _, v in pairs(CDTL3.db.profile.tables["items"]) do
+									local _, _, _, _, _, classID = CDTL3.Compat.GetItemInfoInstant(v["itemID"])
+
 									if classID ~= 12 or private.KeepAfterClear(v) then
 										table.insert(cleanTable, v)
 									else
 										CDTL3:ForgetSharedEntry("items", v)
 									end
 								end
-								
+
 								CDTL3.db.profile.tables["items"] = cleanTable
 
 								-- the Items tab may still have a cleared item selected
@@ -1900,7 +1936,7 @@ private.BuildFilterOptions = function()
 						set = function(info, val)
 								local default = CDTL3.currentFilter["default"]
 								CDTL3.db.profile.global[string.lower(default)]["enabled"] = val
-								
+
 								for _, cd in pairs(CDTL3.cooldowns) do
 									if cd.data["type"] == string.lower(default) then
 										cd.data["enabled"] = val
@@ -1911,7 +1947,6 @@ private.BuildFilterOptions = function()
 					onlyPlayer = {
 						name = L["Player Only"],
 						desc = function(info)
-								local default = string.lower(CDTL3.currentFilter["default"])
 								return string.format(L["If selected only %s applied by the player will be tracked"], private.TypeNoun())
 							end,
 						order = 201.2,
@@ -1919,25 +1954,25 @@ private.BuildFilterOptions = function()
 						--width = "half",
 						hidden = function(info)
 								local default = string.lower(CDTL3.currentFilter["default"])
-								
+
 								if default == "buffs" or default == "debuffs" then
 									return false
 								end
-								
+
 								return true
 							end,
 						get = function(info, index)
 								local default = string.lower(CDTL3.currentFilter["default"])
-								
+
 								if default == "buffs" or default == "debuffs" then
 									return CDTL3.db.profile.global[default]["onlyPlayer"]
 								end
-								
+
 								return false
 							end,
 						set = function(info, val)
 								local default = string.lower(CDTL3.currentFilter["default"])
-								
+
 								if default == "buffs" or default == "debuffs" then
 									CDTL3.db.profile.global[default]["onlyPlayer"] = val
 								end
@@ -1969,11 +2004,11 @@ private.BuildFilterOptions = function()
 						--width = "half",
 						hidden = function(info)
 								local default = string.lower(CDTL3.currentFilter["default"])
-								
+
 								if default == "items" then
 									return false
 								end
-								
+
 								return true
 							end,
 						get = function(info, index)
@@ -1981,7 +2016,7 @@ private.BuildFilterOptions = function()
 								if default == "items" then
 									return CDTL3.db.profile.global[default]["useItemIcon"]
 								end
-								
+
 								return nil
 							end,
 						set = function(info, val)
@@ -2020,7 +2055,7 @@ private.BuildFilterOptions = function()
 						set = function(info, val)
 								local default = CDTL3.currentFilter["default"]
 								CDTL3.db.profile.global[string.lower(default)]["ignoreThreshold"] = val
-								
+
 								for _, spell in pairs(CDTL3.cooldowns) do
 									if spell.data["type"] == string.lower(default) then
 										if spell.data["baseCD"] > val then	-- baseCD is already in seconds
@@ -2033,7 +2068,7 @@ private.BuildFilterOptions = function()
 										end
 									end
 								end
-								
+
 								-- only this character's entries (the ones Filters lists)
 								for _, spell in pairs(CDTL3.db.profile.tables[string.lower(default)]) do
 									if CDTL3:IsMyEntry(spell) then
@@ -2044,7 +2079,7 @@ private.BuildFilterOptions = function()
 										end
 									end
 								end
-								
+
 								CDTL3:ScanCurrentCooldowns(CDTL3.player["class"], CDTL3.player["race"])
 							end,
 					},
@@ -2101,14 +2136,14 @@ private.BuildFilterOptions = function()
 										CDTL3:MoveToLane(spell)
 									end
 								end
-								
+
 								-- only this character's entries (the ones Filters lists)
 								for _, spell in pairs(CDTL3.db.profile.tables[string.lower(default)]) do
 									if CDTL3:IsMyEntry(spell) then
 										spell["lane"] = CDTL3.db.profile.global[string.lower(default)]["defaultLane"]
 									end
 								end
-								
+
 								CDTL3:RefreshAllIcons()
 							end
 					},
@@ -2170,14 +2205,14 @@ private.BuildFilterOptions = function()
 										end
 									end
 								end
-								
+
 								-- only this character's entries (the ones Filters lists)
 								for _, spell in pairs(CDTL3.db.profile.tables[string.lower(default)]) do
 									if CDTL3:IsMyEntry(spell) then
 										spell["barFrame"] = CDTL3.db.profile.global[string.lower(default)]["defaultBar"]
 									end
 								end
-								
+
 								CDTL3:RefreshAllBars()
 							end
 					},
@@ -2199,9 +2234,6 @@ private.BuildFilterOptions = function()
 								return CDTL3.currentFilterHidden["default"]
 							end,
 						type = "select",
-						hidden = function(info)
-								return CDTL3.currentFilterHidden["default"]
-							end,
 						width = "half",
 						values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
 						get = function(info)
@@ -2235,14 +2267,14 @@ private.BuildFilterOptions = function()
 										spell.data["readyFrame"] = target
 									end
 								end
-								
+
 								-- only this character's entries (the ones Filters lists)
 								for _, spell in pairs(CDTL3.db.profile.tables[string.lower(default)]) do
 									if CDTL3:IsMyEntry(spell) then
 										spell["readyFrame"] = CDTL3.db.profile.global[string.lower(default)]["defaultReady"]
 									end
 								end
-								
+
 								CDTL3:RefreshAllIcons()
 							end
 					},
@@ -2258,7 +2290,7 @@ private.BuildFilterOptions = function()
 			runes = private.GetFilterSet("runes", 900),
 		}
 	}
-	
+
 	return options
 end
 
@@ -2273,7 +2305,7 @@ function CDTL3:GetLaneOptions()
 			lane3 = private.GetLaneSet(3),
 		}
 	}
-	
+
 	return options
 end
 
@@ -2304,21 +2336,302 @@ function CDTL3:GetBarFrameOptions()
 			barFrame3 = private.GetBarFrameSet(3),
 		}
 	}
-	
-	return options	
+
+	return options
+end
+
+-- LANES, BAR FRAMES AND READY FRAMES: the controls they share. s is the frame's settings, refresh
+-- redraws the frame.
+
+-- the nine points of a frame (Anchor Point, and each text's Anchor)
+private.ANCHOR_POINTS = {
+	["TOPLEFT"] = "TOPLEFT",
+	["TOP"] = "TOP",
+	["TOPRIGHT"] = "TOPRIGHT",
+	["LEFT"] = "LEFT",
+	["CENTER"] = "CENTER",
+	["RIGHT"] = "RIGHT",
+	["BOTTOMLEFT"] = "BOTTOMLEFT",
+	["BOTTOM"] = "BOTTOM",
+	["BOTTOMRIGHT"] = "BOTTOMRIGHT",
+}
+
+-- Frame Name and Enabled, first on each General tab (create makes the frames of its kind: one
+-- switched on may not exist yet)
+private.GetNameOption = function(s, refresh)
+	return {
+		name = L["Frame Name"],
+		type = "input",
+		order = 101,
+		get = function(info)
+				return s["name"]
+			end,
+		set = function(info, val)
+				s["name"] = val
+				refresh()
+			end,
+	}
+end
+
+private.GetEnabledOption = function(s, create, refresh)
+	return {
+		name = L["Enabled"],
+		desc = "",
+		order = 102,
+		type = "toggle",
+		get = function(info)
+				return s["enabled"]
+			end,
+		set = function(info, val)
+				s["enabled"] = val
+
+				if val then
+					create()
+				end
+
+				refresh()
+			end,
+	}
+end
+
+-- Grow Direction of a bar frame's bars or a Ready frame's icons
+private.GetGrowOption = function(s, desc)
+	return {
+		name = L["Grow Direction"],
+		desc = desc,
+		order = 201,
+		type = "select",
+		values = {
+				["UP"] = "UP",
+				["DOWN"] = "DOWN",
+				["LEFT"] = "LEFT",
+				["RIGHT"] = "RIGHT",
+				["CENTER_H"] = "CENTER (H)",
+				["CENTER_V"] = "CENTER (V)",
+			},
+		get = function(info)
+				return s["grow"]
+			end,
+		set = function(info, val)
+				s["grow"] = val
+			end,
+	}
+end
+
+private.GetAnchorPointOption = function(s, order, refresh)
+	return {
+		name = L["Anchor Point"],
+		desc = L["The x/y position is relative to this point of the screen"],
+		order = order,
+		type = "select",
+		values = private.ANCHOR_POINTS,
+		get = function(info)
+				return s["relativeTo"]
+			end,
+		set = function(info, val)
+				s["relativeTo"] = val
+				refresh()
+			end,
+	}
+end
+
+-- Appearance tab of a bar frame or a Ready frame: position, padding and background (its border and
+-- Anchor to controls are added after)
+private.GetFrameAppearance = function(s, refresh)
+	return {
+		name = L["Appearance"],
+		type = "group",
+		order = 200,
+		args = {
+			posX = {
+				name = L["x Position"],
+				desc = L["Sets the x position of the frame"],
+				order = 111,
+				type = "range",
+				softMin = -500,
+				softMax = 500,
+				bigStep = 1,
+				get = function(info)
+						return s["posX"]
+					end,
+				set = function(info, val)
+						s["posX"] = val
+						refresh()
+					end,
+			},
+			posY = {
+				name = L["y Position"],
+				desc = L["Sets the y position of the frame"],
+				order = 112,
+				type = "range",
+				softMin = -500,
+				softMax = 500,
+				bigStep = 1,
+				get = function(info)
+						return s["posY"]
+					end,
+				set = function(info, val)
+						s["posY"] = val
+						refresh()
+					end,
+			},
+			spacer113 = {
+				name = "",
+				type = "description",
+				order = 113,
+			},
+			relativeTo = private.GetAnchorPointOption(s, 114, refresh),
+			spacer200 = {
+				name = "\n\n",
+				type = "description",
+				order = 200,
+			},
+			padding = {
+				name = L["Padding"],
+				desc = L["Sets the amount of padding in the frame"],
+				order = 201,
+				type = "range",
+				softMin = 0,
+				softMax = 40,
+				bigStep = 1,
+				get = function(info)
+						return s["padding"]
+					end,
+				set = function(info, val)
+						s["padding"] = val
+						CDTL3:RefreshAllIcons()
+						refresh()
+					end,
+			},
+			spacer300 = {
+				name = "\n\n",
+				type = "description",
+				order = 300,
+			},
+			bgTexture = {
+				name = L["Background Texture"],
+				desc = L["Sets the background texture"],
+				order = 301,
+				type = "select",
+				dialogControl = 'LSM30_Statusbar',
+				values = function() return CDTL3:GetBarTextureList() end,
+				get = function(info)
+						return s["bgTexture"]
+					end,
+				set = function(info, val)
+						s["bgTexture"] = val
+						refresh()
+					end,
+			},
+			bgTextureColor = {
+				name = L["Color"],
+				desc = L["Sets the background texture color"],
+				order = 302,
+				type = "color",
+				hasAlpha = true,
+				get = function(info)
+						local c = s["bgTextureColor"]
+						return c["r"], c["g"], c["b"], c["a"]
+					end,
+				set = function(info, red, green, blue, alpha)
+						s["bgTextureColor"] = { r = red, g = green, b = blue, a = alpha }
+						refresh()
+					end,
+			},
+			spacer400 = {
+				name = "\n\n",
+				type = "description",
+				order = 400,
+			},
+		},
+	}
+end
+
+-- The Icons tab controls lanes and Ready frames share: transparency, the icon texts (the line
+-- under them at footer + 1) and the highlight style
+private.AddIconArgs = function(args, s, i, footer)
+	args["spacer102"] = {
+		name = "\n",
+		type = "description",
+		order = 102,
+	}
+	args["iconAlpha"] = {
+		name = L["Icon Transparency"],
+		desc = L["Set the alpha for the icon (text alpha is set in text settings)"],
+		order = 103,
+		type = "range",
+		min = 0,
+		max = 1,
+		get = function(info)
+				return s["icons"]["alpha"]
+			end,
+		set = function(info, val)
+				s["icons"]["alpha"] = val
+
+				CDTL3:RefreshAllIcons()
+			end,
+	}
+	args["spacer200"] = {
+		name = "\n",
+		type = "description",
+		order = 200.2,
+	}
+	private.AddTextSection(args, L["Icon Text"], s, "icons", i, footer)
+	args["spacer400"] = {
+		name = "\n\n",
+		type = "description",
+		order = 400,
+	}
+	args["highlightStyle"] = {
+		name = L["Highlight Style"],
+		desc = L["How the spells you mark Highlight in Filters show on their icons"],
+		order = 401,
+		type = "select",
+		values = {
+				["GLOW"] = L["Glow"],
+				["PULSE"] = L["Pulse"],
+				["BORDER"] = L["Border"],
+				["BORDER_FLASH"] = L["Border Pulse"],
+				["BOUNCE"] = L["Bounce"],
+				["SHAKE"] = L["Shake"],
+				["SCALE"] = L["Scale"],
+				["FLASH"] = L["Flash Icon"],
+			},
+		-- the menu in this order, not sorted by key
+		sorting = { "GLOW", "PULSE", "BORDER", "BORDER_FLASH", "BOUNCE", "SHAKE", "SCALE", "FLASH" },
+		get = function(info)
+				return s["icons"]["highlight"]["style"]
+			end,
+		set = function(info, val)
+				s["icons"]["highlight"]["style"] = val
+				CDTL3:RefreshAllIcons()
+			end,
+	}
+	args["highlightSpeed"] = {
+		name = L["Effect speed"],
+		desc = L["How fast the highlight effect moves. 100% is the original Cooldown Timeline's speed; the default is 50%, half as fast"],
+		order = 403,
+		type = "range",
+		min = 0.25,
+		max = 2,
+		step = 0.05,
+		isPercent = true,
+		get = function(info)
+				return s["icons"]["highlight"]["speed"]
+			end,
+		set = function(info, val)
+				s["icons"]["highlight"]["speed"] = val
+				CDTL3:RefreshAllIcons()
+			end,
+	}
 end
 
 private.GetBarFrameSet = function(i)
-	local frame = nil
-	
-	if i == 1 then
-		frame = CDTL3.db.profile.barFrames["frame1"]
-	elseif i == 2 then
-		frame = CDTL3.db.profile.barFrames["frame2"]
-	elseif i == 3 then
-		frame = CDTL3.db.profile.barFrames["frame3"]
+	local frame = CDTL3:SlotSettings("barFrames", i)
+	local function refresh()
+		CDTL3:RefreshBarFrame(i)
 	end
-	
+
 	local options = {
 		name = function(info)
 				return frame["name"]
@@ -2331,61 +2644,14 @@ private.GetBarFrameSet = function(i)
 				type = "group",
 				order = 100,
 				args = {
-					barFrameName = {
-						name = L["Frame Name"],
-						type = "input",
-						order = 101,
-						get = function(info)
-								return frame["name"]
-							end,
-						set = function(info, val)
-								frame["name"] = val
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
-					barFrameEnabled = {
-						name = L["Enabled"],
-						desc = "",
-						order = 102,
-						type = "toggle",
-						get = function(info, index)
-								return frame["enabled"]
-							end,
-						set = function(info, val)
-								frame["enabled"] = val
-								
-								if val then
-									CDTL3:CreateBarFrames()
-								end
-								
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
+					barFrameName = private.GetNameOption(frame, refresh),
+					barFrameEnabled = private.GetEnabledOption(frame, function() CDTL3:CreateBarFrames() end, refresh),
 					spacer200 = {
 						name = "\n\n",
 						type = "description",
 						order = 200,
 					},
-					grow = {
-						name = L["Grow Direction"],
-						desc = L["Select which direction new bars will grow in"],
-						order = 201,
-						type = "select",
-						values = {
-								["UP"] = "UP",
-								["DOWN"] = "DOWN",
-								["LEFT"] = "LEFT",
-								["RIGHT"] = "RIGHT",
-								["CENTER_H"] = "CENTER (H)",
-								["CENTER_V"] = "CENTER (V)",
-							},
-						get = function(info, index)
-								return frame["grow"]
-							end,
-						set = function(info, val)
-								frame["grow"] = val
-							end,
-					},
+					grow = private.GetGrowOption(frame, L["Select which direction new bars will grow in"]),
 					spacer300 = {
 						name = "\n\n",
 						type = "description",
@@ -2438,7 +2704,7 @@ private.GetBarFrameSet = function(i)
 										return false
 									end
 								end
-								
+
 								return true
 							end,
 						values = {
@@ -2466,7 +2732,7 @@ private.GetBarFrameSet = function(i)
 										end
 									end
 								end
-								
+
 								return true
 							end,
 						order = 320,
@@ -2485,7 +2751,7 @@ private.GetBarFrameSet = function(i)
 										end
 									end
 								end
-								
+
 								return true
 							end,
 						dialogControl = 'LSM30_Statusbar',
@@ -2512,7 +2778,7 @@ private.GetBarFrameSet = function(i)
 										end
 									end
 								end
-								
+
 								return true
 							end,
 						hasAlpha = true,
@@ -2541,7 +2807,7 @@ private.GetBarFrameSet = function(i)
 										end
 									end
 								end
-								
+
 								return true
 							end,
 					},
@@ -2559,7 +2825,7 @@ private.GetBarFrameSet = function(i)
 										end
 									end
 								end
-								
+
 								return true
 							end,
 						softMin = 0,
@@ -2572,7 +2838,7 @@ private.GetBarFrameSet = function(i)
 								frame["transition"]["width"] = val
 						end,
 					},
-					
+
 					spacer500 = {
 						name = "\n\n",
 						type = "description",
@@ -2610,139 +2876,7 @@ private.GetBarFrameSet = function(i)
 					},
 				}
 			},
-			appearance = {
-				name = L["Appearance"],
-				type = "group",
-				order = 200,
-				args = {
-					posX = {
-						name = L["x Position"],
-						desc = L["Sets the x position of the frame"],
-						order = 111,
-						type = "range",
-						softMin = -500,
-						softMax = 500,
-						bigStep = 1,
-						get = function(info, index)
-								return frame["posX"]
-							end,
-						set = function(info, val)
-								frame["posX"] = val
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
-					posY = {
-						name = L["y Position"],
-						desc = L["Sets the y position of the frame"],
-						order = 112,
-						type = "range",
-						softMin = -500,
-						softMax = 500,
-						bigStep = 1,
-						get = function(info, index)
-								return frame["posY"]
-							end,
-						set = function(info, val)
-								frame["posY"] = val
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
-					spacer113 = {
-						name = "",
-						type = "description",
-						order = 113,
-					},
-					relativeTo = {
-						name = L["Anchor Point"],
-						desc = L["The x/y position is relative to this point of the screen"],
-						order = 114,
-						type = "select",
-						values = {
-								["TOPLEFT"] = "TOPLEFT",
-								["TOP"] = "TOP",
-								["TOPRIGHT"] = "TOPRIGHT",
-								["LEFT"] = "LEFT",
-								["CENTER"] = "CENTER",
-								["RIGHT"] = "RIGHT",
-								["BOTTOMLEFT"] = "BOTTOMLEFT",
-								["BOTTOM"] = "BOTTOM",
-								["BOTTOMRIGHT"] = "BOTTOMRIGHT",
-							},
-						get = function(info, index)
-								return frame["relativeTo"]
-							end,
-						set = function(info, val)
-								frame["relativeTo"] = val
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
-					spacer200 = {
-						name = "\n\n",
-						type = "description",
-						order = 200,
-					},
-					padding = {
-						name = L["Padding"],
-						desc = L["Sets the amount of padding in the frame"],
-						order = 201,
-						type = "range",
-						softMin = 0,
-						softMax = 40,
-						bigStep = 1,
-						get = function(info, index)
-								return frame["padding"]
-							end,
-						set = function(info, val)
-								frame["padding"] = val
-								CDTL3:RefreshAllIcons()
-								CDTL3:RefreshBarFrame(i)
-						end,
-					},
-					spacer300 = {
-						name = "\n\n",
-						type = "description",
-						order = 300,
-					},
-					bgTexture = {
-						name = L["Background Texture"],
-						desc = L["Sets the background texture"],
-						order = 301,
-						type = "select",
-						dialogControl = 'LSM30_Statusbar',
-						values = function() return CDTL3:GetBarTextureList() end,
-						get = function(info, index)
-								return frame["bgTexture"]
-							end,
-						set = function(info, val)
-								frame["bgTexture"] = val
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
-					bgTextureColor = {
-						name = L["Color"],
-						desc = L["Sets the background texture color"],
-						order = 302,
-						type = "color",
-						hasAlpha = true,
-						get = function(info)
-								local r = frame["bgTextureColor"]["r"]
-								local g = frame["bgTextureColor"]["g"]
-								local b = frame["bgTextureColor"]["b"]
-								local a = frame["bgTextureColor"]["a"]
-								return r, g, b, a
-							end,
-						set = function(info, red, green, blue, alpha)
-								frame["bgTextureColor"] = { r = red, g = green, b = blue, a = alpha }
-								CDTL3:RefreshBarFrame(i)
-							end,
-					},
-					spacer400 = {
-						name = "\n\n",
-						type = "description",
-						order = 400,
-					},
-				}
-			},
+			appearance = private.GetFrameAppearance(frame, refresh),
 			bars = {
 				name = L["Bars"],
 				type = "group",
@@ -2816,7 +2950,7 @@ private.GetBarFrameSet = function(i)
 								if frame["bar"]["fgClassColor"] or (frame["bar"]["fgSchoolColor"] and not private.NoCombatLog()) then
 									return true
 								end
-								
+
 								return false
 							end,
 						get = function(info)
@@ -2869,7 +3003,7 @@ private.GetBarFrameSet = function(i)
 							end,
 						set = function(info, val)
 								frame["bar"]["bgTexture"] = val
-								CDTL3:RefreshAllBars(i)
+								CDTL3:RefreshAllBars()
 							end,
 					},
 					bgTextureColor = {
@@ -2883,7 +3017,7 @@ private.GetBarFrameSet = function(i)
 								if frame["bar"]["bgClassColor"] or frame["bar"]["bgSchoolColor"] then
 									return true
 								end
-								
+
 								return false
 							end,
 						get = function(info)
@@ -2892,7 +3026,7 @@ private.GetBarFrameSet = function(i)
 									-- before the character is known (first seconds after login) keep the stored colour
 									c = CDTL3.db.profile.global["classColors"][CDTL3.player["class"]] or c
 								end
-						
+
 								local r = c["r"]
 								local g = c["g"]
 								local b = c["b"]
@@ -2901,7 +3035,7 @@ private.GetBarFrameSet = function(i)
 							end,
 						set = function(info, red, green, blue, alpha)
 								frame["bar"]["bgTextureColor"] = { r = red, g = green, b = blue, a = alpha }
-								CDTL3:RefreshAllBars(i)
+								CDTL3:RefreshAllBars()
 							end,
 					},
 					bgClassColor = {
@@ -3015,90 +3149,6 @@ private.GetBarFrameSet = function(i)
 						type = "description",
 						order = 115,
 					},
-					textHeader = {
-						name = L["Bar Text"],
-						type = "header",
-						order = 200.1,
-					},
-					-- BAR TEXT 1
-					bText1Text = private.GetTextText(frame["bar"]["text1"], 210, i, "BAR", false),
-					bText1Enabled = private.GetTextEnabled(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1Edit = private.GetTextEdit(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1Font = private.GetTextFont(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1Outline = private.GetTextOutline(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1S1 = { name = "", type = "description", order = 210 + 4.3, hidden = function(info) return not frame["bar"]["text1"]["edit"] end, },
-					bText1Size = private.GetTextSize(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1Color = private.GetTextColor(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1ShadowColor = private.GetTextShadowColor(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1S2 = { name = "", type = "description", order = 210 + 4.7, hidden = function(info) return not frame["bar"]["text1"]["edit"] end, },
-					bText1ShadowXOffset = private.GetTextShadowXOffset(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1ShadowYOffset = private.GetTextShadowYOffset(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1S3 = { name = "", type = "description", order = 210 + 5.1, hidden = function(info) return not frame["bar"]["text1"]["edit"] end, },
-					bText1Anchor = private.GetTextAnchor(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1Align = private.GetTextAlign(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1S4 = { name = "", type = "description", order = 210 + 5.4, hidden = function(info) return not frame["bar"]["text1"]["edit"] end, },
-					bText1XOffset = private.GetTextXOffset(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1YOffset = private.GetTextYOffset(frame["bar"]["text1"], 210, i, "BAR"),
-					bText1Footer = { name = "", type = "header", order = 210 + 9.8, hidden = function(info) return not frame["bar"]["text1"]["edit"] end, },
-					-- BAR TEXT 2
-					bText2S0 = { name = "\n", type = "description", order = 220, hidden = function(info) return not frame["bar"]["text2"]["used"] end, },
-					bText2Header = { name = "", type = "header", order = 220 + 0.1, hidden = function(info) return not frame["bar"]["text2"]["edit"] end, },
-					bText2Text = private.GetTextText(frame["bar"]["text2"], 220, i, "BAR", false),
-					bText2Enabled = private.GetTextEnabled(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2Edit = private.GetTextEdit(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2Font = private.GetTextFont(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2Outline = private.GetTextOutline(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2S1 = { name = "", type = "description", order = 220 + 4.3, hidden = function(info) return not frame["bar"]["text2"]["edit"] end, },
-					bText2Size = private.GetTextSize(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2Color = private.GetTextColor(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2ShadowColor = private.GetTextShadowColor(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2S2 = { name = "", type = "description", order = 220 + 4.7, hidden = function(info) return not frame["bar"]["text2"]["edit"] end, },
-					bText2ShadowXOffset = private.GetTextShadowXOffset(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2ShadowYOffset = private.GetTextShadowYOffset(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2S3 = { name = "", type = "description", order = 220 + 5.1, hidden = function(info) return not frame["bar"]["text2"]["edit"] end, },
-					bText2Anchor = private.GetTextAnchor(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2Align = private.GetTextAlign(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2S4 = { name = "", type = "description", order = 220 + 5.4, hidden = function(info) return not frame["bar"]["text2"]["edit"] end, },
-					bText2XOffset = private.GetTextXOffset(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2YOffset = private.GetTextYOffset(frame["bar"]["text2"], 220, i, "BAR"),
-					bText2Footer = { name = "", type = "header", order = 220 + 9.8, hidden = function(info) return not frame["bar"]["text2"]["edit"] end, },
-					-- BAR TEXT 3
-					bText3S0 = { name = "\n", type = "description", order = 230, hidden = function(info) return not frame["bar"]["text3"]["used"] end, },
-					bText3Header = { name = "", type = "header", order = 230 + 0.1, hidden = function(info) return not frame["bar"]["text3"]["edit"] end, },
-					bText3Text = private.GetTextText(frame["bar"]["text3"], 230, i, "BAR", false),
-					bText3Enabled = private.GetTextEnabled(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3Edit = private.GetTextEdit(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3Font = private.GetTextFont(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3Outline = private.GetTextOutline(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3S1 = { name = "", type = "description", order = 230 + 4.3, hidden = function(info) return not frame["bar"]["text3"]["edit"] end, },
-					bText3Size = private.GetTextSize(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3Color = private.GetTextColor(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3ShadowColor = private.GetTextShadowColor(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3S2 = { name = "", type = "description", order = 230 + 4.7, hidden = function(info) return not frame["bar"]["text3"]["edit"] end, },
-					bText3ShadowXOffset = private.GetTextShadowXOffset(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3ShadowYOffset = private.GetTextShadowYOffset(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3S3 = { name = "", type = "description", order = 230 + 5.1, hidden = function(info) return not frame["bar"]["text3"]["edit"] end, },
-					bText3Anchor = private.GetTextAnchor(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3Align = private.GetTextAlign(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3S4 = { name = "", type = "description", order = 230 + 5.4, hidden = function(info) return not frame["bar"]["text3"]["edit"] end, },
-					bText3XOffset = private.GetTextXOffset(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3YOffset = private.GetTextYOffset(frame["bar"]["text3"], 230, i, "BAR"),
-					bText3Footer = { name = "", type = "header", order = 230 + 9.8, hidden = function(info) return not frame["bar"]["text3"]["edit"] end, },
-					spacer298 = {
-						name = "\n",
-						type = "description",
-						order = 298,
-					},
-					textFooter = {
-						name = "",
-						type = "header",
-						order = 299,
-					},
-					spacer300 = {
-						name = "\n\n",
-						type = "description",
-						order = 300,
-					},
 					iconEnabled = {
 						name = L["Show icon"],
 						desc = "",
@@ -3138,18 +3188,147 @@ private.GetBarFrameSet = function(i)
 			},
 		}
 	}
-	
-	private.AddBorderArgs(options.args.appearance.args, 400, function() return frame["border"] end, function() CDTL3:RefreshBarFrame(i) end)
-	CDTL3:AddAnchorArgs(options.args.appearance.args, 115, function() return frame end, function() CDTL3:RefreshBarFrame(i) end, L["bar frame"])
+
+	private.AddTextSection(options.args.bars.args, L["Bar Text"], frame, "bar", i, 298)
+
+	private.AddBorderArgs(options.args.appearance.args, 400, function() return frame["border"] end, refresh)
+	CDTL3:AddAnchorArgs(options.args.appearance.args, 115, function() return frame end, refresh, L["bar frame"])
 	private.AddBorderArgs(options.args.bars.args, 400, function() return frame["bar"]["border"] end, function() CDTL3:RefreshAllBars() end)
 
 	private.AddCopyArgs(options.args.general.args, "barFrames", i, L["Bar Frame"])
-	private.AddShowArgs(options.args.general.args, function() return frame end, function() CDTL3:RefreshBarFrame(i) end)
+	private.AddShowArgs(options.args.general.args, function() return frame end, refresh)
+	private.AddShowHideArgs(options, function() return frame end, refresh)
 
 	return options
 end
 
+-- "Spell:", "Aura:", "Rune:" or "Name:", in front of the picked entry's name (Filters)
+private.KindLabel = function(t)
+	local n = " "
+
+	if t == "spells" or t == "items" or t == "petspells" then
+		n = L["Spell:"].."   "
+	elseif t == "buffs" or t == "debuffs" or t == "offensives" then
+		n = L["Aura:"].."   "
+	elseif t == "runes" then
+		n = L["Rune:"].."   "
+	elseif t == "customs" or t == "detected" then
+		n = L["Name:"].."   "
+	end
+
+	return n
+end
+
 private.GetFilterSet = function(t, o)
+	-- the Custom tab with "<< Add New >>" picked: its controls edit CDTL3.custom, the one being added
+	local function adding()
+		return t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>"
+	end
+	-- the saved entry picked in the list (items by item name)
+	local function selected()
+		return CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, t == "items")
+	end
+	-- nothing picked: the entry's controls hide
+	local function noEntry(info)
+		return CDTL3.currentFilterHidden[t]
+	end
+	-- controls only the Custom tab has, and only the Items tab has
+	local function customOnly(info)
+		if t == "customs" then
+			return CDTL3.currentFilterHidden[t]
+		end
+
+		return true
+	end
+	local function notItem(info)
+		if not CDTL3.currentFilterHidden[t] then
+			if t == "items" then
+				return false
+			end
+		end
+
+		return true
+	end
+	-- the Custom being added has no valid trigger ID yet: its settings grey out
+	local function invalidCustom()
+		return adding() and not CDTL3.customIsValid
+	end
+	-- a Custom with no trigger type yet: Trigger ID and Clear grey out
+	local function noTriggerType()
+		if t == "customs" then
+			if adding() then
+				if not CDTL3.custom["triggerType"] then
+					return true
+				end
+			else
+				local s = selected()
+				if s then
+					if s["triggerType"] == "" then
+						return true
+					end
+				end
+			end
+		end
+
+		return false
+	end
+	-- one saved setting of the picked entry (nil with nothing picked)
+	local function savedValue(key)
+		local s = selected()
+
+		if s then
+			return s[key]
+		else
+			return nil
+		end
+	end
+	-- a tick box (Highlight, Pinned, Ignored): the Custom being added's, else the picked entry's
+	local function getFlag(key)
+		return function(info)
+				if adding() then
+					return CDTL3.custom[key] or false
+				end
+
+				return savedValue(key)
+			end
+	end
+	-- Lane, Bar Frame or Ready Frame: the Custom being added's (else the Customs default), else the
+	-- picked entry's
+	local function getFrame(key, default)
+		return function(info)
+				if adding() then
+					return CDTL3.custom[key] or CDTL3.db.profile.global["customs"][default]
+				end
+
+				return savedValue(key)
+			end
+	end
+	-- saves a setting on the picked entry (stored) and on its cooldown if one is running (live);
+	-- gives that cooldown
+	local function save(key, stored, live)
+		CDTL3:SetSpellData(CDTL3.currentFilter[t], t, key, stored)
+
+		local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+		if s then
+			s.data[key] = live
+		end
+
+		return s
+	end
+	-- Highlight and Pinned: the icon shows the change at once
+	local function setFlag(key)
+		return function(info, val)
+				if adding() then
+					CDTL3.custom[key] = val
+				else
+					local s = save(key, val, val)
+					if s then
+						CDTL3:RefreshIcon(s)
+					end
+				end
+			end
+	end
+
 	local options = {
 		name = function(info)
 				if t == "customs" then
@@ -3231,28 +3410,20 @@ private.GetFilterSet = function(t, o)
 					end,
 				type = "description",
 				order = 110,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 			},
 			triggerType = {
 				name = L["Trigger Type"],
 				desc = L["What will trigger the cooldown to begin, a spell or aura?"],
 				order = 111,
-				hidden = function(info)
-						if t == "customs" then
-							return CDTL3.currentFilterHidden[t]
-						end
-
-						return true
-					end,
+				hidden = customOnly,
 				type = "select",
 				width = "half",
 				values = function(info)
 						local choices = {}
 						choices["spell"] = L["Spell"]
 						choices["aura"] = L["Aura"]
-							
+
 						return choices
 					end,
 				get = function(info)
@@ -3262,7 +3433,7 @@ private.GetFilterSet = function(t, o)
 									return CDTL3.custom["triggerType"]
 								end
 							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["customs"], t, false)
+								local s = selected()
 								if s then
 									return s["triggerType"]
 								end
@@ -3276,7 +3447,7 @@ private.GetFilterSet = function(t, o)
 							if CDTL3.currentFilter[t] == "<< Add New >>" then
 								CDTL3.custom["triggerType"] = val
 							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["customs"], t, false)
+								local s = selected()
 								if s then
 									s["triggerType"] = val
 								end
@@ -3289,31 +3460,8 @@ private.GetFilterSet = function(t, o)
 				desc = L["Entering a valid Spell/Aura ID here will populate the other fields"],
 				type = "input",
 				order = 112,
-				hidden = function(info)
-						if t == "customs" then
-							return CDTL3.currentFilterHidden[t]
-						end
-
-						return true
-					end,
-				disabled = function ()
-						if t == "customs" then
-							if CDTL3.currentFilter[t] == "<< Add New >>" then
-								if not CDTL3.custom["triggerType"] then
-									return true
-								end
-							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["customs"], "customs", false)
-								if s then
-									if s["triggerType"] == "" then
-										return true
-									end
-								end 
-							end
-						end
-
-						return false
-					end,
+				hidden = customOnly,
+				disabled = noTriggerType,
 				get = function(info)
 						if t == "customs" then
 							if CDTL3.currentFilter[t] == "<< Add New >>" then
@@ -3321,7 +3469,7 @@ private.GetFilterSet = function(t, o)
 									return CDTL3.custom["id"]
 								end
 							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["customs"], "customs", false)
+								local s = selected()
 								if s then
 									return tostring(s["id"])
 								end
@@ -3332,7 +3480,7 @@ private.GetFilterSet = function(t, o)
 					end,
 				set = function(info, val)
 						if CDTL3.currentFilter[t] == "<< Add New >>" then
-							local spellName, icon, originalIcon = CDTL3:GetSpellInfo(val)
+							local spellName, icon = CDTL3:GetSpellInfo(val)
 
 							-- Retail and Forever give "" (not nil) for an ID that isn't a spell
 							if spellName and spellName ~= "" then
@@ -3363,40 +3511,25 @@ private.GetFilterSet = function(t, o)
 				name = "\n",
 				type = "description",
 				order = 113,
-				hidden = function(info)
-						if t == "customs" then
-							return CDTL3.currentFilterHidden[t]
-						end
-
-						return true
-					end,
+				hidden = customOnly,
 			},
 			itemTypePrefix = {
 				name = function(info)
 						local n = L["Item:"].."   "
-						
+
 						return n
 					end,
 				type = "description",
 				order = 200,
 				width = 0.2,
-				hidden = function(info)
-						if not CDTL3.currentFilterHidden[t] then
-							if t == "items" then
-								return false
-							end
-						end
-						
-						return true
-					end,
+				hidden = notItem,
 			},
 			itemName = {
 				name = function(info)
 						local n = ""
 						if t == "items" then
-							local specialCase = true
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
+							local s = selected()
+
 							if CDTL3.currentFilter[t] then
 								if s and s["link"] then
 									n = "  "..s["link"]
@@ -3405,29 +3538,17 @@ private.GetFilterSet = function(t, o)
 								end
 							end
 						end
-						
+
 						return n
 					end,
 				type = "description",
 				order = 201,
 				width = 1.5,
 				fontSize = "large",
-				hidden = function(info)
-						if not CDTL3.currentFilterHidden[t] then
-							if t == "items" then
-								return false
-							end
-						end
-						
-						return true
-					end,
+				hidden = notItem,
 				image = function(info)
-					local specialCase = false
-					if t == "items" then
-						specialCase = true
-					end
-					local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-					
+					local s = selected()
+
 					if s then
 						return s["itemIcon"]
 					else
@@ -3442,37 +3563,21 @@ private.GetFilterSet = function(t, o)
 				name = "",
 				type = "description",
 				order = 202,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 			},
 			cdType = {
 				name = function(info)
-						local n = " "
-						
-						if t == "spells" or t == "items" or t == "petspells" then
-							n = L["Spell:"].."   "
-						elseif t == "buffs" or t == "debuffs" or t == "offensives" then
-							n = L["Aura:"].."   "
-						elseif t == "runes" then
-							n = L["Rune:"].."   "
-						elseif t == "customs" then
-							n = L["Name:"].."   "
-						end
-						
-						return n
+						return private.KindLabel(t)
 					end,
 				type = "description",
 				order = 203,
 				width = 0.2,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 			},
 			cdName = {
 				name = function(info)
 						local n = " "
-						
+
 						if t == "customs" then
 							if CDTL3.currentFilter[t] == "<< Add New >>" then
 								if CDTL3.custom["name"] then
@@ -3488,12 +3593,8 @@ private.GetFilterSet = function(t, o)
 								n = CDTL3.currentFilter[t]
 							end
 						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
+							local s = selected()
+
 							if CDTL3.currentFilter[t] then
 								if s then
 									n = "  "..s["name"]
@@ -3502,16 +3603,14 @@ private.GetFilterSet = function(t, o)
 								end
 							end
 						end
-						
+
 						return n
 					end,
 				type = "description",
 				order = 205,
 				width = 1.5,
 				fontSize = "large",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 				image = function(info)
 						if t == "customs" then
 							if CDTL3.currentFilter[t] == "<< Add New >>" then
@@ -3521,8 +3620,8 @@ private.GetFilterSet = function(t, o)
 									return 134400
 								end
 							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, t == "items")
-							
+								local s = selected()
+
 								if s then
 									return s["icon"]
 								else
@@ -3530,12 +3629,8 @@ private.GetFilterSet = function(t, o)
 								end
 							end
 						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
+							local s = selected()
+
 							if s then
 								return s["icon"]
 							else
@@ -3556,7 +3651,7 @@ private.GetFilterSet = function(t, o)
 			cooldownType = {
 				name = function(info)
 						local n = " "
-						
+
 						if t == "spells" or t == "items" or t == "petspells" or t == "customs" then
 							n = L["Cooldown:"]
 						elseif t == "buffs" or t == "debuffs" or t == "offensives" then
@@ -3564,56 +3659,41 @@ private.GetFilterSet = function(t, o)
 						elseif t == "runes" then
 							n = L["Recharge:"]
 						end
-						
+
 						return n
 					end,
 				type = "description",
 				order = 301,
 				width = 0.3,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 			},
 			cooldownValue = {
 				name = function(info)
 						local n = " "
 
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							n = 0
+							return 0
 						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
+							local s = selected()
+
 							if s then
 								n =	n.."  "..string.format(L["%s sec"], s["bCD"] / 1000).."\n"
-							end								
+							end
 						end
-						
+
 						return n
 					end,
 				type = "description",
 				order = 302,
 				hidden = function(info)
-						if t == "customs" then
+						if t == "customs" or CDTL3.currentFilterHidden[t] then
 							return true
-						else
-							if CDTL3.currentFilterHidden[t] then
-								return true
-							else
-								local specialCase = false
-								if t == "items" then
-									specialCase = true
-								end
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
+						end
 
-								if s then
-									if s["setCustomCD"] ~= nil then
-										return s["setCustomCD"]
-									end
-								end
+						local s = selected()
+						if s then
+							if s["setCustomCD"] ~= nil then
+								return s["setCustomCD"]
 							end
 						end
 
@@ -3626,24 +3706,8 @@ private.GetFilterSet = function(t, o)
 				name = " ",
 				desc = L["Set the default cooldown value."],
 				order = 303,
-				hidden = function(info)
-						if t == "customs" then
-							return CDTL3.currentFilterHidden[t]
-						end
-
-						return true
-					end,
-				disabled = function ()
-						if t == "customs" then
-							if CDTL3.currentFilter[t] == "<< Add New >>" then
-								if not CDTL3.customIsValid then
-									return true
-								end
-							end
-						end
-
-						return false
-					end,
+				hidden = customOnly,
+				disabled = invalidCustom,
 				type = "input",
 				get = function(info, index)
 						if t == "customs" then
@@ -3654,7 +3718,7 @@ private.GetFilterSet = function(t, o)
 									return "60"
 								end
 							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["customs"], t, false)
+								local s = selected()
 								if s then
 									return tostring(s["bCD"] / 1000)
 								else
@@ -3672,12 +3736,8 @@ private.GetFilterSet = function(t, o)
 							if CDTL3.currentFilter[t] == "<< Add New >>" then
 								CDTL3.custom["bCD"] = val * 1000
 							else
-								CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "bCD", val * 1000)
-								
-								local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+								local s = save("bCD", val * 1000, val * 1000)
 								if s then
-									s.data["bCD"] = val * 1000
-								
 									CDTL3:RefreshIcon(s)
 								end
 							end
@@ -3690,42 +3750,26 @@ private.GetFilterSet = function(t, o)
 				type = "input",
 				order = 304,
 				hidden = function(info)
-						if t == "customs" then
+						if t == "customs" or CDTL3.currentFilterHidden[t] then
 							return true
-						else
-							if CDTL3.currentFilterHidden[t] then
-								return true
-							else
-								local specialCase = false
-								if t == "items" then
-									specialCase = true
-								end
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-
-								if s then
-									if s["setCustomCD"] ~= nil then
-										return not s["setCustomCD"]
-									else
-										s["setCustomCD"] = false
-										return true
-									end
-								else
-									-- nothing real selected (e.g. "<< Select >>")
-									return true
-								end
-							end
 						end
 
-						return false
+						local s = selected()
+						if s then
+							if s["setCustomCD"] ~= nil then
+								return not s["setCustomCD"]
+							else
+								s["setCustomCD"] = false
+								return true
+							end
+						else
+							-- nothing real selected (e.g. "<< Select >>")
+							return true
+						end
 					end,
 				get = function(info)
 						if t ~= "customs" then
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
+							local s = selected()
 							if not s then
 								return ""
 							end
@@ -3742,11 +3786,8 @@ private.GetFilterSet = function(t, o)
 				validate = private.ValidateSeconds,
 				set = function(info, val)
 						val = tonumber(val)
-						CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "customCDTime", val * 1000)
-
-						local e = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+						local e = save("customCDTime", val * 1000, val * 1000)
 						if e then
-							e.data["customCDTime"] = val * 1000
 							CDTL3:RefreshIcon(e)
 							CDTL3:RefreshBar(e)
 						end
@@ -3762,16 +3803,12 @@ private.GetFilterSet = function(t, o)
 						end
 
 						-- nothing real selected (e.g. "<< Select >>")
-						return not CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, t == "items")
+						return not selected()
 					end,
 				type = "toggle",
 				get = function(info, index)
 						if t ~= "customs" then
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
+							local s = selected()
 
 							return s and s["setCustomCD"] or false
 						end
@@ -3779,17 +3816,8 @@ private.GetFilterSet = function(t, o)
 						return false
 					end,
 				set = function(info, val)
-						local specialCase = false
-						if t == "items" then
-							specialCase = true
-						end
-						local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-						
-						CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "setCustomCD", val)
-
-						local e = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+						local e = save("setCustomCD", val, val)
 						if e then
-							e.data["setCustomCD"] = val
 							CDTL3:RefreshIcon(e)
 							CDTL3:RefreshBar(e)
 						end
@@ -3816,11 +3844,11 @@ private.GetFilterSet = function(t, o)
 						end
 
 						local s = ""
-						
+
 						if CDTL3.currentFilter[t] then
 							s = CDTL3.currentFilter[t]
 						end
-				
+
 						return string.format(L["This will clear cooldown settings for %s"], s)
 					end,
 				-- an entry other characters use too asks with its own warning, then goes for everyone
@@ -3835,27 +3863,8 @@ private.GetFilterSet = function(t, o)
 					end,
 				order = 401,
 				type = "execute",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-						if t == "customs" then
-							if CDTL3.currentFilter[t] == "<< Add New >>" then
-								if not CDTL3.custom["triggerType"] then
-									return true
-								end
-							else
-								local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["customs"], t, false)
-								if s then
-									if s["triggerType"] == "" then
-										return true
-									end
-								end 
-							end
-						end
-
-						return false
-					end,
+				hidden = noEntry,
+				disabled = noTriggerType,
 				func = function(info)
 						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
 							CDTL3.custom = {}
@@ -3899,24 +3908,14 @@ private.GetFilterSet = function(t, o)
 
 						return true
 					end,
-				disabled = function ()
-						if t == "customs" then
-							if CDTL3.currentFilter[t] == "<< Add New >>" then
-								if not CDTL3.customIsValid then
-									return true
-								end
-							end
-						end
-
-						return false
-					end,
+				disabled = invalidCustom,
 				func = function(info)
 						-- duplicate check by the new custom's own name + trigger (the selection
 						-- is always "<< Add New >>" here, so checking it never found anything)
 						local s = CDTL3:GetCustomSpellSettings(CDTL3.custom["name"], CDTL3.custom["triggerType"])
 
 						if not s then
-							local name = CDTL3.custom["name"]			
+							local name = CDTL3.custom["name"]
 							table.insert(CDTL3.db.profile.tables["customs"], CDTL3.custom)
 
 							CDTL3.custom = {}
@@ -3933,9 +3932,7 @@ private.GetFilterSet = function(t, o)
 				name = " \n\n",
 				type = "description",
 				order = 500,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 			},
 			enabled = {
 				name = L["Enabled"],
@@ -3943,52 +3940,26 @@ private.GetFilterSet = function(t, o)
 				order = 501,
 				type = "toggle",
 				width = "half",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-						if t == "customs" then
-							if CDTL3.currentFilter[t] == "<< Add New >>" then
-								if not CDTL3.customIsValid then
-									return true
-								end
-							end
-						end
-
-						return false
-					end,
+				hidden = noEntry,
+				disabled = invalidCustom,
 				get = function(info, index)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
+						if adding() then
 							-- an unticked box is false, not "not set yet" (that showed it ticked)
 							if CDTL3.custom["enabled"] ~= nil then
 								return CDTL3.custom["enabled"] and true or false
 							else
 								return CDTL3.db.profile.global["customs"]["showByDefault"]
 							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["enabled"]
-							else
-								return nil
-							end
 						end
+
+						return savedValue("enabled")
 					end,
 				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
+						if adding() then
 							CDTL3.custom["enabled"] = val
 						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "enabled", val)
-						
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+							local s = save("enabled", val, val)
 							if s then
-								s.data["enabled"] = val
-								
 								CDTL3:RefreshIcon(s)
 								CDTL3:RefreshBar(s)
 							end
@@ -4001,55 +3972,10 @@ private.GetFilterSet = function(t, o)
 				order = 502,
 				type = "toggle",
 				width = "half",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-							if t == "customs" then
-								if CDTL3.currentFilter[t] == "<< Add New >>" then
-									if not CDTL3.customIsValid then
-										return true
-									end
-								end
-							end
-	
-							return false
-						end,
-				get = function(info, index)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["highlight"] then
-								return CDTL3.custom["highlight"]
-							else
-								return false
-							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["highlight"]
-							else
-								return nil
-							end
-						end
-					end,
-				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							CDTL3.custom["highlight"] = val
-						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "highlight", val)
-						
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
-							if s then
-								s.data["highlight"] = val
-							
-								CDTL3:RefreshIcon(s)
-							end
-						end
-					end,
+				hidden = noEntry,
+				disabled = invalidCustom,
+				get = getFlag("highlight"),
+				set = setFlag("highlight"),
 			},
 			pinned = {
 				name = L["Pinned"],
@@ -4057,55 +3983,10 @@ private.GetFilterSet = function(t, o)
 				order = 503,
 				type = "toggle",
 				width = "half",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-							if t == "customs" then
-								if CDTL3.currentFilter[t] == "<< Add New >>" then
-									if not CDTL3.customIsValid then
-										return true
-									end
-								end
-							end
-	
-							return false
-						end,
-				get = function(info, index)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["pinned"] then
-								return CDTL3.custom["pinned"]
-							else
-								return false
-							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["pinned"]
-							else
-								return nil
-							end
-						end
-					end,
-				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							CDTL3.custom["pinned"] = val
-						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "pinned", val)
-						
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
-							if s then
-								s.data["pinned"] = val
-							
-								CDTL3:RefreshIcon(s)
-							end
-						end
-					end,
+				hidden = noEntry,
+				disabled = invalidCustom,
+				get = getFlag("pinned"),
+				set = setFlag("pinned"),
 			},
 			ignored = {
 				name = L["Ignored"],
@@ -4113,51 +3994,15 @@ private.GetFilterSet = function(t, o)
 				order = 504,
 				type = "toggle",
 				width = "half",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-							if t == "customs" then
-								if CDTL3.currentFilter[t] == "<< Add New >>" then
-									if not CDTL3.customIsValid then
-										return true
-									end
-								end
-							end
-	
-							return false
-						end,
-				get = function(info, index)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["ignored"] then
-								return CDTL3.custom["ignored"]
-							else
-								return false
-							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["ignored"]
-							else
-								return nil
-							end
-						end
-					end,
+				hidden = noEntry,
+				disabled = invalidCustom,
+				get = getFlag("ignored"),
 				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
+						if adding() then
 							CDTL3.custom["ignored"] = val
 						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "ignored", val)
-						
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+							local s = save("ignored", val, val)
 							if s then
-								s.data["ignored"] = val
-
 								CDTL3:RefreshIcon(s)
 							end
 
@@ -4180,68 +4025,28 @@ private.GetFilterSet = function(t, o)
 				name = "\n\n" .. L["Select the frame the icon/bar will be shown\nIf the selected frame is not enabled, the icon/bar will not appear"] .. "\n\n",
 				type = "description",
 				order = 600,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
+				hidden = noEntry,
 			},
 			lane = {
 				name = L["Lane"],
 				desc = "",
 				order = 601,
 				type = "select",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-							if t == "customs" then
-								if CDTL3.currentFilter[t] == "<< Add New >>" then
-									if not CDTL3.customIsValid then
-										return true
-									end
-								end
-							end
-	
-							return false
-						end,
+				hidden = noEntry,
+				disabled = invalidCustom,
 				width = "half",
 				values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
-				get = function(info)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["lane"] then
-								return CDTL3.custom["lane"]
-							else
-								return CDTL3.db.profile.global["customs"]["defaultLane"]
-							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["lane"]
-							else
-								return nil
-							end
-						end
-						
-					end,
+				get = getFrame("lane", "defaultLane"),
 				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
+						if adding() then
 							CDTL3.custom["lane"] = val
 						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "lane", tonumber(val))
-						
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+							local s = save("lane", tonumber(val), val)
 							if s then
-								s.data["lane"] = val
-								
 								-- a move, not a restart (see MoveToLane, Cooldown.lua)
 								CDTL3:MoveToLane(s)
 							end
 						end
-						
 					end,
 			},
 			barFrame = {
@@ -4249,120 +4054,43 @@ private.GetFilterSet = function(t, o)
 				desc = "",
 				order = 602,
 				type = "select",
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-							if t == "customs" then
-								if CDTL3.currentFilter[t] == "<< Add New >>" then
-									if not CDTL3.customIsValid then
-										return true
-									end
-								end
-							end
-	
-							return false
-						end,
+				hidden = noEntry,
+				disabled = invalidCustom,
 				width = "half",
 				values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
-				get = function(info)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["barFrame"] then
-								return CDTL3.custom["barFrame"]
-							else
-								return CDTL3.db.profile.global["customs"]["defaultBar"]
-							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["barFrame"]
-							else
-								return nil
-							end
-						end
-						
-					end,
+				get = getFrame("barFrame", "defaultBar"),
 				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
+						if adding() then
 							CDTL3.custom["barFrame"] = val
 						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "barFrame", tonumber(val))
-						
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
+							local s = save("barFrame", tonumber(val), val)
 							if s then
-								s.data["barFrame"] = val
-								
 								CDTL3:SendToBarFrame(s)
 							end
 						end
-						
 					end,
 			},
 			readyFrame = {
 				name = L["Ready Frame"],
 				desc = "",
 				order = 603,
-				hidden = function(info)
-						return CDTL3.currentFilterHidden[t]
-					end,
-				disabled = function ()
-						if t == "customs" then
-							if CDTL3.currentFilter[t] == "<< Add New >>" then
-								if not CDTL3.customIsValid then
-									return true
-								end
-							end
-						end
-
-						return false
-					end,
+				hidden = noEntry,
+				disabled = invalidCustom,
 				type = "select",
 				width = "half",
 				values = { [0] = L["Hide"], [1] = "1", [2] = "2", [3] = "3" },
-				get = function(info)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
-							if CDTL3.custom["readyFrame"] then
-								return CDTL3.custom["readyFrame"]
-							else
-								return CDTL3.db.profile.global["customs"]["defaultReady"]
-							end
-						else
-							local specialCase = false
-							if t == "items" then
-								specialCase = true
-							end
-							local s = CDTL3:GetSpellSettings(CDTL3.currentFilter[t], t, specialCase)
-							
-							if s then
-								return s["readyFrame"]
-							else
-								return nil
-							end
-						end
-						
-					end,
+				get = getFrame("readyFrame", "defaultReady"),
 				set = function(info, val)
-						if t == "customs" and CDTL3.currentFilter[t] == "<< Add New >>" then
+						if adding() then
 							CDTL3.custom["readyFrame"] = val
 						else
-							CDTL3:SetSpellData(CDTL3.currentFilter[t], t, "readyFrame", tonumber(val))
-						
 							-- Just record it: the cooldown goes to its Ready frame when it finishes.
 							-- (SendToReady here pulled a still-running icon off its lane and
 							-- played the ready sound immediately.)
-							local s = CDTL3:GetExistingCooldown(CDTL3.currentFilter[t], t)
-							if s then
-								s.data["readyFrame"] = val
-							end
+							save("readyFrame", tonumber(val), val)
 						end
-						
 					end,
-			},			
+			},
 		},
 	}
 
@@ -4457,7 +4185,8 @@ private.AddEntryReasonArgs = function(args, t)
 				return fix == nil
 			end,
 		func = function(info)
-				local s = private.ReasonEntry(t)
+				-- a fix comes back only for an entry that exists
+				local s = private.ReasonEntry(t) --[[@as table]]
 				local _, fix, n = CDTL3:WhyNotShowing(s, t)
 
 				-- the same change the entry's own control makes (live icons included)
@@ -4519,7 +4248,8 @@ private.AddSpellRuleArgs = function(args, t)
 
 	args["onlyThisSpec"] = {
 		name = function(info)
-				local s = private.ReasonEntry(t)
+				-- IsSpecLimited is true only for an entry that exists
+				local s = private.ReasonEntry(t) --[[@as table]]
 				if CDTL3:IsSpecLimited(s) then
 					return string.format(L["Only for %s"], CDTL3:SpecNames(s["onlySpecs"]))
 				end
@@ -4701,10 +4431,10 @@ private.GetCustomSet = function(t, o)
 						order = 102,
 						type = "execute",
 						func = function(info)
-								for k, v in pairs(CDTL3.db.profile.tables["detected"]) do
+								for k in pairs(CDTL3.db.profile.tables["detected"]) do
 									CDTL3.db.profile.tables["detected"][k] = nil
 								end
-								
+
 								CDTL3.currentFilter["detected"] = "<< Select Detected >>"
 							end
 					},
@@ -4728,7 +4458,7 @@ private.GetCustomSet = function(t, o)
 						values = function(info)
 								local list = {}
 
-								list = CDTL3:LoadDetectedList("detected")
+								list = CDTL3:LoadDetectedList()
 
 								return list
 							end,
@@ -4736,8 +4466,8 @@ private.GetCustomSet = function(t, o)
 								return CDTL3.currentFilter["detected"]
 							end,
 						set = function(info, val)
-								local list = CDTL3:LoadDetectedList("detected")
-		
+								local list = CDTL3:LoadDetectedList()
+
 								CDTL3.currentFilter["detected"] = list[val]
 								CDTL3.currentFilterHidden["detected"] = false
 							end,
@@ -4751,19 +4481,7 @@ private.GetCustomSet = function(t, o)
 					},
 					cdType = {
 						name = function(info)
-								local n = " "
-								
-								if t == "spells" or t == "items" or t == "petspells" then
-									n = L["Spell:"].."   "
-								elseif t == "buffs" or t == "debuffs" or t == "offensives" then
-									n = L["Aura:"].."   "
-								elseif t == "runes" then
-									n = L["Rune:"].."   "
-								elseif t == "customs" or t == "detected" then
-									n = L["Name:"].."   "
-								end
-								
-								return n
+								return private.KindLabel(t)
 							end,
 						type = "description",
 						order = 203,
@@ -4772,7 +4490,7 @@ private.GetCustomSet = function(t, o)
 					cdName = {
 						name = function(info)
 								local n = " "
-								
+
 								if CDTL3.currentFilter["detected"] == "<< Select Detected >>" then
 									n = L["Select a detected spell"]
 								else
@@ -4783,7 +4501,7 @@ private.GetCustomSet = function(t, o)
 										n = CDTL3.currentFilter["detected"]
 									end
 								end
-								
+
 								return n
 							end,
 						type = "description",
@@ -4793,7 +4511,7 @@ private.GetCustomSet = function(t, o)
 						image = function(info)
 								if CDTL3.currentFilter["detected"] ~= "<< Select Detected >>" then
 									local s = CDTL3:GetSpellSettings(CDTL3.currentFilter["detected"], "detected", false)
-									
+
 									if s then
 										return s["icon"]
 									end
@@ -4821,7 +4539,7 @@ private.GetCustomSet = function(t, o)
 								if CDTL3.currentFilter["detected"] == "<< Select Detected >>" then
 									return true
 								end
-		
+
 								return false
 							end,
 						type = "execute",
@@ -4837,7 +4555,7 @@ private.GetCustomSet = function(t, o)
 										c["type"] = "customs"
 										c["triggerType"] = "spell"
 										c["ignored"] = CDTL3:IgnoredByDefault("customs", c["bCD"])
-										
+
 										table.insert(CDTL3.db.profile.tables["customs"], c)
 										CDTL3.currentFilter["customs"] = c["name"]
 									end
@@ -4852,18 +4570,144 @@ private.GetCustomSet = function(t, o)
 	return options
 end
 
-private.GetLaneSet = function(i)
-	local frame = nil
-	local lane = nil
-	
-	if i == 1 then
-		lane = CDTL3.db.profile.lanes["lane1"]
-	elseif i == 2 then
-		lane = CDTL3.db.profile.lanes["lane2"]
-	elseif i == 3 then
-		lane = CDTL3.db.profile.lanes["lane3"]
+-- SPLIT MARKS of a lane's Split (%) and Split (Time) modes: the Split Count slider and, for each of
+-- the five marks, its position and value sliders (shown once the count reaches the mark). Marks keep
+-- the option keys and orders they had when there were three (sSplit1Position, 411 ...), mark k at
+-- base + 10 * k. mode.split holds s1v..s5v as percents, mode.splitAbs as seconds from the end.
+private.SPLIT_MODES = {
+	SPLIT = {
+		key = "split", prefix = "sSplit", base = 400, countKey = "sSplitCount",
+		countDesc = L["How many % splits appear on the lane"], min = 0, max = 100,
+		pos = {
+			L["What position should split 1 appear"], L["What position should split 2 appear"],
+			L["What position should split 3 appear"], L["What position should split 4 appear"],
+			L["What position should split 5 appear"],
+		},
+		val = {
+			L["What percentage should split 1 occur"], L["What percentage should split 2 occur"],
+			L["What percentage should split 3 occur"], L["What percentage should split 4 occur"],
+			L["What percentage should split 5 occur"],
+		},
+	},
+	SPLIT_ABS = {
+		key = "splitAbs", prefix = "saSplit", base = 500, countKey = "saSplitCount",
+		countDesc = L["How many % splits appear on the lane"], min = 1, max = 3600,
+		pos = {
+			L["What position should splitAbs 1 appear"], L["What position should splitAbs 2 appear"],
+			L["What position should splitAbs 3 appear"], L["What position should split 4 appear"],
+			L["What position should split 5 appear"],
+		},
+		val = {
+			L["How many seconds from the end split 1 sits at (up to 3600)."],
+			L["How many seconds from the end split 2 sits at (up to 3600)."],
+			L["How many seconds from the end split 3 sits at (up to 3600)."],
+			L["How many seconds from the end split 4 sits at (up to 3600)."],
+			L["How many seconds from the end split 5 sits at (up to 3600)."],
+		},
+	},
+}
+private.AddSplitArgs = function(args, lane, i)
+	local names = {
+		L["Split 1 Position"], L["Split 2 Position"], L["Split 3 Position"], L["Split 4 Position"], L["Split 5 Position"],
+	}
+	local valueNames = {
+		L["Split 1 Value"], L["Split 2 Value"], L["Split 3 Value"], L["Split 4 Value"], L["Split 5 Value"],
+	}
+	for mode, m in pairs(private.SPLIT_MODES) do
+		local ss = function() return lane["mode"][m.key] end
+		-- shown in this mode, from mark k on (k = 0: the count slider itself)
+		local function shown(k)
+			return function(info)
+				if lane["mode"]["type"] ~= mode then
+					return true
+				end
+				return k > 0 and (CDTL3:SplitCount(ss()) or 0) < k
+			end
+		end
+		args["spacer" .. m.base] = { name = "\n\n", type = "description", order = m.base, hidden = shown(0), }
+		args[m.countKey] = {
+			name = L["Split Count"],
+			desc = m.countDesc,
+			order = m.base + 1,
+			type = "range",
+			hidden = shown(0),
+			min = 1,
+			max = 5,
+			step = 1,
+			bigStep = 1,
+			get = function(info, index)
+					return CDTL3:SplitCount(ss())
+				end,
+			set = function(info, val)
+					ss()["count"] = val
+					CDTL3:RefreshLane(i)
+				end,
+		}
+		for k = 1, 5 do
+			local o = m.base + 10 * k
+			local pKey, vKey = "s" .. k .. "p", "s" .. k .. "v"
+			-- mark 1 is shown at any count
+			local hidden = shown(k == 1 and 0 or k)
+			args["spacer" .. o] = { name = k == 1 and "\n\n" or "", type = "description", order = o, hidden = hidden, }
+			args[m.prefix .. k .. "Position"] = {
+				name = names[k],
+				desc = m.pos[k],
+				order = o + 1,
+				type = "range",
+				hidden = hidden,
+				min = 0,
+				max = 1,
+				get = function(info, index)
+						return ss()[pKey]
+					end,
+				set = function(info, val)
+						ss()[pKey] = val
+						CDTL3:RefreshLane(i)
+					end,
+			}
+			args[m.prefix .. k .. "Value"] = {
+				name = valueNames[k],
+				desc = m.val[k],
+				order = o + 2,
+				type = "range",
+				hidden = hidden,
+				min = m.min,
+				max = m.max,
+				bigStep = 1,
+				get = function(info, index)
+						return ss()[vKey]
+					end,
+				set = function(info, val)
+						ss()[vKey] = val
+						CDTL3:RefreshLane(i)
+					end,
+			}
+		end
 	end
-	
+end
+
+private.GetLaneSet = function(i)
+	local lane = CDTL3:SlotSettings("lanes", i)
+	local function refresh()
+		CDTL3:RefreshLane(i)
+	end
+	-- the secondary tracker's controls show while it tracks something
+	local function noSecondary(info)
+		if lane["tracking"]["secondaryTracking"] ~= "NONE" then
+			return false
+		end
+		return true
+	end
+	-- the highlight border's controls show for the two border styles
+	local function noHighlightBorder(info)
+		local style = lane["icons"]["highlight"]["style"]
+		if style == "BORDER" or style == "BORDER_FLASH" then
+			return false
+		end
+
+		return true
+	end
+
 	local options = {
 		name = function(info)
 				return lane["name"]
@@ -4876,36 +4720,8 @@ private.GetLaneSet = function(i)
 				type = "group",
 				order = 100,
 				args = {
-					name = {
-						name = L["Frame Name"],
-						type = "input",
-						order = 101,
-						get = function(info)
-								return lane["name"]
-							end,
-						set = function(info, val)
-								lane["name"] = val
-								CDTL3:RefreshLane(i)
-							end,
-					},
-					enabled = {
-						name = L["Enabled"],
-						desc = "",
-						order = 102,
-						type = "toggle",
-						get = function(info, index)
-								return lane["enabled"]
-							end,
-						set = function(info, val)
-								lane["enabled"] = val
-								
-								if val then
-									CDTL3:CreateLanes()
-								end
-								
-								CDTL3:RefreshLane(i)
-							end,
-					},
+					name = private.GetNameOption(lane, refresh),
+					enabled = private.GetEnabledOption(lane, function() CDTL3:CreateLanes() end, refresh),
 					spacer103 = {
 						name = "",
 						type = "description",
@@ -4991,7 +4807,7 @@ private.GetLaneSet = function(i)
 							if mode == "LINEAR_ABS" or mode == "SPLIT_ABS" then
 								return false
 							end
-							
+
 							return true
 						end,
 						values = {
@@ -5005,7 +4821,7 @@ private.GetLaneSet = function(i)
 								elseif mode == "SPLIT_ABS" then
 									return lane["mode"]["splitAbs"]["timeFormat"]
 								end
-								
+
 								return ""
 							end,
 						set = function(info, val)
@@ -5035,7 +4851,7 @@ private.GetLaneSet = function(i)
 						get = function(info, index)
 								local mt = 0
 								local mode = lane["mode"]["type"]
-								
+
 								if mode == "LINEAR" then
 									mt = lane["mode"]["linear"]["max"]
 								elseif mode == "LINEAR_ABS" then
@@ -5050,7 +4866,7 @@ private.GetLaneSet = function(i)
 							end,
 						set = function(info, val)
 								local mode = lane["mode"]["type"]
-								
+
 								if mode == "LINEAR" then
 									lane["mode"]["linear"]["max"] = val
 								elseif mode == "LINEAR_ABS" then
@@ -5060,7 +4876,7 @@ private.GetLaneSet = function(i)
 								elseif mode == "SPLIT_ABS" then
 									lane["mode"]["splitAbs"]["max"] = val
 								end
-								
+
 								CDTL3:RefreshLane(i)
 						end,
 					},
@@ -5071,7 +4887,7 @@ private.GetLaneSet = function(i)
 						type = "toggle",
 						get = function(info, index)
 								local mode = lane["mode"]["type"]
-								
+
 								if mode == "LINEAR" then
 									return lane["mode"]["linear"]["hideTimeSurplus"]
 								elseif mode == "LINEAR_ABS" then
@@ -5081,12 +4897,12 @@ private.GetLaneSet = function(i)
 								elseif mode == "SPLIT_ABS" then
 									return lane["mode"]["splitAbs"]["hideTimeSurplus"]
 								end
-								
+
 								return nil
 							end,
 						set = function(info, val)
 								local mode = lane["mode"]["type"]
-								
+
 								if mode == "LINEAR" then
 									lane["mode"]["linear"]["hideTimeSurplus"] = val
 								elseif mode == "LINEAR_ABS" then
@@ -5098,422 +4914,6 @@ private.GetLaneSet = function(i)
 								end
 							end,
 					},
-					spacer400 = {
-						name = "\n\n",
-						type = "description",
-						order = 400,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								return false
-							end
-							return true
-						end,
-					},
-					sSplitCount = {
-						name = L["Split Count"],
-						desc = L["How many % splits appear on the lane"],
-						order = 401,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								return false
-							end
-							return true
-						end,
-						min = 1,
-						max = 3,
-						step = 1,
-						bigStep = 1,
-						get = function(info, index)
-								return CDTL3:SplitCount(lane["mode"]["split"])
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["count"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer410 = {
-						name = "\n\n",
-						type = "description",
-						order = 410,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								return false
-							end
-							return true
-						end,
-					},
-					sSplit1Position = {
-						name = L["Split 1 Position"],
-						desc = L["What position should split 1 appear"],
-						order = 411,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								return false
-							end
-							return true
-						end,
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["mode"]["split"]["s1p"]
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["s1p"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					sSplit1Value = {
-						name = L["Split 1 Value"],
-						desc = L["What percentage should split 1 occur"],
-						order = 412,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								return false
-							end
-							return true
-						end,
-						min = 0,
-						max = 100,
-						bigStep = 1,
-						get = function(info, index)
-								return lane["mode"]["split"]["s1v"]
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["s1v"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer420 = {
-						name = "",
-						type = "description",
-						order = 420,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-					},
-					sSplit2Position = {
-						name = L["Split 2 Position"],
-						desc = L["What position should split 2 appear"],
-						order = 421,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["mode"]["split"]["s2p"]
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["s2p"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					sSplit2Value = {
-						name = L["Split 2 Value"],
-						desc = L["What percentage should split 2 occur"],
-						order = 422,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 0,
-						max = 100,
-						bigStep = 1,
-						get = function(info, index)
-								return lane["mode"]["split"]["s2v"]
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["s2v"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer430 = {
-						name = "",
-						type = "description",
-						order = 430,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								if CDTL3:SplitCount(lane["mode"]["split"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-					},
-					sSplit3Position = {
-						name = L["Split 3 Position"],
-						desc = L["What position should split 3 appear"],
-						order = 431,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								if CDTL3:SplitCount(lane["mode"]["split"]) >= 3 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["mode"]["split"]["s3p"]
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["s3p"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					sSplit3Value = {
-						name = L["Split 3 Value"],
-						desc = L["What percentage should split 3 occur"],
-						order = 432,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT" then
-								if CDTL3:SplitCount(lane["mode"]["split"]) >= 3 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 0,
-						max = 100,
-						bigStep = 1,
-						get = function(info, index)
-								return lane["mode"]["split"]["s3v"]
-							end,
-						set = function(info, val)
-								lane["mode"]["split"]["s3v"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer500 = {
-						name = "\n\n",
-						type = "description",
-						order = 500,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								return false
-							end
-							return true
-						end,
-					},
-					saSplitCount = {
-						name = L["Split Count"],
-						desc = L["How many % splits appear on the lane"],
-						order = 502,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								return false
-							end
-							return true
-						end,
-						min = 1,
-						max = 3,
-						step = 1,
-						bigStep = 1,
-						get = function(info, index)
-								return CDTL3:SplitCount(lane["mode"]["splitAbs"])
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["count"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer510 = {
-						name = "\n\n",
-						type = "description",
-						order = 510,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								return false
-							end
-							return true
-						end,
-					},
-					saSplit1Position = {
-						name = L["Split 1 Position"],
-						desc = L["What position should splitAbs 1 appear"],
-						order = 511,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								return false
-							end
-							return true
-						end,
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["mode"]["splitAbs"]["s1p"]
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["s1p"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					saSplit1Value = {
-						name = L["Split 1 Value"],
-						desc = L["How many seconds from the end split 1 sits at (up to 3600)."],
-						order = 512,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								return false
-							end
-							return true
-						end,
-						min = 1,
-						max = 3600,
-						bigStep = 1,
-						get = function(info, index)
-								return lane["mode"]["splitAbs"]["s1v"]
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["s1v"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer520 = {
-						name = "",
-						type = "description",
-						order = 520,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-					},
-					saSplit2Position = {
-						name = L["Split 2 Position"],
-						desc = L["What position should splitAbs 2 appear"],
-						order = 521,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["mode"]["splitAbs"]["s2p"]
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["s2p"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					saSplit2Value = {
-						name = L["Split 2 Value"],
-						desc = L["How many seconds from the end split 2 sits at (up to 3600)."],
-						order = 522,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 1,
-						max = 3600,
-						bigStep = 1,
-						get = function(info, index)
-								return lane["mode"]["splitAbs"]["s2v"]
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["s2v"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					spacer530 = {
-						name = "",
-						type = "description",
-						order = 530,
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 2 then
-									return false
-								end
-							end
-							return true
-						end,
-					},
-					saSplit3Position = {
-						name = L["Split 3 Position"],
-						desc = L["What position should splitAbs 3 appear"],
-						order = 531,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 3 then
-									return false
-								end
-							end
-							return true
-						end,
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["mode"]["splitAbs"]["s3p"]
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["s3p"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},
-					saSplit3Value = {
-						name = L["Split 3 Value"],
-						desc = L["How many seconds from the end split 3 sits at (up to 3600)."],
-						order = 532,
-						type = "range",
-						hidden = function(info)
-							if lane["mode"]["type"] == "SPLIT_ABS" then
-								if CDTL3:SplitCount(lane["mode"]["splitAbs"]) >= 3 then
-									return false
-								end
-							end
-							return true
-						end,
-						max = 3600,
-						min = 1,
-						bigStep = 1,
-						get = function(info, index)
-								return lane["mode"]["splitAbs"]["s3v"]
-							end,
-						set = function(info, val)
-								lane["mode"]["splitAbs"]["s3v"] = val
-								CDTL3:RefreshLane(i)
-						end,
-					},					
 					spacer600 = {
 						name = "\n\n",
 						type = "description",
@@ -5622,12 +5022,7 @@ private.GetLaneSet = function(i)
 						desc = L["Set the width of the secondary tracker"],
 						order = 614,
 						type = "range",
-						hidden = function(info)
-							if lane["tracking"]["secondaryTracking"] ~= "NONE" then
-								return false
-							end
-							return true
-						end,
+						hidden = noSecondary,
 						max = 360,
 						min = 1,
 						bigStep = 1,
@@ -5644,12 +5039,7 @@ private.GetLaneSet = function(i)
 						desc = L["Set the height of the secondary tracker"],
 						order = 615,
 						type = "range",
-						hidden = function(info)
-							if lane["tracking"]["secondaryTracking"] ~= "NONE" then
-								return false
-							end
-							return true
-						end,
+						hidden = noSecondary,
 						max = 360,
 						min = 1,
 						bigStep = 1,
@@ -5665,24 +5055,14 @@ private.GetLaneSet = function(i)
 						name = "\n",
 						type = "description",
 						order = 616,
-						hidden = function(info)
-							if lane["tracking"]["secondaryTracking"] ~= "NONE" then
-								return false
-							end
-							return true
-						end,
+						hidden = noSecondary,
 					},
 					stTexture = {
 						name = L["ST Texture"],
 						desc = L["Selects the ST texture"],
 						order = 617,
 						type = "select",
-						hidden = function(info)
-							if lane["tracking"]["secondaryTracking"] ~= "NONE" then
-								return false
-							end
-							return true
-						end,
+						hidden = noSecondary,
 						dialogControl = 'LSM30_Statusbar',
 						values = function() return CDTL3:GetBarTextureList() end,
 						get = function(info, index)
@@ -5698,12 +5078,7 @@ private.GetLaneSet = function(i)
 						desc = L["Sets the ST texture color"],
 						order = 618,
 						type = "color",
-						hidden = function(info)
-							if lane["tracking"]["secondaryTracking"] ~= "NONE" then
-								return false
-							end
-							return true
-						end,
+						hidden = noSecondary,
 						hasAlpha = true,
 						get = function(info)
 								local r = lane["tracking"]["stTextureColor"]["r"]
@@ -5798,30 +5173,7 @@ private.GetLaneSet = function(i)
 						type = "description",
 						order = 400,
 					},
-					relativeTo = {
-						name = L["Anchor Point"],
-						desc = L["The x/y position is relative to this point of the screen"],
-						order = 401,
-						type = "select",
-						values = {
-								["TOPLEFT"] = "TOPLEFT",
-								["TOP"] = "TOP",
-								["TOPRIGHT"] = "TOPRIGHT",
-								["LEFT"] = "LEFT",
-								["CENTER"] = "CENTER",
-								["RIGHT"] = "RIGHT",
-								["BOTTOMLEFT"] = "BOTTOMLEFT",
-								["BOTTOM"] = "BOTTOM",
-								["BOTTOMRIGHT"] = "BOTTOMRIGHT",
-							},
-						get = function(info, index)
-								return lane["relativeTo"]
-							end,
-						set = function(info, val)
-								lane["relativeTo"] = val
-								CDTL3:RefreshLane(i)
-							end,
-					},
+					relativeTo = private.GetAnchorPointOption(lane, 401, refresh),
 					spacer500 = {
 						name = "\n\n",
 						type = "description",
@@ -5922,7 +5274,7 @@ private.GetLaneSet = function(i)
 									-- before the character is known (first seconds after login) keep the stored colour
 									c = CDTL3.db.profile.global["classColors"][CDTL3.player["class"]] or c
 								end
-						
+
 								local r = c["r"]
 								local g = c["g"]
 								local b = c["b"]
@@ -5996,27 +5348,6 @@ private.GetLaneSet = function(i)
 								CDTL3:RefreshAllIcons()
 						end,
 					},
-					spacer102 = {
-						name = "\n",
-						type = "description",
-						order = 102,
-					},
-					iconAlpha = {
-						name = L["Icon Transparency"],
-						desc = L["Set the alpha for the icon (text alpha is set in text settings)"],
-						order = 103,
-						type = "range",
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return lane["icons"]["alpha"]
-							end,
-						set = function(info, val)
-								lane["icons"]["alpha"] = val
-								
-								CDTL3:RefreshAllIcons()
-						end,
-					},
 					spacer110 = {
 						name = "\n",
 						type = "description",
@@ -6043,148 +5374,21 @@ private.GetLaneSet = function(i)
 						type = "description",
 						order = 120,
 					},
-					textHeader = {
-						name = L["Icon Text"],
-						type = "header",
-						order = 200.1,
-					},
-					spacer200 = {
-						name = "\n",
-						type = "description",
-						order = 200.2,
-					},
-					-- ICON TEXT 1
-					iText1Text = private.GetTextText(lane["icons"]["text1"], 210, i, "ICON", false),
-					iText1Enabled = private.GetTextEnabled(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1Edit = private.GetTextEdit(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1Font = private.GetTextFont(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1Outline = private.GetTextOutline(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1S1 = { name = "", type = "description", order = 210 + 4.3, hidden = function(info) return not lane["icons"]["text1"]["edit"] end, },
-					iText1Size = private.GetTextSize(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1Color = private.GetTextColor(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1ShadowColor = private.GetTextShadowColor(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1S2 = { name = "", type = "description", order = 210 + 4.7, hidden = function(info) return not lane["icons"]["text1"]["edit"] end, },
-					iText1ShadowXOffset = private.GetTextShadowXOffset(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1ShadowYOffset = private.GetTextShadowYOffset(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1S3 = { name = "", type = "description", order = 210 + 5.1, hidden = function(info) return not lane["icons"]["text1"]["edit"] end, },
-					iText1Anchor = private.GetTextAnchor(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1Align = private.GetTextAlign(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1S4 = { name = "", type = "description", order = 210 + 5.4, hidden = function(info) return not lane["icons"]["text1"]["edit"] end, },
-					iText1XOffset = private.GetTextXOffset(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1YOffset = private.GetTextYOffset(lane["icons"]["text1"], 210, i, "ICON"),
-					iText1Footer = { name = "", type = "header", order = 210 + 9.8, hidden = function(info) return not lane["icons"]["text1"]["edit"] end, },
-					-- ICON TEXT 2
-					iText2S0 = { name = "\n", type = "description", order = 220, hidden = function(info) return not lane["icons"]["text2"]["used"] end, },
-					iText2Header = { name = "", type = "header", order = 220 + 0.1, hidden = function(info) return not lane["icons"]["text2"]["edit"] end, },
-					iText2Text = private.GetTextText(lane["icons"]["text2"], 220, i, "ICON", false),
-					iText2Enabled = private.GetTextEnabled(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2Edit = private.GetTextEdit(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2Font = private.GetTextFont(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2Outline = private.GetTextOutline(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2S1 = { name = "", type = "description", order = 220 + 4.3, hidden = function(info) return not lane["icons"]["text2"]["edit"] end, },
-					iText2Size = private.GetTextSize(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2Color = private.GetTextColor(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2ShadowColor = private.GetTextShadowColor(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2S2 = { name = "", type = "description", order = 220 + 4.7, hidden = function(info) return not lane["icons"]["text2"]["edit"] end, },
-					iText2ShadowXOffset = private.GetTextShadowXOffset(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2ShadowYOffset = private.GetTextShadowYOffset(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2S3 = { name = "", type = "description", order = 220 + 5.1, hidden = function(info) return not lane["icons"]["text2"]["edit"] end, },
-					iText2Anchor = private.GetTextAnchor(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2Align = private.GetTextAlign(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2S4 = { name = "", type = "description", order = 220 + 5.4, hidden = function(info) return not lane["icons"]["text2"]["edit"] end, },
-					iText2XOffset = private.GetTextXOffset(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2YOffset = private.GetTextYOffset(lane["icons"]["text2"], 220, i, "ICON"),
-					iText2Footer = { name = "", type = "header", order = 220 + 9.8, hidden = function(info) return not lane["icons"]["text2"]["edit"] end, },
-					-- ICON TEXT 3
-					iText3S0 = { name = "\n", type = "description", order = 230, hidden = function(info) return not lane["icons"]["text3"]["used"] end, },
-					iText3Header = { name = "", type = "header", order = 230 + 0.1, hidden = function(info) return not lane["icons"]["text3"]["edit"] end, },
-					iText3Text = private.GetTextText(lane["icons"]["text3"], 230, i, "ICON", false),
-					iText3Enabled = private.GetTextEnabled(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3Edit = private.GetTextEdit(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3Font = private.GetTextFont(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3Outline = private.GetTextOutline(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3S1 = { name = "", type = "description", order = 230 + 4.3, hidden = function(info) return not lane["icons"]["text3"]["edit"] end, },
-					iText3Size = private.GetTextSize(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3Color = private.GetTextColor(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3ShadowColor = private.GetTextShadowColor(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3S2 = { name = "", type = "description", order = 230 + 4.7, hidden = function(info) return not lane["icons"]["text3"]["edit"] end, },
-					iText3ShadowXOffset = private.GetTextShadowXOffset(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3ShadowYOffset = private.GetTextShadowYOffset(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3S3 = { name = "", type = "description", order = 230 + 5.1, hidden = function(info) return not lane["icons"]["text3"]["edit"] end, },
-					iText3Anchor = private.GetTextAnchor(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3Align = private.GetTextAlign(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3S4 = { name = "", type = "description", order = 230 + 5.4, hidden = function(info) return not lane["icons"]["text3"]["edit"] end, },
-					iText3XOffset = private.GetTextXOffset(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3YOffset = private.GetTextYOffset(lane["icons"]["text3"], 230, i, "ICON"),
-					iText3Footer = { name = "", type = "header", order = 230 + 9.8, hidden = function(info) return not lane["icons"]["text3"]["edit"] end, },
-					spacer288 = {
-						name = "\n",
-						type = "description",
-						order = 288,
-					},
-					textFooter = {
-						name = "",
-						type = "header",
-						order = 289,
-					},
-					spacer300 = {
-						name = "\n\n",
-						type = "description",
-						order = 300,
-					},
-					spacer400 = {
-						name = "\n\n",
-						type = "description",
-						order = 400,
-					},
-					highlightStyle = {
-						name = L["Highlight Style"],
-						desc = L["How to highlight icons"],
-						order = 401,
-						type = "select",
-						values = {
-								["BORDER"] = L["Border"],
-								["BORDER_FLASH"] = L["Border Flash"],
-								["FLASH"] = L["Flash Icon"],
-								["GLOW"] = L["Glow"],
-							},
-						get = function(info, index)
-								return lane["icons"]["highlight"]["style"]
-							end,
-						set = function(info, val)
-								lane["icons"]["highlight"]["style"] = val
-								CDTL3:RefreshAllIcons()
-							end,
-					},
 					spacer500 = {
 						name = "\n\n",
 						type = "description",
 						order = 500,
-						hidden = function(info)
-								if	lane["icons"]["highlight"]["style"] == "BORDER" or
-									lane["icons"]["highlight"]["style"] == "BORDER_FLASH"
-								then
-									return false
-								end
-								
-								return true
-							end,
+						hidden = noHighlightBorder,
 					},
 					hlBorder = {
 						name = L["Border Texture"],
 						desc = L["Selects the border texture"],
 						order = 501,
-						hidden = function(info)
-								if	lane["icons"]["highlight"]["style"] == "BORDER" or
-									lane["icons"]["highlight"]["style"] == "BORDER_FLASH"
-								then
-									return false
-								end
-								
-								return true
-							end,
+						hidden = noHighlightBorder,
 						type = "select",
 						dialogControl = 'LSM30_Border',
+						-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+						---@diagnostic disable-next-line: undefined-global
 						values = AceGUIWidgetLSMlists.border,
 						get = function(info) return lane["icons"]["highlight"]["border"]["style"] end,
 						set = function(info, val)
@@ -6196,15 +5400,7 @@ private.GetLaneSet = function(i)
 						name = L["Color"],
 						desc = L["Selects the border color"],
 						order = 502,
-						hidden = function(info)
-								if	lane["icons"]["highlight"]["style"] == "BORDER" or
-									lane["icons"]["highlight"]["style"] == "BORDER_FLASH"
-								then
-									return false
-								end
-								
-								return true
-							end,
+						hidden = noHighlightBorder,
 						type = "color",
 						hasAlpha = true,
 						get = function(info)
@@ -6212,11 +5408,11 @@ private.GetLaneSet = function(i)
 								local g = lane["icons"]["highlight"]["border"]["color"]["g"]
 								local b = lane["icons"]["highlight"]["border"]["color"]["b"]
 								local a = lane["icons"]["highlight"]["border"]["color"]["a"]
-								
+
 								return r, g, b, a
 							end,
 						set = function(info, red, green, blue, alpha)
-								lane["icons"]["highlight"]["border"]["color"] = { r = red, g = green, b = blue, a = alpha }							
+								lane["icons"]["highlight"]["border"]["color"] = { r = red, g = green, b = blue, a = alpha }
 								CDTL3:RefreshAllIcons()
 							end,
 					},
@@ -6224,29 +5420,13 @@ private.GetLaneSet = function(i)
 						name = "",
 						type = "description",
 						order = 510,
-						hidden = function(info)
-								if	lane["icons"]["highlight"]["style"] == "BORDER" or
-									lane["icons"]["highlight"]["style"] == "BORDER_FLASH"
-								then
-									return false
-								end
-								
-								return true
-							end,
+						hidden = noHighlightBorder,
 					},
 					hlBorderSize = {
 						name = L["Size"],
 						desc = L["Sets the size of the border"],
 						order = 511,
-						hidden = function(info)
-								if	lane["icons"]["highlight"]["style"] == "BORDER" or
-									lane["icons"]["highlight"]["style"] == "BORDER_FLASH"
-								then
-									return false
-								end
-								
-								return true
-							end,
+						hidden = noHighlightBorder,
 						type = "range",
 						softMin = 1,
 						softMax = 40,
@@ -6261,15 +5441,7 @@ private.GetLaneSet = function(i)
 						name = L["Padding"],
 						desc = L["Sets the space between the border and the frame"],
 						order = 511,
-						hidden = function(info)
-								if	lane["icons"]["highlight"]["style"] == "BORDER" or
-									lane["icons"]["highlight"]["style"] == "BORDER_FLASH"
-								then
-									return false
-								end
-								
-								return true
-							end,
+						hidden = noHighlightBorder,
 						type = "range",
 						softMin = 0,
 						softMax = 40,
@@ -6382,113 +5554,6 @@ private.GetLaneSet = function(i)
 						type = "header",
 						order = 100,
 					},
-					-- DEFAULT TEXT 1
-					dText1Text = private.GetTextText(lane["modeText"]["text1"], 210, i, "LANE", true),
-					dText1Enabled = private.GetTextEnabled(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1Edit = private.GetTextEdit(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1Font = private.GetTextFont(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1Outline = private.GetTextOutline(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1S1 = { name = "", type = "description", order = 210 + 4.3, hidden = function(info) return not lane["modeText"]["text1"]["edit"] end, },
-					dText1Size = private.GetTextSize(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1Color = private.GetTextColor(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1ShadowColor = private.GetTextShadowColor(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1S2 = { name = "", type = "description", order = 210 + 4.7, hidden = function(info) return not lane["modeText"]["text1"]["edit"] end, },
-					dText1ShadowXOffset = private.GetTextShadowXOffset(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1ShadowYOffset = private.GetTextShadowYOffset(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1S3 = { name = "", type = "description", order = 210 + 5.1, hidden = function(info) return not lane["modeText"]["text1"]["edit"] end, },
-					dText1Anchor = private.GetTextAnchor(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1Align = private.GetTextAlign(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1S4 = { name = "", type = "description", order = 210 + 5.4, hidden = function(info) return not lane["modeText"]["text1"]["edit"] end, },
-					dText1XOffset = private.GetTextXOffset(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1YOffset = private.GetTextYOffset(lane["modeText"]["text1"], 210, i, "LANE"),
-					dText1Footer = { name = "", type = "header", order = 210 + 9.8, hidden = function(info) return not lane["modeText"]["text1"]["edit"] end, },
-					-- DEFAULT TEXT 2
-					dText2S0 = { name = "\n", type = "description", order = 220, hidden = function(info) return not lane["modeText"]["text2"]["used"] end, },
-					dText2Header = { name = "", type = "header", order = 220 + 0.1, hidden = function(info) return not lane["modeText"]["text2"]["edit"] end, },
-					dText2Text = private.GetTextText(lane["modeText"]["text2"], 220, i, "LANE", true),
-					dText2Enabled = private.GetTextEnabled(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2Edit = private.GetTextEdit(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2Font = private.GetTextFont(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2Outline = private.GetTextOutline(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2S1 = { name = "", type = "description", order = 220 + 4.3, hidden = function(info) return not lane["modeText"]["text2"]["edit"] end, },
-					dText2Size = private.GetTextSize(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2Color = private.GetTextColor(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2ShadowColor = private.GetTextShadowColor(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2S2 = { name = "", type = "description", order = 220 + 4.7, hidden = function(info) return not lane["modeText"]["text2"]["edit"] end, },
-					dText2ShadowXOffset = private.GetTextShadowXOffset(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2ShadowYOffset = private.GetTextShadowYOffset(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2S3 = { name = "", type = "description", order = 220 + 5.1, hidden = function(info) return not lane["modeText"]["text2"]["edit"] end, },
-					dText2Anchor = private.GetTextAnchor(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2Align = private.GetTextAlign(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2S4 = { name = "", type = "description", order = 220 + 5.4, hidden = function(info) return not lane["modeText"]["text2"]["edit"] end, },
-					dText2XOffset = private.GetTextXOffset(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2YOffset = private.GetTextYOffset(lane["modeText"]["text2"], 220, i, "LANE"),
-					dText2Footer = { name = "", type = "header", order = 220 + 9.8, hidden = function(info) return not lane["modeText"]["text2"]["edit"] end, },
-					-- DEFAULT TEXT 3
-					dText3S0 = { name = "\n", type = "description", order = 230, hidden = function(info) return not lane["modeText"]["text3"]["used"] end, },
-					dText3Header = { name = "", type = "header", order = 230 + 0.1, hidden = function(info) return not lane["modeText"]["text3"]["edit"] end, },
-					dText3Text = private.GetTextText(lane["modeText"]["text3"], 230, i, "LANE", true),
-					dText3Enabled = private.GetTextEnabled(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3Edit = private.GetTextEdit(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3Font = private.GetTextFont(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3Outline = private.GetTextOutline(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3S1 = { name = "", type = "description", order = 230 + 4.3, hidden = function(info) return not lane["modeText"]["text3"]["edit"] end, },
-					dText3Size = private.GetTextSize(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3Color = private.GetTextColor(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3ShadowColor = private.GetTextShadowColor(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3S2 = { name = "", type = "description", order = 230 + 4.7, hidden = function(info) return not lane["modeText"]["text3"]["edit"] end, },
-					dText3ShadowXOffset = private.GetTextShadowXOffset(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3ShadowYOffset = private.GetTextShadowYOffset(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3S3 = { name = "", type = "description", order = 230 + 5.1, hidden = function(info) return not lane["modeText"]["text3"]["edit"] end, },
-					dText3Anchor = private.GetTextAnchor(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3Align = private.GetTextAlign(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3S4 = { name = "", type = "description", order = 230 + 5.4, hidden = function(info) return not lane["modeText"]["text3"]["edit"] end, },
-					dText3XOffset = private.GetTextXOffset(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3YOffset = private.GetTextYOffset(lane["modeText"]["text3"], 230, i, "LANE"),
-					dText3Footer = { name = "", type = "header", order = 230 + 9.8, hidden = function(info) return not lane["modeText"]["text3"]["edit"] end, },
-					-- DEFAULT TEXT 4
-					dText4S0 = { name = "\n", type = "description", order = 240, hidden = function(info) return not lane["modeText"]["text4"]["used"] end, },
-					dText4Header = { name = "", type = "header", order = 240 + 0.1, hidden = function(info) return not lane["modeText"]["text4"]["edit"] end, },
-					dText4Text = private.GetTextText(lane["modeText"]["text4"], 240, i, "LANE", true),
-					dText4Enabled = private.GetTextEnabled(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4Edit = private.GetTextEdit(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4Font = private.GetTextFont(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4Outline = private.GetTextOutline(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4S1 = { name = "", type = "description", order = 240 + 4.3, hidden = function(info) return not lane["modeText"]["text4"]["edit"] end, },
-					dText4Size = private.GetTextSize(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4Color = private.GetTextColor(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4ShadowColor = private.GetTextShadowColor(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4S2 = { name = "", type = "description", order = 240 + 4.7, hidden = function(info) return not lane["modeText"]["text4"]["edit"] end, },
-					dText4ShadowXOffset = private.GetTextShadowXOffset(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4ShadowYOffset = private.GetTextShadowYOffset(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4S3 = { name = "", type = "description", order = 240 + 5.1, hidden = function(info) return not lane["modeText"]["text4"]["edit"] end, },
-					dText4Anchor = private.GetTextAnchor(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4Align = private.GetTextAlign(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4S4 = { name = "", type = "description", order = 240 + 5.4, hidden = function(info) return not lane["modeText"]["text4"]["edit"] end, },
-					dText4XOffset = private.GetTextXOffset(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4YOffset = private.GetTextYOffset(lane["modeText"]["text4"], 240, i, "LANE"),
-					dText4Footer = { name = "", type = "header", order = 240 + 9.8, hidden = function(info) return not lane["modeText"]["text4"]["edit"] end, },
-					-- DEFAULT TEXT 5
-					dText5S0 = { name = "\n", type = "description", order = 250, hidden = function(info) return not lane["modeText"]["text5"]["used"] end, },
-					dText5Header = { name = "", type = "header", order = 250 + 0.1, hidden = function(info) return not lane["modeText"]["text5"]["edit"] end, },
-					dText5Text = private.GetTextText(lane["modeText"]["text5"], 250, i, "LANE", true),
-					dText5Enabled = private.GetTextEnabled(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5Edit = private.GetTextEdit(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5Font = private.GetTextFont(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5Outline = private.GetTextOutline(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5S1 = { name = "", type = "description", order = 250 + 4.3, hidden = function(info) return not lane["modeText"]["text5"]["edit"] end, },
-					dText5Size = private.GetTextSize(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5Color = private.GetTextColor(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5ShadowColor = private.GetTextShadowColor(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5S2 = { name = "", type = "description", order = 250 + 4.7, hidden = function(info) return not lane["modeText"]["text5"]["edit"] end, },
-					dText5ShadowXOffset = private.GetTextShadowXOffset(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5ShadowYOffset = private.GetTextShadowYOffset(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5S3 = { name = "", type = "description", order = 250 + 5.1, hidden = function(info) return not lane["modeText"]["text5"]["edit"] end, },
-					dText5Anchor = private.GetTextAnchor(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5Align = private.GetTextAlign(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5S4 = { name = "", type = "description", order = 250 + 5.4, hidden = function(info) return not lane["modeText"]["text5"]["edit"] end, },
-					dText5XOffset = private.GetTextXOffset(lane["modeText"]["text5"], 250, i, "LANE"),
-					dText5YOffset = private.GetTextYOffset(lane["modeText"]["text5"], 250, i, "LANE"),
 					customHeader = {
 						name = L["Custom Text"],
 						type = "header",
@@ -6496,124 +5561,43 @@ private.GetLaneSet = function(i)
 					},
 					-- CUSTOM TEXT 1
 					cText1S0 = { name = "\n", type = "description", order = 310, },
-					cText1Text = private.GetTextText(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Enabled = private.GetTextEnabled(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Edit = private.GetTextEdit(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Font = private.GetTextFont(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Outline = private.GetTextOutline(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1S1 = { name = "", type = "description", order = 310 + 4.3, hidden = function(info) return not lane["customText"]["text1"]["edit"] end, },
-					cText1Size = private.GetTextSize(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Color = private.GetTextColor(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1ShadowColor = private.GetTextShadowColor(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1S2 = { name = "", type = "description", order = 310 + 4.7, hidden = function(info) return not lane["customText"]["text1"]["edit"] end, },
-					cText1ShadowXOffset = private.GetTextShadowXOffset(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1ShadowYOffset = private.GetTextShadowYOffset(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1S3 = { name = "", type = "description", order = 310 + 5.1, hidden = function(info) return not lane["customText"]["text1"]["edit"] end, },
-					cText1Anchor = private.GetTextAnchor(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Align = private.GetTextAlign(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1S4 = { name = "", type = "description", order = 310 + 5.4, hidden = function(info) return not lane["customText"]["text1"]["edit"] end, },
-					cText1XOffset = private.GetTextXOffset(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1YOffset = private.GetTextYOffset(lane["customText"]["text1"], 310, i, "LANE"),
-					cText1Footer = { name = "", type = "header", order = 310 + 9.8, hidden = function(info) return not lane["customText"]["text1"]["edit"] end, },
-					-- CUSTOM TEXT 2
-					cText2S0 = { name = "\n", type = "description", order = 320, hidden = function(info) return not lane["customText"]["text2"]["used"] end, },
-					cText2Header = { name = "", type = "header", order = 320 + 0.1, hidden = function(info) return not lane["customText"]["text2"]["edit"] end, },
-					cText2Text = private.GetTextText(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Enabled = private.GetTextEnabled(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Edit = private.GetTextEdit(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Font = private.GetTextFont(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Outline = private.GetTextOutline(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2S1 = { name = "", type = "description", order = 320 + 4.3, hidden = function(info) return not lane["customText"]["text2"]["edit"] end, },
-					cText2Size = private.GetTextSize(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Color = private.GetTextColor(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2ShadowColor = private.GetTextShadowColor(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2S2 = { name = "", type = "description", order = 320 + 4.7, hidden = function(info) return not lane["customText"]["text2"]["edit"] end, },
-					cText2ShadowXOffset = private.GetTextShadowXOffset(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2ShadowYOffset = private.GetTextShadowYOffset(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2S3 = { name = "", type = "description", order = 320 + 5.1, hidden = function(info) return not lane["customText"]["text2"]["edit"] end, },
-					cText2Anchor = private.GetTextAnchor(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Align = private.GetTextAlign(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2S4 = { name = "", type = "description", order = 320 + 5.4, hidden = function(info) return not lane["customText"]["text2"]["edit"] end, },
-					cText2XOffset = private.GetTextXOffset(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2YOffset = private.GetTextYOffset(lane["customText"]["text2"], 320, i, "LANE"),
-					cText2Footer = { name = "", type = "header", order = 320 + 9.8, hidden = function(info) return not lane["customText"]["text2"]["edit"] end, },
-					-- CUSTOM TEXT 3
-					cText3S0 = { name = "\n", type = "description", order = 330, hidden = function(info) return not lane["customText"]["text3"]["used"] end, },
-					cText3Header = { name = "", type = "header", order = 330 + 0.1, hidden = function(info) return not lane["customText"]["text3"]["edit"] end, },
-					cText3Text = private.GetTextText(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Enabled = private.GetTextEnabled(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Edit = private.GetTextEdit(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Font = private.GetTextFont(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Outline = private.GetTextOutline(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3S1 = { name = "", type = "description", order = 330 + 4.3, hidden = function(info) return not lane["customText"]["text3"]["edit"] end, },
-					cText3Size = private.GetTextSize(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Color = private.GetTextColor(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3ShadowColor = private.GetTextShadowColor(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3S2 = { name = "", type = "description", order = 330 + 4.7, hidden = function(info) return not lane["customText"]["text3"]["edit"] end, },
-					cText3ShadowXOffset = private.GetTextShadowXOffset(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3ShadowYOffset = private.GetTextShadowYOffset(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3S3 = { name = "", type = "description", order = 330 + 5.1, hidden = function(info) return not lane["customText"]["text3"]["edit"] end, },
-					cText3Anchor = private.GetTextAnchor(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Align = private.GetTextAlign(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3S4 = { name = "", type = "description", order = 330 + 5.4, hidden = function(info) return not lane["customText"]["text3"]["edit"] end, },
-					cText3XOffset = private.GetTextXOffset(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3YOffset = private.GetTextYOffset(lane["customText"]["text3"], 330, i, "LANE"),
-					cText3Footer = { name = "", type = "header", order = 330 + 9.8, hidden = function(info) return not lane["customText"]["text3"]["edit"] end, },
-					-- CUSTOM TEXT 4
-					cText4S0 = { name = "\n", type = "description", order = 340, hidden = function(info) return not lane["customText"]["text4"]["used"] end, },
-					cText4Header = { name = "", type = "header", order = 340 + 0.1, hidden = function(info) return not lane["customText"]["text4"]["edit"] end, },
-					cText4Text = private.GetTextText(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Enabled = private.GetTextEnabled(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Edit = private.GetTextEdit(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Font = private.GetTextFont(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Outline = private.GetTextOutline(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4S1 = { name = "", type = "description", order = 340 + 4.3, hidden = function(info) return not lane["customText"]["text4"]["edit"] end, },
-					cText4Size = private.GetTextSize(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Color = private.GetTextColor(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4ShadowColor = private.GetTextShadowColor(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4S2 = { name = "", type = "description", order = 340 + 4.7, hidden = function(info) return not lane["customText"]["text4"]["edit"] end, },
-					cText4ShadowXOffset = private.GetTextShadowXOffset(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4ShadowYOffset = private.GetTextShadowYOffset(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4S3 = { name = "", type = "description", order = 340 + 5.1, hidden = function(info) return not lane["customText"]["text4"]["edit"] end, },
-					cText4Anchor = private.GetTextAnchor(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Align = private.GetTextAlign(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4S4 = { name = "", type = "description", order = 340 + 5.4, hidden = function(info) return not lane["customText"]["text4"]["edit"] end, },
-					cText4XOffset = private.GetTextXOffset(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4YOffset = private.GetTextYOffset(lane["customText"]["text4"], 340, i, "LANE"),
-					cText4Footer = { name = "", type = "header", order = 340 + 9.8, hidden = function(info) return not lane["customText"]["text4"]["edit"] end, },
-					-- CUSTOM TEXT 5
-					cText5S0 = { name = "\n", type = "description", order = 350, hidden = function(info) return not lane["customText"]["text5"]["used"] end, },
-					cText5Header = { name = "", type = "header", order = 350 + 0.1, hidden = function(info) return not lane["customText"]["text5"]["edit"] end, },
-					cText5Text = private.GetTextText(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Enabled = private.GetTextEnabled(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Edit = private.GetTextEdit(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Font = private.GetTextFont(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Outline = private.GetTextOutline(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5S1 = { name = "", type = "description", order = 350 + 4.3, hidden = function(info) return not lane["customText"]["text5"]["edit"] end, },
-					cText5Size = private.GetTextSize(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Color = private.GetTextColor(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5ShadowColor = private.GetTextShadowColor(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5S2 = { name = "", type = "description", order = 350 + 4.7, hidden = function(info) return not lane["customText"]["text5"]["edit"] end, },
-					cText5ShadowXOffset = private.GetTextShadowXOffset(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5ShadowYOffset = private.GetTextShadowYOffset(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5S3 = { name = "", type = "description", order = 350 + 5.1, hidden = function(info) return not lane["customText"]["text5"]["edit"] end, },
-					cText5Anchor = private.GetTextAnchor(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Align = private.GetTextAlign(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5S4 = { name = "", type = "description", order = 350 + 5.4, hidden = function(info) return not lane["customText"]["text5"]["edit"] end, },
-					cText5XOffset = private.GetTextXOffset(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5YOffset = private.GetTextYOffset(lane["customText"]["text5"], 350, i, "LANE"),
-					cText5Footer = { name = "", type = "header", order = 350 + 9.8, hidden = function(info) return not lane["customText"]["text5"]["edit"] end, },
 				},
 			},
 		}
 	}
-	
-	private.AddBorderArgs(options.args.appearance.args, 700, function() return lane["border"] end, function() CDTL3:RefreshLane(i) end, 703)
-	CDTL3:AddAnchorArgs(options.args.appearance.args, 402, function() return lane end, function() CDTL3:RefreshLane(i) end, L["lane"])
+
+	private.AddIconArgs(options.args.icons.args, lane, i, 288)
+	options.args.icons.args["finishFx"] = {
+		name = L["Finish effect"],
+		desc = L["What plays once at this lane's Ready end when an icon gets there"],
+		order = 402,
+		type = "select",
+		values = {
+				["NONE"] = L["None"],
+				["GROW"] = L["Grow and fade"],
+				["RING"] = L["Gold ring"],
+			},
+		sorting = { "NONE", "GROW", "RING" },	-- None first, not sorted by key
+		get = function(info)
+				return lane["icons"]["finishFx"]
+			end,
+		set = function(info, val)
+				lane["icons"]["finishFx"] = val
+			end,
+	}
+	private.AddSplitArgs(options.args.general.args, lane, i)
+	private.AddTextArgs(options.args.text.args, lane, "modeText", i)
+	-- no line under the last default text: the Custom Text header follows
+	options.args.text.args["dText7Footer"] = nil
+	private.AddTextArgs(options.args.text.args, lane, "customText", i)
+
+	private.AddBorderArgs(options.args.appearance.args, 700, function() return lane["border"] end, refresh, 703)
+	CDTL3:AddAnchorArgs(options.args.appearance.args, 402, function() return lane end, refresh, L["lane"])
 	private.AddBorderArgs(options.args.icons.args, 300, function() return lane["icons"]["border"] end, function() CDTL3:RefreshAllIcons() end)
 
 	private.AddCopyArgs(options.args.general.args, "lanes", i, L["Lane"])
-	private.AddShowArgs(options.args.general.args, function() return lane end, function() CDTL3:RefreshLane(i) end)
+	private.AddShowArgs(options.args.general.args, function() return lane end, refresh)
+	private.AddShowHideArgs(options, function() return lane end, refresh)
 	private.AddShareLaneArgs(options.args.general.args, i)
 	CDTL3:AddCasterLaneArgs(options.args.general.args, i, lane)
 	CDTL3.IconFx:AddLaneArgs(options.args, i)
@@ -6623,16 +5607,11 @@ private.GetLaneSet = function(i)
 end
 
 private.GetReadySet = function(i)
-	local ready = nil
-	
-	if i == 1 then
-		ready = CDTL3.db.profile.ready["ready1"]
-	elseif i == 2 then
-		ready = CDTL3.db.profile.ready["ready2"]
-	elseif i == 3 then
-		ready = CDTL3.db.profile.ready["ready3"]
+	local ready = CDTL3:SlotSettings("ready", i)
+	local function refresh()
+		CDTL3:RefreshReady(i)
 	end
-	
+
 	local options = {
 		name = function(info)
 				return ready["name"]
@@ -6645,61 +5624,14 @@ private.GetReadySet = function(i)
 				type = "group",
 				order = 100,
 				args = {
-					name = {
-						name = L["Frame Name"],
-						type = "input",
-						order = 101,
-						get = function(info)
-								return ready["name"]
-							end,
-						set = function(info, val)
-								ready["name"] = val
-								CDTL3:RefreshReady(i)
-							end,
-					},
-					enabled = {
-						name = L["Enabled"],
-						desc = "",
-						order = 102,
-						type = "toggle",
-						get = function(info, index)
-								return ready["enabled"]
-							end,
-						set = function(info, val)
-								ready["enabled"] = val
-								
-								if val then
-									CDTL3:CreateReadyFrames()
-								end
-								
-								CDTL3:RefreshReady(i)
-							end,
-					},
+					name = private.GetNameOption(ready, refresh),
+					enabled = private.GetEnabledOption(ready, function() CDTL3:CreateReadyFrames() end, refresh),
 					spacer200 = {
 						name = "\n\n",
 						type = "description",
 						order = 200,
 					},
-					grow = {
-						name = L["Grow Direction"],
-						desc = L["Select which direction new icons will grow in"],
-						order = 201,
-						type = "select",
-						values = {
-								["UP"] = "UP",
-								["DOWN"] = "DOWN",
-								["LEFT"] = "LEFT",
-								["RIGHT"] = "RIGHT",
-								["CENTER_H"] = "CENTER (H)",
-								["CENTER_V"] = "CENTER (V)",
-							},
-						get = function(info, index)
-								return ready["grow"]
-							end,
-						set = function(info, val)
-								ready["grow"] = val
-							end,
-					},
+					grow = private.GetGrowOption(ready, L["Select which direction new icons will grow in"]),
 					spacer300 = {
 						name = "\n\n",
 						type = "description",
@@ -6727,6 +5659,8 @@ private.GetReadySet = function(i)
 						type = "select",
 						width = "double",
 						dialogControl = 'LSM30_Sound',
+						-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+						---@diagnostic disable-next-line: undefined-global
 						values = AceGUIWidgetLSMlists.sound,
 						get = function(info, index)
 								return ready["nSound"]
@@ -6763,6 +5697,8 @@ private.GetReadySet = function(i)
 						type = "select",
 						width = "double",
 						dialogControl = 'LSM30_Sound',
+						-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+						---@diagnostic disable-next-line: undefined-global
 						values = AceGUIWidgetLSMlists.sound,
 						get = function(info, index)
 								return ready["hSound"]
@@ -6829,139 +5765,7 @@ private.GetReadySet = function(i)
 					},
 				}
 			},
-			appearance = {
-				name = L["Appearance"],
-				type = "group",
-				order = 200,
-				args = {
-					posX = {
-						name = L["x Position"],
-						desc = L["Sets the x position of the frame"],
-						order = 111,
-						type = "range",
-						softMin = -500,
-						softMax = 500,
-						bigStep = 1,
-						get = function(info, index)
-								return ready["posX"]
-							end,
-						set = function(info, val)
-								ready["posX"] = val
-								CDTL3:RefreshReady(i)
-							end,
-					},
-					posY = {
-						name = L["y Position"],
-						desc = L["Sets the y position of the frame"],
-						order = 112,
-						type = "range",
-						softMin = -500,
-						softMax = 500,
-						bigStep = 1,
-						get = function(info, index)
-								return ready["posY"]
-							end,
-						set = function(info, val)
-								ready["posY"] = val
-								CDTL3:RefreshReady(i)
-							end,
-					},
-					spacer113 = {
-						name = "",
-						type = "description",
-						order = 113,
-					},
-					relativeTo = {
-						name = L["Anchor Point"],
-						desc = L["The x/y position is relative to this point of the screen"],
-						order = 114,
-						type = "select",
-						values = {
-								["TOPLEFT"] = "TOPLEFT",
-								["TOP"] = "TOP",
-								["TOPRIGHT"] = "TOPRIGHT",
-								["LEFT"] = "LEFT",
-								["CENTER"] = "CENTER",
-								["RIGHT"] = "RIGHT",
-								["BOTTOMLEFT"] = "BOTTOMLEFT",
-								["BOTTOM"] = "BOTTOM",
-								["BOTTOMRIGHT"] = "BOTTOMRIGHT",
-							},
-						get = function(info, index)
-								return ready["relativeTo"]
-							end,
-						set = function(info, val)
-								ready["relativeTo"] = val
-								CDTL3:RefreshReady(i)
-							end,
-					},
-					spacer200 = {
-						name = "\n\n",
-						type = "description",
-						order = 200,
-					},
-					padding = {
-						name = L["Padding"],
-						desc = L["Sets the amount of padding in the frame"],
-						order = 201,
-						type = "range",
-						softMin = 0,
-						softMax = 40,
-						bigStep = 1,
-						get = function(info, index)
-								return ready["padding"]
-							end,
-						set = function(info, val)
-								ready["padding"] = val
-								CDTL3:RefreshAllIcons()
-								CDTL3:RefreshReady(i)
-						end,
-					},
-					spacer300 = {
-						name = "\n\n",
-						type = "description",
-						order = 300,
-					},
-					bgTexture = {
-						name = L["Background Texture"],
-						desc = L["Sets the background texture"],
-						order = 301,
-						type = "select",
-						dialogControl = 'LSM30_Statusbar',
-						values = function() return CDTL3:GetBarTextureList() end,
-						get = function(info, index)
-								return ready["bgTexture"]
-							end,
-						set = function(info, val)
-								ready["bgTexture"] = val
-								CDTL3:RefreshReady(i)
-							end,
-					},
-					bgTextureColor = {
-						name = L["Color"],
-						desc = L["Sets the background texture color"],
-						order = 302,
-						type = "color",
-						hasAlpha = true,
-						get = function(info)
-								local r = ready["bgTextureColor"]["r"]
-								local g = ready["bgTextureColor"]["g"]
-								local b = ready["bgTextureColor"]["b"]
-								local a = ready["bgTextureColor"]["a"]
-								return r, g, b, a
-							end,
-						set = function(info, red, green, blue, alpha)
-								ready["bgTextureColor"] = { r = red, g = green, b = blue, a = alpha }
-								CDTL3:RefreshReady(i)
-							end,
-					},
-					spacer400 = {
-						name = "\n\n",
-						type = "description",
-						order = 400,
-					},
-				}
-			},
+			appearance = private.GetFrameAppearance(ready, refresh),
 			icons = {
 				name = L["Icons"],
 				type = "group",
@@ -6984,160 +5788,102 @@ private.GetReadySet = function(i)
 								CDTL3:RefreshReady(i)
 						end,
 					},
-					spacer102 = {
-						name = "\n",
-						type = "description",
-						order = 102,
-					},
-					iconAlpha = {
-						name = L["Icon Transparency"],
-						desc = L["Set the alpha for the icon (text alpha is set in text settings)"],
-						order = 103,
-						type = "range",
-						min = 0,
-						max = 1,
-						get = function(info, index)
-								return ready["icons"]["alpha"]
-							end,
-						set = function(info, val)
-								ready["icons"]["alpha"] = val
-								
-								CDTL3:RefreshAllIcons()
-						end,
-					},
 					spacer104 = {
 						name = "\n\n",
 						type = "description",
 						order = 104,
 					},
-					textHeader = {
-						name = L["Icon Text"],
-						type = "header",
-						order = 200.1,
-					},
-					spacer200 = {
-						name = "\n",
-						type = "description",
-						order = 200.2,
-					},
-					-- ICON TEXT 1
-					iText1Text = private.GetTextText(ready["icons"]["text1"], 210, i, "ICON", false),
-					iText1Enabled = private.GetTextEnabled(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1Edit = private.GetTextEdit(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1Font = private.GetTextFont(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1Outline = private.GetTextOutline(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1S1 = { name = "", type = "description", order = 210 + 4.3, hidden = function(info) return not ready["icons"]["text1"]["edit"] end, },
-					iText1Size = private.GetTextSize(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1Color = private.GetTextColor(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1ShadowColor = private.GetTextShadowColor(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1S2 = { name = "", type = "description", order = 210 + 4.7, hidden = function(info) return not ready["icons"]["text1"]["edit"] end, },
-					iText1ShadowXOffset = private.GetTextShadowXOffset(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1ShadowYOffset = private.GetTextShadowYOffset(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1S3 = { name = "", type = "description", order = 210 + 5.1, hidden = function(info) return not ready["icons"]["text1"]["edit"] end, },
-					iText1Anchor = private.GetTextAnchor(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1Align = private.GetTextAlign(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1S4 = { name = "", type = "description", order = 210 + 5.4, hidden = function(info) return not ready["icons"]["text1"]["edit"] end, },
-					iText1XOffset = private.GetTextXOffset(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1YOffset = private.GetTextYOffset(ready["icons"]["text1"], 210, i, "ICON"),
-					iText1Footer = { name = "", type = "header", order = 210 + 9.8, hidden = function(info) return not ready["icons"]["text1"]["edit"] end, },
-					-- ICON TEXT 2
-					iText2S0 = { name = "\n", type = "description", order = 220, hidden = function(info) return not ready["icons"]["text2"]["used"] end, },
-					iText2Header = { name = "", type = "header", order = 220 + 0.1, hidden = function(info) return not ready["icons"]["text2"]["edit"] end, },
-					iText2Text = private.GetTextText(ready["icons"]["text2"], 220, i, "ICON", false),
-					iText2Enabled = private.GetTextEnabled(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2Edit = private.GetTextEdit(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2Font = private.GetTextFont(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2Outline = private.GetTextOutline(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2S1 = { name = "", type = "description", order = 220 + 4.3, hidden = function(info) return not ready["icons"]["text2"]["edit"] end, },
-					iText2Size = private.GetTextSize(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2Color = private.GetTextColor(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2ShadowColor = private.GetTextShadowColor(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2S2 = { name = "", type = "description", order = 220 + 4.7, hidden = function(info) return not ready["icons"]["text2"]["edit"] end, },
-					iText2ShadowXOffset = private.GetTextShadowXOffset(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2ShadowYOffset = private.GetTextShadowYOffset(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2S3 = { name = "", type = "description", order = 220 + 5.1, hidden = function(info) return not ready["icons"]["text2"]["edit"] end, },
-					iText2Anchor = private.GetTextAnchor(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2Align = private.GetTextAlign(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2S4 = { name = "", type = "description", order = 220 + 5.4, hidden = function(info) return not ready["icons"]["text2"]["edit"] end, },
-					iText2XOffset = private.GetTextXOffset(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2YOffset = private.GetTextYOffset(ready["icons"]["text2"], 220, i, "ICON"),
-					iText2Footer = { name = "", type = "header", order = 220 + 9.8, hidden = function(info) return not ready["icons"]["text2"]["edit"] end, },
-					-- ICON TEXT 3
-					iText3S0 = { name = "\n", type = "description", order = 230, hidden = function(info) return not ready["icons"]["text3"]["used"] end, },
-					iText3Header = { name = "", type = "header", order = 230 + 0.1, hidden = function(info) return not ready["icons"]["text3"]["edit"] end, },
-					iText3Text = private.GetTextText(ready["icons"]["text3"], 230, i, "ICON", false),
-					iText3Enabled = private.GetTextEnabled(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3Edit = private.GetTextEdit(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3Font = private.GetTextFont(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3Outline = private.GetTextOutline(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3S1 = { name = "", type = "description", order = 230 + 4.3, hidden = function(info) return not ready["icons"]["text3"]["edit"] end, },
-					iText3Size = private.GetTextSize(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3Color = private.GetTextColor(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3ShadowColor = private.GetTextShadowColor(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3S2 = { name = "", type = "description", order = 230 + 4.7, hidden = function(info) return not ready["icons"]["text3"]["edit"] end, },
-					iText3ShadowXOffset = private.GetTextShadowXOffset(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3ShadowYOffset = private.GetTextShadowYOffset(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3S3 = { name = "", type = "description", order = 230 + 5.1, hidden = function(info) return not ready["icons"]["text3"]["edit"] end, },
-					iText3Anchor = private.GetTextAnchor(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3Align = private.GetTextAlign(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3S4 = { name = "", type = "description", order = 230 + 5.4, hidden = function(info) return not ready["icons"]["text3"]["edit"] end, },
-					iText3XOffset = private.GetTextXOffset(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3YOffset = private.GetTextYOffset(ready["icons"]["text3"], 230, i, "ICON"),
-					iText3Footer = { name = "", type = "header", order = 230 + 9.8, hidden = function(info) return not ready["icons"]["text3"]["edit"] end, },
-					spacer298 = {
-						name = "\n",
-						type = "description",
-						order = 298,
-					},
-					textFooter = {
-						name = "",
-						type = "header",
-						order = 299,
-					},
-					spacer300 = {
-						name = "\n\n",
-						type = "description",
-						order = 300,
-					},
-					spacer400 = {
-						name = "\n\n",
-						type = "description",
-						order = 400,
-					},
-					highlightStyle = {
-						name = L["Highlight Style"],
-						desc = L["How to highlight icons"],
-						order = 401,
-						type = "select",
-						values = {
-								["BORDER"] = L["Border"],
-								["BORDER_FLASH"] = L["Border Flash"],
-								["FLASH"] = L["Flash Icon"],
-								["GLOW"] = L["Glow"],
-							},
-						get = function(info, index)
-								return ready["icons"]["highlight"]["style"]
-							end,
-						set = function(info, val)
-								ready["icons"]["highlight"]["style"] = val
-								CDTL3:RefreshAllIcons(i)
-							end,
-					},
 				}
 			},
 		}
 	}
-	
-	private.AddBorderArgs(options.args.appearance.args, 400, function() return ready["border"] end, function() CDTL3:RefreshReady(i) end)
-	CDTL3:AddAnchorArgs(options.args.appearance.args, 115, function() return ready end, function() CDTL3:RefreshReady(i) end, L["ready frame"])
+
+	private.AddIconArgs(options.args.icons.args, ready, i, 298)
+
+	private.AddBorderArgs(options.args.appearance.args, 400, function() return ready["border"] end, refresh)
+	CDTL3:AddAnchorArgs(options.args.appearance.args, 115, function() return ready end, refresh, L["ready frame"])
 	private.AddBorderArgs(options.args.icons.args, 300, function() return ready["icons"]["border"] end, function() CDTL3:RefreshAllIcons() end)
 
 	private.AddCopyArgs(options.args.general.args, "ready", i, L["Ready Frame"])
 	private.AddReadyTestArgs(options.args.general.args, ready)
 	CDTL3:AddReadyBoardArgs(options.args.general.args, ready, i)	-- ReadyBoard.lua
-	private.AddShowArgs(options.args.general.args, function() return ready end, function() CDTL3:RefreshReady(i) end)
+	private.AddShowArgs(options.args.general.args, function() return ready end, refresh)
+	private.AddShowHideArgs(options, function() return ready end, refresh)
 
 	return options
+end
+
+-- TEXTS of lanes, bar frames and Ready frames, by list (s[list] holds text1, text2...): the option
+-- key prefix, how many texts, the order text n starts at (base + 10 * n), what a change redraws, and
+-- whether the text box is greyed out (a lane's default texts)
+private.TEXT_LISTS = {
+	bar = { prefix = "bText", count = 3, base = 200, redraw = "BAR", locked = false },
+	icons = { prefix = "iText", count = 3, base = 200, redraw = "ICON", locked = false },
+	modeText = { prefix = "dText", count = 7, base = 200, redraw = "LANE", locked = true },
+	customText = { prefix = "cText", count = 5, base = 300, redraw = "LANE" },
+}
+
+-- every text of one list, for lane, bar frame or Ready frame i: a text after the first starts with a
+-- gap while it's used and a line while it's edited, and each ends with a line while it's edited
+private.AddTextArgs = function(args, s, list, i)
+	local l = private.TEXT_LISTS[list]
+	for n = 1, l.count do
+		local key, o, r = l.prefix .. n, l.base + 10 * n, l.redraw
+		local text = s[list]["text" .. n]
+		local function notEdited(info)
+			return not s[list]["text" .. n]["edit"]
+		end
+
+		if n > 1 then
+			args[key .. "S0"] = { name = "\n", type = "description", order = o, hidden = function(info) return not s[list]["text" .. n]["used"] end, }
+			args[key .. "Header"] = { name = "", type = "header", order = o + 0.1, hidden = notEdited, }
+		end
+		args[key .. "Text"] = private.GetTextText(text, o, i, r, l.locked)
+		args[key .. "Enabled"] = private.GetTextEnabled(text, o, i, r)
+		args[key .. "Edit"] = private.GetTextEdit(text, o, i, r)
+		args[key .. "Font"] = private.GetTextFont(text, o, i, r)
+		args[key .. "Outline"] = private.GetTextOutline(text, o, i, r)
+		args[key .. "S1"] = { name = "", type = "description", order = o + 4.3, hidden = notEdited, }
+		args[key .. "Size"] = private.GetTextSize(text, o, i, r)
+		args[key .. "Color"] = private.GetTextColor(text, o, i, r)
+		args[key .. "ShadowColor"] = private.GetTextShadowColor(text, o, i, r)
+		args[key .. "S2"] = { name = "", type = "description", order = o + 4.7, hidden = notEdited, }
+		args[key .. "ShadowXOffset"] = private.GetTextShadowXOffset(text, o, i, r)
+		args[key .. "ShadowYOffset"] = private.GetTextShadowYOffset(text, o, i, r)
+		args[key .. "S3"] = { name = "", type = "description", order = o + 5.1, hidden = notEdited, }
+		args[key .. "Anchor"] = private.GetTextAnchor(text, o, i, r)
+		args[key .. "Align"] = private.GetTextAlign(text, o, i, r)
+		args[key .. "S4"] = { name = "", type = "description", order = o + 5.4, hidden = notEdited, }
+		args[key .. "XOffset"] = private.GetTextXOffset(text, o, i, r)
+		args[key .. "YOffset"] = private.GetTextYOffset(text, o, i, r)
+		args[key .. "Footer"] = { name = "", type = "header", order = o + 9.8, hidden = notEdited, }
+	end
+end
+
+-- a bar frame's or icons' three texts under their header, with the line under them (a gap at
+-- footer, the line at footer + 1) and a gap at 300
+private.AddTextSection = function(args, header, s, list, i, footer)
+	args["textHeader"] = {
+		name = header,
+		type = "header",
+		order = 200.1,
+	}
+	private.AddTextArgs(args, s, list, i)
+	args["spacer" .. footer] = {
+		name = "\n",
+		type = "description",
+		order = footer,
+	}
+	args["textFooter"] = {
+		name = "",
+		type = "header",
+		order = footer + 1,
+	}
+	args["spacer300"] = {
+		name = "\n\n",
+		type = "description",
+		order = 300,
+	}
 end
 
 private.GetTextText = function(s, o, i, r, d)
@@ -7163,12 +5909,12 @@ private.GetTextText = function(s, o, i, r, d)
 			end,
 		set = function(info, val)
 				s["text"] = val
-				
+
 				-- recompute both flags: they used to only ever switch on, so an edited
 				-- text kept being redrawn from a tag family it no longer contains
 				s["dtags"] = CDTL3:ScanForDynamicTags(val)
 				s["ttags"] = CDTL3:ScanForTimeTags(val)
-				
+
 				if r == "LANE" then
 					CDTL3:RefreshLane(i)
 				elseif r == "BAR" then
@@ -7178,7 +5924,7 @@ private.GetTextText = function(s, o, i, r, d)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7206,7 +5952,7 @@ private.GetTextEnabled = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7234,7 +5980,7 @@ private.GetTextEdit = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7248,6 +5994,8 @@ private.GetTextFont = function(s, o, i, r)
 			end,
 		type = "select",
 		dialogControl = 'LSM30_Font',
+		-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+		---@diagnostic disable-next-line: undefined-global
 		values = AceGUIWidgetLSMlists.font,
 		get = function(info) return s["font"] end,
 		set = function(info, val)
@@ -7261,7 +6009,7 @@ private.GetTextFont = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7292,7 +6040,7 @@ private.GetTextOutline = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7320,7 +6068,7 @@ private.GetTextSize = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7336,12 +6084,12 @@ private.GetTextColor = function(s, o, i, r)
 		hasAlpha = true,
 		get = function(info)
 				local t = s["color"]
-				
-				local r = t["r"]
+
+				local red = t["r"]
 				local g = t["g"]
 				local b = t["b"]
 				local a = t["a"]
-				return r, g, b, a
+				return red, g, b, a
 			end,
 		set = function(info, red, green, blue, alpha)
 				s["color"] = { r = red, g = green, b = blue, a = alpha }
@@ -7354,7 +6102,7 @@ private.GetTextColor = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7370,12 +6118,12 @@ private.GetTextShadowColor = function(s, o, i, r)
 		hasAlpha = true,
 		get = function(info)
 				local t = s["shadColor"]
-				
-				local r = t["r"]
+
+				local red = t["r"]
 				local g = t["g"]
 				local b = t["b"]
 				local a = t["a"]
-				return r, g, b, a
+				return red, g, b, a
 			end,
 		set = function(info, red, green, blue, alpha)
 				s["shadColor"] = { r = red, g = green, b = blue, a = alpha }
@@ -7388,7 +6136,7 @@ private.GetTextShadowColor = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7416,7 +6164,7 @@ private.GetTextShadowXOffset = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7444,7 +6192,7 @@ private.GetTextShadowYOffset = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7457,17 +6205,7 @@ private.GetTextAnchor = function(s, o, i, r)
 				return not s["edit"]
 			end,
 		type = "select",
-		values = {
-				["TOPLEFT"] = "TOPLEFT",
-				["TOP"] = "TOP",
-				["TOPRIGHT"] = "TOPRIGHT",
-				["LEFT"] = "LEFT",
-				["CENTER"] = "CENTER",
-				["RIGHT"] = "RIGHT",
-				["BOTTOMLEFT"] = "BOTTOMLEFT",
-				["BOTTOM"] = "BOTTOM",
-				["BOTTOMRIGHT"] = "BOTTOMRIGHT",
-			},
+		values = private.ANCHOR_POINTS,
 		get = function(info) return s["anchor"] end,
 		set = function(info, val)
 				s["anchor"] = val
@@ -7480,7 +6218,7 @@ private.GetTextAnchor = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7510,7 +6248,7 @@ private.GetTextAlign = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7538,7 +6276,7 @@ private.GetTextXOffset = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 
@@ -7566,7 +6304,7 @@ private.GetTextYOffset = function(s, o, i, r)
 				end
 			end,
 	}
-	
+
 	return options
 end
 -- The complete settings tree for the standalone movable window: main options plus the
@@ -7650,6 +6388,8 @@ end
 -- Plays a picked sound once for a Play sound button (even while Mute ready sounds is on)
 private.PlayTestSound = function(sound)
 	if sound and sound ~= "None" then
+		-- LSM:Fetch gives a path, or nil for a name it doesn't know (the call then plays nothing)
+		---@diagnostic disable-next-line: param-type-mismatch
 		PlaySoundFile(CDTL3.LSM:Fetch("sound", sound), "SFX")
 	end
 end
@@ -7708,6 +6448,8 @@ private.AddEntryReadyArgs = function(args, t)
 		type = "select",
 		width = "double",
 		dialogControl = 'LSM30_Sound',
+		-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+		---@diagnostic disable-next-line: undefined-global
 		values = AceGUIWidgetLSMlists.sound,
 		hidden = function(info)
 				return hidden() or not get("ownSound")
@@ -7758,7 +6500,7 @@ private.AddEntryReadyArgs = function(args, t)
 						if cd.data["type"] == t and (cd.data["name"] == name or cd.data["itemName"] == name) then
 							local p = cd.icon:GetParent()
 							local n = p and p:GetName()
-							if n == "CDTL3_Ready_1_MF" or n == "CDTL3_Ready_2_MF" or n == "CDTL3_Ready_3_MF" then
+							if CDTL3:SlotOfParent(n) == "ready" then
 								cd.data["readyLit"] = val and true or nil
 								CDTL3:RefreshIcon(cd)
 							end
@@ -7800,6 +6542,8 @@ private.AddReadyTestArgs = function(args, ready)
 	local function play(key)
 		local sound = ready[key]
 		if sound and sound ~= "None" then
+			-- LSM:Fetch gives a path, or nil for a name it doesn't know (the call then plays nothing)
+			---@diagnostic disable-next-line: param-type-mismatch
 			PlaySoundFile(CDTL3.LSM:Fetch("sound", sound), "SFX")
 		end
 	end
@@ -7880,6 +6624,102 @@ private.AddShowArgs = function(args, settings, refresh)
 				settings()["dimAlpha"] = val
 				refresh()
 			end,
+	}
+end
+
+-- Show and hide (each lane, bar frame and ready frame, a tab of its own): how the frame comes in and
+-- goes out. Two groups of controls, Show (s.showAnim) and Hide (s.hideAnim), the same seven each; a change
+-- makes the frame's animations again (CDTL3:SetFadeAnimations, Lanes.lua), so `refresh` is the frame's refresh.
+private.ANIM_TYPES = {
+	["FADE"] = L["Fade"],
+	["SCALE"] = L["Scale"],
+}
+
+private.AddShowHideArgs = function(options, settings, refresh)
+	local function group(key, title, order)
+		local function anim() return settings()[key] end
+		local function range(name, desc, o, min, max, step, field)
+			return {
+				name = name,
+				desc = desc,
+				order = o,
+				type = "range",
+				min = min,
+				max = max,
+				step = step,
+				get = function(info) return anim()[field] end,
+				set = function(info, val)
+						anim()[field] = val
+						refresh()
+					end,
+			}
+		end
+		local isScale = function() return anim()["type"] == "SCALE" end
+		local g = {
+			name = title,
+			type = "group",
+			inline = true,
+			order = order,
+			args = {},
+		}
+		local args = g.args
+		args["type"] = {
+			name = L["Type"],
+			desc = L["Fade changes how see-through the frame is. Scale also grows or shrinks it around its middle."],
+			order = 1,
+			type = "select",
+			values = private.ANIM_TYPES,
+			sorting = { "FADE", "SCALE" },
+			get = function(info) return anim()["type"] end,
+			set = function(info, val)
+					local a = anim()
+					a["type"] = val
+					-- a new type starts from its usual numbers
+					if val == "SCALE" then
+						a["from"], a["to"] = key == "showAnim" and 0.6 or 1, key == "showAnim" and 1 or 0.6
+					else
+						a["from"], a["to"] = key == "showAnim" and 0 or 1, key == "showAnim" and 1 or 0
+					end
+					refresh()
+				end,
+		}
+		args["duration"] = range(L["Length"], L["How many seconds one play takes"], 2, 0.1, 3, 0.1, "duration")
+		-- one slider per kind of range: a slider's limits are plain numbers, so Scale has its own pair
+		for _, field in ipairs({ "from", "to" }) do
+			local desc = field == "from" and L["Where it starts: a share of the frame's own alpha for Fade, a size for Scale"]
+				or L["Where it ends: a share of the frame's own alpha for Fade, a size for Scale"]
+			local name = field == "from" and L["From"] or L["To"]
+			local o = field == "from" and 3 or 4
+			local fade = range(name, desc, o, 0, 1, 0.05, field)
+			fade.hidden = isScale
+			args[field] = fade
+			local scale = range(name, desc, o, 0.1, 2, 0.05, field)
+			scale.hidden = function(info) return not isScale() end
+			args[field .. "Scale"] = scale
+		end
+		args["loops"] = range(L["Loops"], L["How many times it plays (1 is once)"], 5, 1, 10, 1, "loops")
+		args["bounce"] = {
+			name = L["Bounce"],
+			desc = L["Every second play goes back the other way"],
+			order = 6,
+			type = "toggle",
+			get = function(info) return anim()["bounce"] end,
+			set = function(info, val)
+					anim()["bounce"] = val
+					refresh()
+				end,
+		}
+		return g
+	end
+
+	options.args["showHide"] = {
+		name = L["Show and hide"],
+		type = "group",
+		order = 880,
+		args = {
+			show = group("showAnim", L["Show"], 100),
+			hide = group("hideAnim", L["Hide"], 200),
+		},
 	}
 end
 

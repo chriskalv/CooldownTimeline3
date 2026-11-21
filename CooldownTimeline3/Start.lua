@@ -485,6 +485,8 @@ function private.BuildBanner()
 	f:SetPoint("TOP", 0, -110)
 	f:SetFrameStrata("DIALOG")
 	f.bg = f:CreateTexture(nil, "BACKGROUND")
+	-- SetAllPoints(true) anchors to the parent; the definitions only list a region
+	---@diagnostic disable-next-line: param-type-mismatch
 	f.bg:SetAllPoints(true)
 	f.bg:SetColorTexture(0.05, 0.05, 0.055, 0.96)
 	f.bd = CreateFrame("Frame", "CDTL3_Setup_Banner_BD", f, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -492,6 +494,8 @@ function private.BuildBanner()
 	f.bd:SetFrameLevel(f:GetFrameLevel() + 1)
 
 	f.text = f:CreateFontString(nil, "ARTWORK")
+	-- LSM:Fetch gives a path (nil only for a name it doesn't know)
+	---@diagnostic disable-next-line: param-type-mismatch
 	f.text:SetFont(CDTL3.LSM:Fetch("font", "Fira Sans Condensed"), 12)
 	f.text:SetPoint("LEFT", 8, 0)
 
@@ -528,6 +532,8 @@ function private.BuildBanner()
 		lf:SetSize(400, 14)
 		lf:SetFrameStrata("DIALOG")
 		lf.text = lf:CreateFontString(nil, "ARTWORK")
+		-- LSM:Fetch gives a path (nil only for a name it doesn't know)
+		---@diagnostic disable-next-line: param-type-mismatch
 		lf.text:SetFont(CDTL3.LSM:Fetch("font", "Fira Sans Condensed"), 12)
 		lf.text:SetTextColor(1, 0.82, 0)
 		lf.text:SetPoint("LEFT", 0, 0)
@@ -649,7 +655,11 @@ end
 ----------------------------------------------------------------------------------------------------
 do
 	local original = CDTL3.OnInitialize
+	-- deliberate wrapper: chains to the handler that was there before
+	---@diagnostic disable-next-line: duplicate-set-field
 	function CDTL3:OnInitialize(...)
+		-- saved-variable global (the old CDTL2 name), declared in the TOC
+		---@diagnostic disable-next-line: undefined-global
 		local fresh = (CDTL3DB == nil and CDTL2DB == nil)
 		local result = original(self, ...)
 		if fresh and CDTL3.db and CDTL3.db.global then
@@ -701,6 +711,8 @@ function private.BuildTour()
 	f:SetFrameStrata("DIALOG")
 	f:SetClampedToScreen(true)
 	f.bg = f:CreateTexture(nil, "BACKGROUND")
+	-- SetAllPoints(true) anchors to the parent; the definitions only list a region
+	---@diagnostic disable-next-line: param-type-mismatch
 	f.bg:SetAllPoints(true)
 	f.bg:SetColorTexture(0.05, 0.05, 0.055, 0.96)
 	f.bd = CreateFrame("Frame", "CDTL3_Tour_BD", f, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -709,10 +721,14 @@ function private.BuildTour()
 
 	local font = CDTL3.LSM:Fetch("font", "Fira Sans Condensed")
 	f.head = f:CreateFontString(nil, "ARTWORK")
+	-- LSM:Fetch gives a path (nil only for a name it doesn't know)
+	---@diagnostic disable-next-line: param-type-mismatch
 	f.head:SetFont(font, 12)
 	f.head:SetTextColor(1, 0.82, 0)
 	f.head:SetPoint("TOPLEFT", 12, -10)
 	f.body = f:CreateFontString(nil, "ARTWORK")
+	-- LSM:Fetch gives a path (nil only for a name it doesn't know)
+	---@diagnostic disable-next-line: param-type-mismatch
 	f.body:SetFont(font, 12)
 	f.body:SetWidth(306)
 	f.body:SetJustifyH("LEFT")
@@ -754,9 +770,13 @@ function private.BuildTour()
 		b:SetSize(18, 18)
 		b:SetFrameStrata("DIALOG")
 		b.bg = b:CreateTexture(nil, "BACKGROUND")
+		-- SetAllPoints(true) anchors to the parent; the definitions only list a region
+		---@diagnostic disable-next-line: param-type-mismatch
 		b.bg:SetAllPoints(true)
 		b.bg:SetColorTexture(1, 0.82, 0, 1)
 		b.text = b:CreateFontString(nil, "ARTWORK")
+		-- LSM:Fetch gives a path (nil only for a name it doesn't know)
+		---@diagnostic disable-next-line: param-type-mismatch
 		b.text:SetFont(font, 11)
 		b.text:SetTextColor(0.07, 0.07, 0.07)
 		b.text:SetPoint("CENTER", 0, 0)
@@ -1176,6 +1196,8 @@ function private.SimpleTab()
 				name = L["Ready sound"],
 				desc = L["The sound that plays when a cooldown is back"],
 				order = 31, type = "select", width = "double", dialogControl = "LSM30_Sound",
+				-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+				---@diagnostic disable-next-line: undefined-global
 				values = AceGUIWidgetLSMlists and AceGUIWidgetLSMlists.sound or {},
 				get = function() return p().ready.ready1["nSound"] end,
 				set = function(info, val)
@@ -1189,6 +1211,8 @@ function private.SimpleTab()
 				func = function()
 						local name = p().ready.ready1["nSound"]
 						if name and name ~= "None" then
+							-- LSM:Fetch gives a path (nil only for a name it doesn't know)
+							---@diagnostic disable-next-line: param-type-mismatch
 							PlaySoundFile(CDTL3.LSM:Fetch("sound", name), "SFX")
 						end
 					end,
@@ -1305,6 +1329,8 @@ end
 
 do
 	local original = CDTL3.GetFullOptions
+	-- deliberate wrapper: chains to the handler that was there before
+	---@diagnostic disable-next-line: duplicate-set-field
 	function CDTL3:GetFullOptions(...)
 		local options = original(self, ...)
 		private.Extend(options)

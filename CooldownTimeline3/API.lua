@@ -168,10 +168,9 @@ function CDTL3:FireTimerIfHeldOver(f)
 end
 
 -- After SendToReady: a timer that found no Ready frame to wait in is over at once
-local READY_FRAMES = { CDTL3_Ready_1_MF = true, CDTL3_Ready_2_MF = true, CDTL3_Ready_3_MF = true }
 function CDTL3:FireTimerIfHeld(f)
 	local ok, parent = pcall(function() return f.icon:GetParent():GetName() end)
-	if ok and not READY_FRAMES[parent or ""] then
+	if ok and CDTL3:SlotOfParent(parent) ~= "ready" then
 		CDTL3:FireTimer("CDTL3_TimerEnded", f)
 	end
 end

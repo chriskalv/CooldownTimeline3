@@ -27,8 +27,6 @@ private.FILL = [[Interface\Buttons\WHITE8X8]]
 private.OPPOSITE = { LEFT = "RIGHT", RIGHT = "LEFT", BOTTOM = "TOP", TOP = "BOTTOM" }
 private.EVENTS = { "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "SPELL_UPDATE_COOLDOWN",
 	"SPELL_UPDATE_CHARGES", "CVAR_UPDATE", "PLAYER_ENTERING_WORLD" }
-private.LANES = { CDTL3_Lane_1 = true, CDTL3_Lane_2 = true, CDTL3_Lane_3 = true }
-private.BAR_FRAMES = { CDTL3_BarFrame_1_MF = true, CDTL3_BarFrame_2_MF = true, CDTL3_BarFrame_3_MF = true }
 
 private.gen = 0			-- bumped by cooldown and combat events: riders re-fetch their timer
 private.errors = 0
@@ -66,11 +64,11 @@ local function ParentName(region)
 end
 
 private.OnLane = function(f)
-	return private.LANES[ParentName(f.icon) or ""] and true or false
+	return CDTL3:SlotOfParent(ParentName(f.icon)) == "lanes"
 end
 
 private.OnBarFrame = function(f)
-	return private.BAR_FRAMES[ParentName(f.bar) or ""] and true or false
+	return CDTL3:SlotOfParent(ParentName(f.bar)) == "barFrames"
 end
 
 -- also kept in CDTL3's log (/cdtl3 log): the place and the error text only
@@ -174,13 +172,14 @@ private.ReadActive = function(ct, id, withGCD)
 		CDTL3:LogFailure("CombatTimers.ReadActive", active)
 		return
 	end
-	if IsSecret(active) or type(active) ~= "boolean" then
-		active = nil
+	local isActive ---@type boolean?
+	if not IsSecret(active) and type(active) == "boolean" then
+		isActive = active
 	end
 	if IsSecret(onGCD) or type(onGCD) ~= "boolean" then
 		onGCD = nil
 	end
-	ct.active = active
+	ct.active = isActive
 	if withGCD then
 		ct.onGCD = onGCD
 	end
@@ -508,6 +507,7 @@ private.SplitCurve = function(s, variant, total)
 	local key = variant .. ":" .. tostring(s["mode"]["type"]) .. ":" .. tostring(total) .. ":" .. tostring(ss["max"])
 		.. ":" .. tostring(ss["count"]) .. ":" .. tostring(ss["s1v"]) .. ":" .. tostring(ss["s1p"]) .. ":" .. tostring(ss["s2v"])
 		.. ":" .. tostring(ss["s2p"]) .. ":" .. tostring(ss["s3v"]) .. ":" .. tostring(ss["s3p"])
+		.. ":" .. tostring(ss["s4v"]) .. ":" .. tostring(ss["s4p"]) .. ":" .. tostring(ss["s5v"]) .. ":" .. tostring(ss["s5p"])
 	local curve = private.curves[key]
 	if curve then
 		return curve
@@ -522,7 +522,7 @@ private.SplitCurve = function(s, variant, total)
 	end
 
 	local xs = { 0, span, span * (1 - 1e-6) }
-	local count = math.min(CDTL3:SplitCount(ss) or 0, 3)
+	local count = math.min(CDTL3:SplitCount(ss) or 0, 5)
 	for i = 1, count do
 		local v = ss["s" .. i .. "v"]
 		if type(v) == "number" then
@@ -559,8 +559,8 @@ private.Prewarm = function()
 	if not lanes then
 		return
 	end
-	for _, key in ipairs({ "lane1", "lane2", "lane3" }) do
-		local s = lanes[key]
+	for n = 1, 3 do
+		local s = CDTL3:SlotSettings("lanes", n)
 		local mode = s and s["mode"] and s["mode"]["type"]
 		if mode == "SPLIT_ABS" then
 			pcall(private.SplitCurve, s, "abs")
@@ -644,7 +644,7 @@ end
 private.SplitKnots = function(s)
 	local ss = s["mode"]["splitAbs"]
 	local count, max = CDTL3:SplitAbsCount(ss), tonumber(ss["max"])
-	if not (count and max) or count < 1 or count > 3 or count ~= math.floor(count) then
+	if not (count and max) or count < 1 or count > 5 or count ~= math.floor(count) then
 		return nil
 	end
 	local knots = { { 0, 0 } }
@@ -680,6 +680,7 @@ private.Segments = function(ct, lane, s, geo)
 	local key = geo.anchor .. ":" .. geo.len .. ":" .. tostring(geo.vertical) .. ":" .. tostring(geo.reversed)
 		.. ":" .. tostring(ss["count"]) .. ":" .. tostring(ss["max"]) .. ":" .. tostring(ss["s1v"]) .. ":" .. tostring(ss["s1p"])
 		.. ":" .. tostring(ss["s2v"]) .. ":" .. tostring(ss["s2p"]) .. ":" .. tostring(ss["s3v"]) .. ":" .. tostring(ss["s3p"])
+		.. ":" .. tostring(ss["s4v"]) .. ":" .. tostring(ss["s4p"]) .. ":" .. tostring(ss["s5v"]) .. ":" .. tostring(ss["s5p"])
 	if ct.segBadKey == key then
 		return nil
 	end
@@ -921,6 +922,8 @@ private.SecondsFormatter = function()
 	if not (ok and fmt) then
 		return nil
 	end
+	-- the setters below are new in Midnight and not in the API definitions yet (each runs in a pcall)
+	---@cast fmt table
 	pcall(function() fmt:SetMinInterval(Enum.SecondsFormatterInterval.Seconds) end)
 	pcall(function() fmt:SetDefaultAbbreviation(Enum.SecondsFormatterAbbreviation.OneLetter) end)
 	pcall(function() fmt:SetDesiredUnitCount(2) end)
@@ -936,9 +939,9 @@ private.Formatter = function()
 		if ok and fmt then
 			private.formatter, private.textForm = fmt, style
 		else
-			ok, fmt = pcall(private.SecondsFormatter)
-			if ok and fmt then
-				private.formatter, private.textForm = fmt, "units"
+			local secsOk, secs = pcall(private.SecondsFormatter)
+			if secsOk and secs then
+				private.formatter, private.textForm = secs, "units"
 			end
 		end
 	end
@@ -1289,7 +1292,6 @@ private.StartBuffs = function()
 	if not (g["buffs"] and g["buffs"]["enabled"]) then
 		return
 	end
-	local now = GetTime()
 	for _, f in ipairs(CDTL3.cooldowns) do
 		local d = f.data
 		if d and d["type"] == "buffs" and d["enabled"] and not d["ignored"] and (d["baseCD"] or 0) > 0 then

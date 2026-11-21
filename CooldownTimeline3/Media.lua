@@ -48,6 +48,18 @@ local MASQUE_GROUPS = {
 	offensives = "Offensives", runes = "Runes", customs = "Custom", flights = "Flights",
 }
 
+-- a skin changed in Masque's options: redraw the icons, so the highlights take the new skin's shape
+-- (Cooldown.lua, round skins)
+local function MasqueChanged()
+	CDTL3:RefreshAllIcons()
+end
+
+local function WatchMasqueGroup(group)
+	if group.RegisterCallback then
+		group:RegisterCallback(MasqueChanged)
+	end
+end
+
 function CDTL3:MasqueGroup(cdType)
 	local MSQ = CDTL3.Masque
 	if not MSQ then
@@ -58,12 +70,14 @@ function CDTL3:MasqueGroup(cdType)
 	local groups = CDTL3.masqueGroups
 	if not groups["CDTL3"] then
 		groups["CDTL3"] = MSQ:Group("CDTL3")
+		WatchMasqueGroup(groups["CDTL3"])
 		CDTL3.masqueGroup = groups["CDTL3"]
 	end
 
 	local key = MASQUE_GROUPS[cdType] and cdType or "CDTL3"
 	if not groups[key] then
 		groups[key] = MSQ:Group("CDTL3", MASQUE_GROUPS[key], key)
+		WatchMasqueGroup(groups[key])
 	end
 
 	return groups[key]
@@ -132,6 +146,8 @@ function CDTL3:PlayPicked(name)
 		return false
 	end
 	local ok = pcall(function()
+		-- a sound that can't be found errors here, inside the pcall, and the answer is false
+		---@diagnostic disable-next-line: param-type-mismatch
 		PlaySoundFile(CDTL3.LSM:Fetch("sound", name), "SFX")
 	end)
 	return ok

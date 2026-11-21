@@ -92,6 +92,8 @@ private.Build = function()
 	f.listAcc = 0
 
 	f.bg = f:CreateTexture(nil, "BACKGROUND")
+	-- SetAllPoints(true) anchors to the parent; the definitions only list a region
+	---@diagnostic disable-next-line: param-type-mismatch
 	f.bg:SetAllPoints(true)
 	f.bg:SetColorTexture(0.15, 0.15, 0.15, 0.62)
 
@@ -183,29 +185,40 @@ private.Collect = function()
 	private.listCount = CDTL3:CollectPinned(private.list, private.kinds, nil, private.MAXROWS)
 end
 
--- seconds left and whether that is an estimate. A cooldown riding the game's own timer is never read:
--- its time is the cast plus its base cooldown. One that hasn't been used yet (no frame), or isn't on a
--- lane or bar frame (parked in holding), isn't counted down, so it reads ready.
-private.Remaining = function(cd)
-	if not cd then
-		return 0, false
-	end
+-- The seconds left of a cooldown riding the game's own timer (CombatTimers.lua), whose time is never
+-- read: its cast plus its base cooldown, an estimate. nil when it isn't riding. Shared with
+-- ReadyBoard.lua.
+function CDTL3:RidingTimeLeft(cd)
 	local d = cd.data
 	local ct = cd.ct
 	if ct and ct.riding then
 		local base = d["baseCD"] or 0
 		local cast = CDTL3.spellCastTimes and CDTL3.spellCastTimes[d["id"]]
 		if cast and base > 0 then
-			return math.max(cast + base - GetTime(), 0), true
+			return math.max(cast + base - GetTime(), 0)
 		end
-		return base, true
+		return base
+	end
+	return nil
+end
+
+-- seconds left and whether that is an estimate (riding the game's own timer, above). One that hasn't
+-- been used yet (no frame), or isn't on a lane or bar frame (parked in holding), isn't counted down,
+-- so it reads ready.
+private.Remaining = function(cd)
+	if not cd then
+		return 0, false
+	end
+	local riding = CDTL3:RidingTimeLeft(cd)
+	if riding then
+		return riding, true
 	end
 
 	if not (cd.icon:IsVisible() or cd.bar:IsVisible()) then
 		return 0, false
 	end
 
-	local left = d["currentCD"]
+	local left = cd.data["currentCD"]
 	if left > 0 then
 		return left, (CDTL3.retailAPI and private.inCombat) and true or false
 	end
@@ -374,7 +387,7 @@ end
 ---------------------------------------------------------------- showing and placing
 function FT.Apply()
 	local s = private.S()
-	local f = CDTL3_FightTimeline
+	local f = _G["CDTL3_FightTimeline"]
 	if not s then
 		return
 	end

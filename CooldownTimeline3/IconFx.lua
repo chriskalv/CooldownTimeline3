@@ -26,8 +26,6 @@ local private = {}
 
 private.FILL = [[Interface\Buttons\WHITE8X8]]
 private.STRIPES = [[Interface\AddOns\CooldownTimeline3\Media\zone-stripes.tga]]	-- tools/make-stripes.py
-private.LANE_KEYS = { "lane1", "lane2", "lane3" }
-private.READY_FRAMES = { CDTL3_Ready_1_MF = true, CDTL3_Ready_2_MF = true, CDTL3_Ready_3_MF = true }
 private.GCD_REF = 8921			-- the spell Lanes.lua reads the GCD from (any spell without a cooldown)
 private.GCD_MAX = 3				-- a wait longer than this is not a GCD
 private.PIP_MAX = 6
@@ -42,8 +40,7 @@ private.ENTRY_KEYS = { "warnSecs", "warnSound", "alertGain", "alertEnd", "gainSo
 
 -- the saved lane settings of lane n (nil for 0 = Hide, or anything else)
 private.LaneSettings = function(n)
-	local key = private.LANE_KEYS[n]
-	return key and CDTL3.db and CDTL3.db.profile.lanes[key] or nil
+	return CDTL3.db and CDTL3:SlotSettings("lanes", n) or nil
 end
 
 private.PlaySound = function(name)
@@ -95,6 +92,8 @@ private.RingShow = function(ring, shown)
 	end
 end
 
+FX.Ring, FX.RingShow = private.Ring, private.RingShow
+
 -- the saved entry's settings on a live cooldown (CreateCooldown)
 function FX:CopyEntry(d, e)
 	for i = 1, #private.ENTRY_KEYS do
@@ -117,6 +116,8 @@ private.Fetch = function(id)
 		end
 		return info["currentCharges"], info["maxCharges"], info["cooldownStartTime"], info["cooldownDuration"]
 	end
+	-- Classic clients only (this branch runs where retailAPI is false)
+	---@diagnostic disable-next-line: undefined-global
 	return GetSpellCharges(id)
 end
 
@@ -604,6 +605,162 @@ function FX:Ended(f)
 	end
 end
 
+---------------------------------------------------------------- finish effect
+-- Lane setting Icons > Finish effect (icons.finishFx): when a lane icon reaches the Ready end and
+-- leaves for its Ready frame (Cooldown.lua IconUpdate), one of two things plays once at that end of
+-- the lane: "GROW" is a copy of the icon's picture that grows to 2.2 times and fades over half a
+-- second, "RING" a gold ring round the icon's centre that grows from 0.6 to 2.4 times the icon's size
+-- over 0.9 seconds, holding full for the first 0.35 and fading over the rest, while a copy of the icon
+-- shrinks to a fifth of its size and fades into its centre over 0.45 seconds. A lane keeps
+-- FINISH_POOL frames and reuses them in turn (none made per finish). The effect is a drawing only: it
+-- is anchored to the lane (never to the icon, whose size and place can be hidden), sized from the
+-- saved icon size, and its frames are children of the lane so a faded lane hides them.
+private.RING = [[Interface\AddOns\CooldownTimeline3\Media\ring.tga]]	-- tools/make-ring.py
+private.DISC = [[Interface\AddOns\CooldownTimeline3\Media\disc.tga]]	-- the same circle filled
+FX.RING_TEX, FX.DISC_TEX = private.RING, private.DISC	-- also the round highlights (Cooldown.lua)
+private.FINISH_POOL = 4
+private.FINISH_TIME = 0.5
+private.RING_TIME, private.RING_HOLD = 0.9, 0.35
+private.SHRINK_TO, private.SHRINK_TIME = 0.2, 0.45	-- Gold ring: the icon shrinks to a fifth and fades
+private.GROW_TO = 2.2
+private.RING_FROM, private.RING_TO = 0.6, 2.4
+private.finishPools = {}
+
+private.FinishDone = function(group)
+	group:GetParent():Hide()
+end
+
+-- a frame on the lane with a picture and one scale-and-fade animation that hides it when done
+private.NewFinishPart = function(lane, level)
+	local fr = CreateFrame("Frame", nil, lane)
+	fr:SetFrameLevel(lane:GetFrameLevel() + level)
+	fr:EnableMouse(false)
+	fr.pic = fr:CreateTexture(nil, "OVERLAY")
+	fr.pic:SetAllPoints(fr)
+	local g = fr:CreateAnimationGroup()
+	g:SetToFinalAlpha(true)	-- stays faded until OnFinished hides it (no flash of full alpha)
+	g:SetScript("OnFinished", private.FinishDone)
+	fr.scale = g:CreateAnimation("Scale")
+	fr.scale:SetOrigin("CENTER", 0, 0)
+	fr.scale:SetDuration(private.FINISH_TIME)
+	fr.scale:SetOrder(1)
+	fr.fade = g:CreateAnimation("Alpha")
+	fr.fade:SetFromAlpha(1)
+	fr.fade:SetToAlpha(0)
+	fr.fade:SetDuration(private.FINISH_TIME)
+	fr.fade:SetOrder(1)
+	fr.group = g
+	fr:Hide()
+	return fr
+end
+
+-- one pool frame: the grow-and-fade picture or the ring, and beside it (not inside it, so it does not
+-- grow with the ring) the icon's copy that shrinks and fades as the ring goes out
+private.NewFinishFrame = function(lane)
+	local fr = private.NewFinishPart(lane, 10)
+	fr.ring = fr:CreateTexture(nil, "OVERLAY")
+	fr.ring:SetPoint("CENTER", fr, "CENTER", 0, 0)	-- sized per finish, round the icon's centre
+	fr.ring:SetTexture(private.RING)
+	fr.ring:SetVertexColor(1, 0.82, 0, 1)
+	fr.shrink = private.NewFinishPart(lane, 9)
+	return fr
+end
+
+-- scale an animation from one size to another (older clients' SetScale multiplies the size)
+private.ScaleFromTo = function(a, from, to)
+	if a.SetScaleFrom then
+		a:SetScaleFrom(from, from)
+		a:SetScaleTo(to, to)
+	else
+		a:SetScale(to, to)
+	end
+end
+
+-- the next frame of the lane's pool, made the first times it is asked
+private.NextFinishFrame = function(n, lane)
+	local pool = private.finishPools[n]
+	if not pool then
+		pool = { count = 0, nextAt = 1 }
+		private.finishPools[n] = pool
+	end
+	local fr = pool[pool.nextAt]
+	if not fr or fr:GetParent() ~= lane then
+		fr = private.NewFinishFrame(lane)
+		pool[pool.nextAt] = fr
+	end
+	pool.nextAt = pool.nextAt % private.FINISH_POOL + 1
+	return fr
+end
+
+-- f: the cooldown that just finished on its lane, ic its icon, s the lane's settings
+function FX:Finish(f, ic, s)
+	local mode = s and s["icons"]["finishFx"]
+	if mode ~= "GROW" and mode ~= "RING" then
+		return
+	end
+	local lane = ic:GetParent()
+	local n = f.data["lane"]
+	if not ic.valid or not lane then
+		return
+	end
+
+	local size = s["icons"]["size"]
+	local fr = private.NextFinishFrame(n, lane)
+	fr.group:Stop()
+
+	-- the Ready end of the lane, where an icon at 0 percent stands (Cooldown.lua IconUpdate)
+	local anchor, x, y = "LEFT", 0, ic.yOffset + ic.sOffset
+	if s["vertical"] then
+		anchor = s["reversed"] and "TOP" or "BOTTOM"
+		x, y = ic.yOffset + ic.sOffset, 0
+	elseif s["reversed"] then
+		anchor = "RIGHT"
+	end
+	fr:ClearAllPoints()
+	fr:SetPoint(anchor, lane, anchor, x, y)
+
+	-- the frame stands where the icon stood, so both effects grow from the icon's centre
+	fr:SetSize(size, size)
+	local pic = ic.tx:GetTexture() or f.data["icon"]
+	local c1, c2, c3, c4, c5, c6, c7, c8 = ic.tx:GetTexCoord()
+	local to, time, hold
+	if mode == "GROW" then
+		fr.pic:SetTexture(pic)
+		fr.pic:SetTexCoord(c1, c2, c3, c4, c5, c6, c7, c8)
+		fr.pic:Show()
+		fr.ring:Hide()
+		to, time, hold = private.GROW_TO, private.FINISH_TIME, 0
+	else
+		local small = size * private.RING_FROM
+		fr.ring:SetSize(small, small)
+		fr.pic:Hide()
+		fr.ring:Show()
+		to, time, hold = private.RING_TO / private.RING_FROM, private.RING_TIME, private.RING_HOLD
+
+		-- the icon itself shrinks to a fifth and fades into the ring's centre
+		local sh = fr.shrink
+		sh.group:Stop()
+		sh:ClearAllPoints()
+		sh:SetPoint(anchor, lane, anchor, x, y)
+		sh:SetSize(size, size)
+		sh.pic:SetTexture(pic)
+		sh.pic:SetTexCoord(c1, c2, c3, c4, c5, c6, c7, c8)
+		sh.scale:SetDuration(private.SHRINK_TIME)
+		sh.fade:SetDuration(private.SHRINK_TIME)
+		private.ScaleFromTo(sh.scale, 1, private.SHRINK_TO)
+		sh:SetAlpha(1)
+		sh:Show()
+		sh.group:Play()
+	end
+	fr.scale:SetDuration(time)
+	fr.fade:SetStartDelay(hold)
+	fr.fade:SetDuration(time - hold)
+	private.ScaleFromTo(fr.scale, 1, to)
+	fr:SetAlpha(1)
+	fr:Show()
+	fr.group:Play()
+end
+
 ---------------------------------------------------------------- GCD waits
 -- for pcall: is the spell waiting on nothing but the global cooldown? Retail: the game says (isOnGCD is
 -- never hidden). Classic: its cooldown is the very same one the GCD spell reports.
@@ -718,7 +875,7 @@ end
 function FX:GCDWait(f)
 	local d, ic = f.data, f.icon
 	local n = tonumber(d["readyFrame"])
-	local rs = n and n >= 1 and n <= 3 and CDTL3.db.profile.ready["ready" .. n] or nil
+	local rs = n and CDTL3:SlotSettings("ready", n) or nil
 	if not (rs and rs["enabled"] and _G["CDTL3_Ready_" .. n .. "_MF"]) then
 		return	-- no Ready frame to wait in: it stays on its lane
 	end
@@ -1276,6 +1433,8 @@ function FX:AddEntryArgs(args, t)
 		return {
 			name = name, desc = desc, order = order, type = "select", width = "double",
 			dialogControl = "LSM30_Sound",
+			-- AceGUIWidgetLSMlists comes from the bundled AceGUI-3.0-SharedMediaWidgets (Libs)
+			---@diagnostic disable-next-line: undefined-global
 			values = AceGUIWidgetLSMlists.sound,
 			hidden = function(info) return hidden() or not shown() end,
 			get = function(info) return get(key, default) end,
