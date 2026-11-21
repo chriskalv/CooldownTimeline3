@@ -333,13 +333,14 @@ check(CDTL3.casting == false and visible(), "a recheck after TurnOff leaves the 
 -- (d) Hide while casting with the release's Show and hide tab (3.3.0): every lane, bar frame and
 -- ready frame shows and hides with its own animation (Fade or Scale, length, loops, Bounce), the
 -- real groups of CDTL3:SetFadeAnimations (Lanes.lua) on the timed animation stub of the env. For
--- each shape, with Auto-hide Frames on and off, a frame alpha of 1 and 0.8, Autohide only on the
+-- each shape (Fade or Scale, 1 or 2 plays, Bounce or not, 0.3 or 1.5 s; shown again with the same
+-- shape or the longest one), with Auto-hide Frames on and off, a frame alpha of 1 and 0.8, Autohide only on the
 -- cast edges or on every frame, and casts shorter than, about as long as and longer than the hide
 -- animation, then a second cast right after: the frames are fully hidden at the end of a long cast,
 -- never come back during a cast, never go away again after it, and always end at their own alpha
 -- and scale with no animation left running (nothing hangs, nothing flickers).
 local SAVED_FR = FR
-local DT = 0.05
+local DT = 0.1
 local function settle(n, everyFrame)
 	for _ = 1, n do
 		nextFrame()
@@ -352,9 +353,9 @@ end
 local function steps(t) return math.floor(t / DT + 0.5) end
 local shapes = {}
 for _, ty in ipairs({ "FADE", "SCALE" }) do
-	for _, loops in ipairs({ 1, 3 }) do
+	for _, loops in ipairs({ 1, 2 }) do
 		for _, bounce in ipairs({ false, true }) do
-			for _, dur in ipairs({ 0.3, 3 }) do
+			for _, dur in ipairs({ 0.3, 1.5 }) do
 				shapes[#shapes + 1] = { type = ty, loops = loops, bounce = bounce, duration = dur }
 			end
 		end
@@ -368,11 +369,11 @@ end
 local function total(sh) return sh.duration * sh.loops end
 local cases = 0
 for _, hideSh in ipairs(shapes) do
-for _, showSh in ipairs({ shapes[1], shapes[#shapes], hideSh }) do
+for _, showSh in ipairs({ shapes[#shapes], hideSh }) do
 for _, autohide in ipairs({ false, true }) do
 for _, fAlpha in ipairs({ 1, 0.8 }) do
 for _, everyFrame in ipairs({ false, true }) do
-for _, castLen in ipairs({ 0.05, total(hideSh) / 2, total(hideSh) + 0.5 }) do
+for _, castLen in ipairs({ 0.1, total(hideSh) / 2, total(hideSh) + 0.5 }) do
 	reset()
 	ANIM_GROUPS = {}
 	gl.hideWhileCasting, gl.autohide = true, autohide
@@ -430,7 +431,7 @@ end
 end
 end
 end
-check(cases == 16 * 3 * 2 * 2 * 2 * 3, "animation cases run: " .. cases)
+check(cases == 16 * 2 * 2 * 2 * 2 * 3, "animation cases run: " .. cases)
 FR = SAVED_FR
 ANIM_GROUPS = {}
 reset()

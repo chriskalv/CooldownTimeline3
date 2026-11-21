@@ -10,7 +10,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
-const SUITES = ['seal_patches.test.mjs', 'seal_flow.test.mjs', 'hide_casting.test.mjs', 'quiet_start.test.mjs', 'border_secret.test.mjs', 'effect_strip.test.mjs', 'timeline.mjs'];
+// fastest first: a probe stops at the first suite that turns red (one red suite is all a probe needs),
+// so the slow hide_casting suite only runs for probes the others miss
+const SUITES = ['seal_patches.test.mjs', 'quiet_start.test.mjs', 'border_secret.test.mjs', 'effect_strip.test.mjs', 'seal_flow.test.mjs', 'timeline.mjs', 'hide_casting.test.mjs'];
 
 // the version in CooldownTimeline3.toc; a personal build has four parts and LOCAL PATCH comments
 function versionProbes() {
@@ -50,7 +52,9 @@ const M = [
   // the release's own Custom CD start (private.CustomCDStart, 3.0.13), which replaced the patch Seal as custom cooldown:
   // the seal tests stay as fallback tests against it
   ['release', 'CustomCDStart ignores the cast time', 'Cooldown.lua', '\t\tif castTime then\n\t\t\treturn castTime', '\t\tif false then\n\t\t\treturn castTime'],
-  ['release', 'plain spells without CustomCDStart', 'Cooldown.lua', '\t\t\t\t\t\t\t\t\tstart = private.CustomCDStart(d, start)\n\t\t\t\t\t\t\t\tend\n\t\t\t\t\t\t\t\td["currentCD"] = start + duration - GetTime()\n\n\t\t\t\t\t\t\t\tCDTL3.IconFx:PollCharges(f)', '\t\t\t\t\t\t\t\tend\n\t\t\t\t\t\t\t\td["currentCD"] = start + duration - GetTime()\n\n\t\t\t\t\t\t\t\tCDTL3.IconFx:PollCharges(f)'],
+  // since 3.3.0 both spell branches count down through private.SpellCountdown, which calls it once
+  ['release', 'Custom CD Time without CustomCDStart', 'Cooldown.lua', '\t\t\t\t\tstart = private.CustomCDStart(d, start)\n', ''],
+  ['release', 'plain spells skip the shared countdown', 'Cooldown.lua', '\t\t\t\tif private.SpellCountdown(f, d, elapsed) then', '\t\t\t\tif false then'],
 
   // Hide while casting (Helpers.lua, CDTL3.lua, Options.lua, Locales/enUS.lua)
   ['cast', 'cast rule ignored by Autohide', 'Helpers.lua', 'if (CDTL3:ShowRuleHides(s) or CDTL3:CastRuleHides()) and', 'if (CDTL3:ShowRuleHides(s)) and'],
@@ -143,9 +147,17 @@ for (const [patch, name, file, from, to] of M) {
   perPatch[patch].probes++;
   if (n !== 1) { console.log(`SETUP ${patch} ${name}: ${n} matches`); process.exitCode = 1; continue; }
   writeFileSync(p, orig.replace(f, t));
-  const runs = SUITES.map((s) => spawnSync(process.execPath, [path.join(here, s)], { encoding: 'utf8' }));
-  execFileSync('git', ['-C', root, 'checkout', '--', path.join('CooldownTimeline3', file)]);
-  const redSuites = SUITES.filter((s, i) => runs[i].status !== 0);
+  const runs = [];
+  try {
+    for (const s of SUITES) {
+      const r = spawnSync(process.execPath, [path.join(here, s)], { encoding: 'utf8' });
+      runs.push(r);
+      if (r.status !== 0) break;
+    }
+  } finally {
+    execFileSync('git', ['-C', root, 'checkout', '--', path.join('CooldownTimeline3', file)]);
+  }
+  const redSuites = SUITES.filter((s, i) => runs[i] && runs[i].status !== 0);
   const out = runs.map((r) => r.stdout + r.stderr).join('\n');
   const first = (out.split('\n').find((l) => l.startsWith('FAIL')) || '').slice(0, 110);
   const isRed = redSuites.length > 0;
